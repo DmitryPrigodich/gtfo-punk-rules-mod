@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.1
+- Measures the real fog repeller / fog turbine parameters (radius, duration, grow/shrink time) 5 s after drop-in; writes them to the log and `BepInEx/config/GtfoPunk.FogRepellers.txt`.
+
 ## 0.3.0
 - TEST turret **DRED GARAGE FT1-T**: miniature copy of the mission fog repeller turbine on the sentry, smaller fog-free sphere (5 m). Options FogTurbineTurret, TurbineScale, TurbineOffset, TurbineRange.
 

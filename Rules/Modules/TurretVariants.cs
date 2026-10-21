@@ -89,7 +89,7 @@ public class TurretVariants : ModuleBase
     protected override void OnEnable()
     {
         FrameTicker.OnUpdate += Tick;
-        FrameTicker.OnLevelExit += () => _turrets.Clear();
+        FrameTicker.OnLevelExit += () => { _turrets.Clear(); _fogDumpAt = -1f; _fogDumped = false; };
         GearFactory.OnInject += Inject;
     }
 
@@ -208,8 +208,17 @@ public class TurretVariants : ModuleBase
 
     private static readonly List<IntPtr> _dead = new();
 
+    private static float _fogDumpAt = -1f;
+    private static bool _fogDumped;
+
     private static void Tick()
     {
+        // Раз за уровень, через 5 с после высадки: настоящие параметры отпугивателей тумана — в лог и файл.
+        if (!_fogDumped && GameUtil.InLevel)
+        {
+            if (_fogDumpAt < 0f) _fogDumpAt = Time.time + 5f;
+            else if (Time.time >= _fogDumpAt) { _fogDumped = true; try { DumpFogRepellers(); } catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] замер тумана: {e.Message}"); } }
+        }
         if (_turrets.Count == 0) return;
         _dead.Clear();
         foreach (var kv in _turrets)
@@ -478,5 +487,40 @@ public class TurretVariants : ModuleBase
         foreach (var r in copy.GetComponentsInChildren<Renderer>(true)) { r.enabled = true; r.forceRenderingOff = false; n++; }
         holder.SetActive(true);
         ModInfo.Log.LogInfo($"[TurretVariants] модель {name}: {n} мешей, слой {layer}");
+    }
+
+    // ---------- замер настоящих отпугивателей ----------
+
+    private static string Describe(FogRepeller_Sphere f) =>
+        $"радиус {f.Range:0.##} м, работает {(f.InfiniteDuration ? "бесконечно" : f.LifeDuration.ToString("0.#") + " с")}, " +
+        $"раздувается {f.GrowDuration:0.#} с, сдувается {f.ShrinkDuration:0.#} с, плотность {f.Density:0.##}";
+
+    private static void DumpFogRepellers()
+    {
+        var lines = new List<string> { $"# Отпугиватели тумана ({DateTime.Now:yyyy-MM-dd HH:mm}), уровень: {RundownManager.ActiveExpedition?.Descriptive?.PublicName}" };
+        var perMode = ItemSpawnManager.m_loadedPrefabsPerItemMode;
+        if (perMode != null)
+            for (int m = 0; m < perMode.Length; m++)
+            {
+                var dict = perMode[m];
+                if (dict == null) continue;
+                foreach (var kv in dict)
+                {
+                    var list = kv.Value;
+                    if (list == null || list.Count == 0 || list[0] == null) continue;
+                    foreach (var f in list[0].GetComponentsInChildren<FogRepeller_Sphere>(true))
+                    {
+                        var item = GameDataBlockBase<ItemDataBlock>.GetBlock(kv.Key);
+                        lines.Add($"модель: {item?.publicName ?? kv.Key.ToString()} ({kv.Key}), вид {(ItemMode)m}: {Describe(f)}");
+                    }
+                }
+            }
+        foreach (var g in UnityEngine.Object.FindObjectsOfType<HeavyFogRepellerGlobalState>())
+            if (g != null && g.m_repellerSphere != null) lines.Add($"на уровне: турбина «{g.gameObject.name}»: {Describe(g.m_repellerSphere)}");
+        foreach (var f in UnityEngine.Object.FindObjectsOfType<FogRepeller_Sphere>())
+            if (f != null) lines.Add($"на уровне: «{f.gameObject.name}» ({f.CurrentState}, сейчас {f.m_currentRange:0.##} м): {Describe(f)}");
+        if (lines.Count == 1) lines.Add("отпугивателей не найдено (модели не загружены на этом уровне)");
+        foreach (var l in lines) ModInfo.Log.LogInfo($"[Туман] {l}");
+        System.IO.File.AppendAllLines(System.IO.Path.Combine(BepInEx.Paths.ConfigPath, "GtfoPunk.FogRepellers.txt"), lines);
     }
 }
