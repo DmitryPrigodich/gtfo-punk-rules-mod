@@ -1,0 +1,9 @@
+{
+  "name": "GtfoPunk_MyGameMyRules",
+  "version_number": "0.2.4",
+  "website_url": "",
+  "description": "Gameplay changes for GTFO: new rules, items and balance tweaks. Changes the game — play only with friends who have it installed too.",
+  "dependencies": [
+    "BepInEx-BepInExPack_GTFO-3.2.3"
+  ]
+}

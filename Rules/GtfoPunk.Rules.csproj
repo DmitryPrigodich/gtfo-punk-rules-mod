@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>GtfoPunk.Rules</AssemblyName>
+    <RootNamespace>GtfoPunk.Rules</RootNamespace>
+    <Version>0.2.4</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="**/*.cs" Exclude="bin/**;obj/**" />
+  </ItemGroup>
+</Project>

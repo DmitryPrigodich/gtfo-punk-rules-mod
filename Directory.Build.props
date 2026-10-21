@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DebugType>embedded</DebugType>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <!-- Папка с BepInEx/core + BepInEx/interop. По умолчанию lib/ рядом; можно указать профиль r2modman: -p:GameLibs=... -->
+    <GameLibs Condition="'$(GameLibs)' == ''">$(MSBuildThisFileDirectory)lib</GameLibs>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="$(GameLibs)/*.dll" Private="false" />
+    <Reference Remove="$(GameLibs)/netstandard.dll" />
+    <Compile Include="$(MSBuildThisFileDirectory)Shared/**/*.cs" />
+  </ItemGroup>
+</Project>
