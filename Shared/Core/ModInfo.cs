@@ -5,8 +5,8 @@ using BepInEx.Unity.IL2CPP;
 namespace GtfoPunk.Core;
 
 /// <summary>
-/// Сведения о конкретном плагине (QoL или Rules), в который скомпилировано общее ядро.
-/// Каждый пакет содержит свою копию ядра, поэтому статика у них раздельная.
+/// Info about the concrete plugin (QoL or Rules) the shared core is compiled into.
+/// Each package carries its own copy of the core, so their statics are separate.
 /// </summary>
 public static class ModInfo
 {
@@ -15,7 +15,7 @@ public static class ModInfo
     public static string Version { get; private set; } = "";
     public static ManualLogSource Log { get; private set; }
 
-    /// <summary>Вызывается из Load() плагина: ставит инфраструктуру, находит модули, включает их после загрузки всех плагинов.</summary>
+    /// <summary>Called from the plugin's Load(): sets up infrastructure, finds modules, enables them once all plugins are loaded.</summary>
     public static void Start(string guid, string name, string version, ConfigFile config, ManualLogSource log)
     {
         Guid = guid; Name = name; Version = version; Log = log;
@@ -27,6 +27,6 @@ public static class ModInfo
         Lang.Bind(config);
         ModuleManager.Discover(config);
         IL2CPPChainloader.Instance.Finished += ModuleManager.EnableAll;
-        Log.LogInfo($"{name} {version} загружен, найдено модулей: {ModuleManager.Modules.Count}");
+        Log.LogInfo($"{name} {version} loaded, modules found: {ModuleManager.Modules.Count}");
     }
 }

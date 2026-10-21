@@ -3,7 +3,7 @@ import sys
 F="/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf"
 def icon(path, top, bottom, accent):
     im=Image.new("RGB",(256,256),(14,14,18)); d=ImageDraw.Draw(im)
-    # скан-линии
+    # scan lines
     for y in range(0,256,4): d.line([(0,y),(255,y)],fill=(20,20,26))
     d.rectangle([8,8,247,247],outline=accent,width=4)
     f1=ImageFont.truetype(F,96); f2=ImageFont.truetype(F,40)

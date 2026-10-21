@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace GtfoPunk.Core;
 
-/// <summary>Реестр всех подбираемых предметов уровня (LG_PickupItem_Sync), чтобы не искать их по сцене.</summary>
+/// <summary>Registry of all pickup items in the level (LG_PickupItem_Sync), so we don't have to search the scene.</summary>
 public static class PickupRegistry
 {
     private static readonly List<LG_PickupItem_Sync> _items = new();
@@ -40,7 +40,7 @@ public static class PickupRegistry
         return db == null ? InventorySlot.None : db.inventorySlot;
     }
 
-    /// <summary>Есть ли лежащий в уровне предмет в радиусе от точки.</summary>
+    /// <summary>Is there an item lying in the level within the radius of the point.</summary>
     public static bool AnyPlacedNear(Vector3 pos, float radius)
     {
         float r2 = radius * radius;

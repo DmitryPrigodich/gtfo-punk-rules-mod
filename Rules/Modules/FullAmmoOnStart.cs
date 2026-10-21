@@ -9,16 +9,16 @@ using UnityEngine;
 namespace GtfoPunk.Rules.Modules;
 
 /// <summary>
-/// Полный боезапас на старте: основное, специальное и инструмент.
-/// 1) В таблице игрока (PlayerDataBlock) стартовый запас приравнивается к максимальному — так игра сама
-///    выдаёт полный запас каждому, у кого стоит мод (ботам — у хоста).
-/// 2) Страховка у хоста: через 2 с после высадки всем агентам (и ботам) раздаются патроны.
-///    Пачками нельзя набрать выше «потолка пачек», поэтому главное — пункт 1.
+/// Full ammo at the start: main, special and tool.
+/// 1) In the player table (PlayerDataBlock) the starting reserve is set equal to the maximum — so the game itself
+///    gives a full reserve to everyone who has the mod (bots — on the host).
+/// 2) Host-side safety net: 2 s after drop-in every agent (bots included) gets ammo.
+///    Ammo packs can't fill above the "pack cap", so point 1 is what matters.
 /// </summary>
 public class FullAmmoOnStart : ModuleBase
 {
     public override string Id => "FullAmmoOnStart";
-    public override string Description => "Полный боезапас у всех при высадке (основное, специальное, инструмент).";
+    public override string Description => "Everyone drops in with full ammo (main, special, tool).";
     public override ModuleSide Side => ModuleSide.Everyone;
 
     private static BepInEx.Configuration.ConfigEntry<bool> _tool;
@@ -27,7 +27,7 @@ public class FullAmmoOnStart : ModuleBase
 
     protected override void OnBindConfig()
     {
-        _tool = Bind("IncludeTool", true, "Заполнять и инструмент (турель, мины, пена).");
+        _tool = Bind("IncludeTool", true, "Also fill the tool (sentry, mines, foam).");
     }
 
     protected override void OnEnable()
@@ -58,7 +58,7 @@ public class FullAmmoOnStart : ModuleBase
                 n++;
             }
             _patchedData = true;
-            ModInfo.Log.LogInfo($"[FullAmmoOnStart] стартовый запас = максимум (блоков игрока: {n})");
+            ModInfo.Log.LogInfo($"[FullAmmoOnStart] starting reserve = maximum (player blocks: {n})");
         }
         catch (Exception e) { ModInfo.Log.LogError($"[FullAmmoOnStart] {e}"); }
     }
@@ -90,6 +90,6 @@ public class FullAmmoOnStart : ModuleBase
             for (int k = 0; k < 10; k++) PlayerBackpackManager.GiveAmmoToPlayer(p, 1f, 1f, tool);
             n++;
         }
-        ModInfo.Log.LogInfo($"[FullAmmoOnStart] патроны выданы агентам: {n}");
+        ModInfo.Log.LogInfo($"[FullAmmoOnStart] ammo given to agents: {n}");
     }
 }

@@ -13,11 +13,11 @@ internal static class ModuleManager
 
     private static ConfigEntry<bool> _respectOtherMods;
 
-    /// <summary>Шаг 1 (в Load): находим модули и биндим конфиг. Патчи ещё не ставим.</summary>
+    /// <summary>Step 1 (in Load): find modules and bind config. Patches are not applied yet.</summary>
     public static void Discover(ConfigFile config)
     {
         _respectOtherMods = config.Bind("General", "RespectOtherMods", true,
-            "Если установлен сторонний мод с той же функцией, наш модуль автоматически выключается.");
+            "If a third-party mod with the same feature is installed, our module turns itself off.");
 
         foreach (var type in Assembly.GetExecutingAssembly().GetTypes()
                      .Where(t => t.IsSubclassOf(typeof(ModuleBase)) && !t.IsAbstract)
@@ -29,7 +29,7 @@ internal static class ModuleManager
         }
     }
 
-    /// <summary>Шаг 2 (когда все плагины загружены): решаем, что включать, и ставим патчи.</summary>
+    /// <summary>Step 2 (once all plugins are loaded): decide what to enable and apply patches.</summary>
     public static void EnableAll()
     {
         var installed = IL2CPPChainloader.Instance.Plugins.Values
@@ -41,7 +41,7 @@ internal static class ModuleManager
             if (!m.EnabledEntry.Value)
             {
                 m.State = ModuleState.DisabledByConfig;
-                m.StateReason = "выключен в конфиге";
+                m.StateReason = "disabled in config";
                 continue;
             }
 
@@ -53,7 +53,7 @@ internal static class ModuleManager
                 if (other != null)
                 {
                     m.State = ModuleState.ReplacedByOtherMod;
-                    m.StateReason = $"уже есть {other.Metadata.Name} ({other.Metadata.GUID})";
+                    m.StateReason = $"already provided by {other.Metadata.Name} ({other.Metadata.GUID})";
                     continue;
                 }
             }
@@ -67,7 +67,7 @@ internal static class ModuleManager
             {
                 m.State = ModuleState.Failed;
                 m.StateReason = e.GetType().Name + ": " + e.Message;
-                ModInfo.Log.LogError($"Модуль {m.Id} упал при включении:\n{e}");
+                ModInfo.Log.LogError($"Module {m.Id} failed to enable:\n{e}");
             }
         }
 
@@ -76,7 +76,7 @@ internal static class ModuleManager
 
     private static void PrintSummary()
     {
-        ModInfo.Log.LogMessage($"===== {ModInfo.Name} {ModInfo.Version}: модули =====");
+        ModInfo.Log.LogMessage($"===== {ModInfo.Name} {ModInfo.Version}: modules =====");
         foreach (var m in Modules)
         {
             var mark = m.State switch

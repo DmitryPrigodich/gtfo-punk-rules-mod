@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.5.2
+- Fix: a bot whose saved favorite tool was a removed test sentry (LT2-B TEST) couldn't spawn — "missing Category data block" — so the third bot couldn't be picked and the mission couldn't start.
+  - Gear and category IDs are now fixed per item (4200 GP6-S, 4201 FT1, 4202 LT2, 4203 FT1-T, 4204 BT3, 4205 CF4, 4206 GL5); removing an item no longer shifts the others.
+  - The retired test categories 4207/4208 are kept as searchlight aliases, so old favorites still load.
+  - Any bot gear with a missing category is replaced by the stock sentry instead of breaking the spawn.
+
+## 0.5.1
+- Config descriptions and log messages are now in English (Russian stays in the in-game localization, `[General] Language = ru`). No behaviour changes; setting keys are unchanged, so existing configs keep their values.
+
+## 0.5.0
+- New module **Grenades**: the game's unreleased item 136 (CONSUMABLE_Grenade, ready-made GrenadeBase script) becomes **Frag Grenade / Граната**. Once its models are confirmed loaded, it's added to every level consumable distribution (lockers/boxes) with weight SpawnWeight × average. Hand grenade radius/damage/delay can be overridden (HandRadius, HandDamage, HandDelay). Diagnostics of the item's models go to the log at drop-in.
+- New tool **DRED GARAGE GL5** — grenade launcher sentry. Throws real grenades (synced item throw, like a player throw) on an arc with lead; they explode on contact with a smaller blast than a mine (TurretRadius 3.5 m, TurretDamage 40, TurretFuse 0). Won't fire closer than 4 m or when a player is within 4 m of the impact point. Grenade costs 12 bullets. Mine deployer parts in the cradle (GrenadeParts). The throw force self-calibrates from the first shots (logged).
+- Option HideSensor: hide the targeting sensor part on turrets with a hidden barrel (it floats in the air).
+
+## 0.4.4
+- **Live config**: while the game runs, saving `AmDDRed.GtfoPunk.Rules.cfg` re-reads it and immediately moves the models on already placed turrets (lamp, repeller, turbine, foam canisters, tool parts). Option LiveReload.
+- DRED GARAGE LT2: test turrets LT2-A/B/C removed; one lamp with full manual placement — LampOffset3 (x, y, z) and LampRotation4 (first number = roll around the lamp axis, 90 = variant A). Searchlight dimmer (LightIntensity3 = 1.1). Light now actually disturbs enemies in the beam (the noise maker cast was failing silently); a sleeper that stays in the beam for LightWakeAfter (3 s) wakes up.
+- DRED GARAGE FT1-T: turbine seated lower (TurbineSeat2).
+- DRED GARAGE CF4: glob costs 2 bullets (FoamAmmoPerShot3) — about twice as many shots. The C-Foam Launcher's delivery part is mounted in the barrel cradle instead of the autocannon (FoamGunParts2, FoamGunOffset/Rotation/Scale).
+- DRED GARAGE BT3: the bio-tracker's scanner part is mounted in the cradle instead of the barrel (TrackerParts, TrackerPartsOffset/Rotation/Scale).
+- Gear parts dump (`GtfoPunk.GearParts.txt`) now also lists tool parts (main, grip, screen, delivery, payload, targeting) with their models.
+
+## 0.4.3
+- DRED GARAGE FT1-T: the mini turbine now sits in the sentry's barrel cradle (bottom of the model placed at the hidden barrel's root, option TurbineSeat) instead of lying at the tripod. The turbine model exists only on levels that have a mission fog turbine; elsewhere FT1-T shows the regular fog repeller model. In-memory model search narrowed to the turbine mesh name (TurbineModelSearch2 = defoggerbig) so it can't grab unrelated level geometry.
+
+## 0.4.2
+- DRED GARAGE CF4: bursts of 3 globs (FoamBurst, FoamBurstDelay), faster globs (30 m/s, FoamSpeed2), gravity 9 as measured (FoamGravity2), lead on moving targets (FoamLead). If the sentry's target is already glued, shoots the nearest unglued enemy in front instead. Glob cost 4 bullets (FoamAmmoPerShot2), pause between bursts 1.5 s (FoamInterval2). Fire sound. Two C-foam canisters on the barrel (FoamModel, FoamModelOffset, FoamModelRotation, FoamModelScale).
+- DRED GARAGE BT3: beeps like a bio-tracker when enemies are in its sector (TrackerSound); the scan and screen counter now run for every player, tagging stays on the host.
+- DRED GARAGE FT1: repeller model a bit higher and further back (FogModelOffset2).
+- TEST turrets **LT2-A/B/C** to pick the lamp position: A — handle down, pushed back by a third of the lamp; B — handle up, pushed back; C — handle down, pushed forward. Options LampVariantA/B/C (roll degrees, shift in lamp lengths), LampVariant for the main LT2, LampTestTurrets to remove them.
+
 ## 0.4.1
 - DRED GARAGE LT2: lamp moved lower and forward (option LampOffset2), the lens now glows (small light right in front of the glass; options LampGlow, LampGlowForward).
 - DRED GARAGE FT1: repeller model taken from the deployed (standing) variant instead of the tilted pickup one; extra option FogModelRotation for fine-tuning.

@@ -1,14 +1,14 @@
 namespace GtfoPunk.Core;
 
-/// <summary>Где модуль должен работать, чтобы дать эффект.</summary>
+/// <summary>Where the module has to run to have an effect.</summary>
 public enum ModuleSide
 {
-    /// <summary>Только у себя: работает у любого игрока, хост не нужен.</summary>
+    /// <summary>Local only: works for any player, no host needed.</summary>
     Client,
 
-    /// <summary>Нужен хост: эффект есть, только когда хостишь ты (или хост тоже с модом).</summary>
+    /// <summary>Needs the host: only has effect when you host (or the host has the mod too).</summary>
     Host,
 
-    /// <summary>Должен стоять у всех участников, иначе рассинхрон.</summary>
+    /// <summary>Must be installed by everyone, otherwise things desync.</summary>
     Everyone,
 }

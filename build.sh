@@ -1,8 +1,8 @@
 #!/bin/bash
-# Сборка и упаковка пакетов GtfoPunk для Thunderstore / r2modman.
-#   ./build.sh            — собрать оба проекта и упаковать те, у которых есть модули
-#   ./build.sh QoL        — только QoL
-# Результат: dist/<name>-<version>.zip  (структура: manifest.json, README.md, CHANGELOG.md, icon.png, *.dll в корне)
+# Builds and packages GtfoPunk packages for Thunderstore / r2modman.
+#   ./build.sh            — build the default project and package it if it has modules
+#   ./build.sh QoL        — QoL only
+# Output: dist/<name>-<version>.zip  (layout: manifest.json, README.md, CHANGELOG.md, icon.png, *.dll at the root)
 set -e
 cd "$(dirname "$0")"
 export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
@@ -12,8 +12,8 @@ for t in $targets; do
   proj="$t/GtfoPunk.$t.csproj"
   dotnet build "$proj" -c Release -nologo -v q | grep -E "error|warn|Build succeeded" || true
   dll="$t/bin/Release/net6.0/GtfoPunk.$t.dll"
-  # Пакет без модулей не публикуем.
-  if ! ls "$t"/Modules/*.cs >/dev/null 2>&1; then echo "[$t] модулей нет — пакет не собираю"; continue; fi
+  # Don't package a project without modules.
+  if ! ls "$t"/Modules/*.cs >/dev/null 2>&1; then echo "[$t] no modules — not packaging"; continue; fi
   name=$(python3 -c "import json;print(json.load(open('packaging/$t/manifest.json'))['name'])")
   ver=$(python3 -c "import json;print(json.load(open('packaging/$t/manifest.json'))['version_number'])")
   stage=$(mktemp -d)

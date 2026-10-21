@@ -4,14 +4,14 @@ using HarmonyLib;
 namespace GtfoPunk.Core;
 
 /// <summary>
-/// Общий покадровый «тик» для модулей (в лобби и в уровне), без своих MonoBehaviour.
-/// Подписка: FrameTicker.OnUpdate += MyTick;  Исключения ловятся и не роняют остальных.
+/// Shared per-frame tick for modules (in lobby and in level) without their own MonoBehaviours.
+/// Subscribe: FrameTicker.OnUpdate += MyTick;  Exceptions are caught and don't break other handlers.
 /// </summary>
 public static class FrameTicker
 {
     public static event Action OnUpdate;
 
-    /// <summary>Вызывается при выходе из уровня (InLevel → любое другое), чтобы модули чистили состояние.</summary>
+    /// <summary>Raised when leaving a level (InLevel → anything else) so modules can reset their state.</summary>
     public static event Action OnLevelExit;
 
     private static eGameStateName _lastState;
@@ -41,7 +41,7 @@ public static class FrameTicker
             catch (Exception e)
             {
                 ModInfo.Log.LogError($"[{name}] {handler.Method.DeclaringType?.Name}.{handler.Method.Name}: {e}");
-                // Отписываем сломанный обработчик, чтобы не спамить лог каждый кадр.
+                // Unsubscribe the broken handler so it doesn't spam the log every frame.
                 if (name == "OnUpdate") OnUpdate -= handler;
             }
         }

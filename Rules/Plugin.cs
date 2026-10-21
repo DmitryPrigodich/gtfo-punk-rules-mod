@@ -5,20 +5,20 @@ using GtfoPunk.Core;
 namespace GtfoPunk.Rules;
 
 /// <summary>
-/// GtfoPunk — My Game My Rules: геймплейные изменения (баланс, новые предметы, правила).
-/// Меняет игру — играть только с друзьями, у которых он тоже стоит.
+/// GtfoPunk — My Game My Rules: gameplay changes (balance, new items, rules).
+/// Changes the game — play only with friends who have it installed too.
 /// </summary>
 [BepInPlugin(GUID, NAME, VERSION)]
 public class Plugin : BasePlugin
 {
     public const string GUID = "AmDDRed.GtfoPunk.Rules";
     public const string NAME = "GtfoPunk My Game My Rules";
-    public const string VERSION = "0.4.1";
+    public const string VERSION = "0.5.2";
 
     public override void Load()
     {
         ModInfo.Start(GUID, NAME, VERSION, Config, Log);
-        // После включения модулей (они подписываются на GearFactory.OnInject) — подключаем «гараж».
+        // After modules are enabled (they subscribe to GearFactory.OnInject) — hook up the "garage".
         IL2CPPChainloader.Instance.Finished += Core.GearFactory.Install;
     }
 }

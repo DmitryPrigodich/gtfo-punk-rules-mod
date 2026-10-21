@@ -1,9 +1,9 @@
 namespace GtfoPunk.Core;
 
 /// <summary>
-/// Сторонние моды, на которые мы опираемся вместо своих реализаций.
-/// Сравнение идёт и по GUID, и по имени плагина (без учёта регистра).
-/// Имена сверены с Thunderstore; GUID уточним, когда скачаем DLL.
+/// Third-party mods we defer to instead of our own implementation.
+/// Matched by GUID and by plugin name (case-insensitive).
+/// Names checked against Thunderstore; GUIDs to be confirmed once the DLLs are inspected.
 /// </summary>
 public static class KnownMods
 {

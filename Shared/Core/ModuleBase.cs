@@ -8,18 +8,18 @@ using SNetwork;
 namespace GtfoPunk.Core;
 
 /// <summary>
-/// Базовый класс фичи. Чтобы добавить новую фичу:
-///   1. унаследуйся от ModuleBase в папке Modules;
-///   2. заполни Id / Description / Side (и ReplacedBy, если есть внешний аналог);
-///   3. положи Harmony-патчи вложенными классами с [HarmonyPatch] — они применятся сами.
-/// Регистрация автоматическая (рефлексией).
+/// Base class of a feature. To add a new feature:
+///   1. inherit from ModuleBase in the Modules folder;
+///   2. fill in Id / Description / Side (and ReplacedBy if an external equivalent exists);
+///   3. put Harmony patches into nested classes with [HarmonyPatch] — they are applied automatically.
+/// Registration is automatic (reflection).
 /// </summary>
 public abstract class ModuleBase
 {
-    /// <summary>Уникальный ID, он же имя секции в конфиге. Латиница, без пробелов.</summary>
+    /// <summary>Unique ID, also the config section name. Latin letters, no spaces.</summary>
     public abstract string Id { get; }
 
-    /// <summary>Описание для конфига.</summary>
+    /// <summary>Description for the config.</summary>
     public abstract string Description { get; }
 
     public abstract ModuleSide Side { get; }
@@ -27,8 +27,8 @@ public abstract class ModuleBase
     public virtual bool EnabledByDefault => true;
 
     /// <summary>
-    /// Внешние моды, которые делают то же самое (GUID или имя плагина, без учёта регистра).
-    /// Если такой мод установлен, модуль не включается.
+    /// External mods that do the same thing (GUID or plugin name, case-insensitive).
+    /// If such a mod is installed, this module is not enabled.
     /// </summary>
     public virtual IReadOnlyList<string> ReplacedBy => Array.Empty<string>();
 
@@ -46,16 +46,16 @@ public abstract class ModuleBase
         Config = config;
         var sideText = Side switch
         {
-            ModuleSide.Client => "работает у себя, хост не нужен",
-            ModuleSide.Host => "нужен ХОСТ: эффект только когда хостишь ты",
-            ModuleSide.Everyone => "должен стоять У ВСЕХ игроков",
+            ModuleSide.Client => "works on your side, no host needed",
+            ModuleSide.Host => "needs the HOST: only has effect when you host",
+            ModuleSide.Everyone => "must be installed by EVERY player",
             _ => "",
         };
         EnabledEntry = config.Bind(Id, "Enabled", EnabledByDefault, $"{Description}\n[{sideText}]");
         OnBindConfig();
     }
 
-    /// <summary>Здесь модуль объявляет свои настройки через Bind(...).</summary>
+    /// <summary>The module declares its settings here via Bind(...).</summary>
     protected virtual void OnBindConfig() { }
 
     protected ConfigEntry<T> Bind<T>(string key, T defaultValue, string description)
@@ -72,12 +72,12 @@ public abstract class ModuleBase
         OnEnable();
     }
 
-    /// <summary>Доп. инициализация после применения патчей.</summary>
+    /// <summary>Extra initialization after patches are applied.</summary>
     protected virtual void OnEnable() { }
 
     /// <summary>
-    /// Проверка в рантайме для Host-модулей: true, если мы сейчас хост.
-    /// Client/Everyone всегда true.
+    /// Runtime check for Host modules: true if we are the host right now.
+    /// Client/Everyone modules always return true.
     /// </summary>
     public bool ShouldRunNow => Side != ModuleSide.Host || (SNet.HasMaster && SNet.IsMaster);
 }

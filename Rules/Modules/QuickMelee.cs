@@ -8,29 +8,29 @@ using UnityEngine;
 namespace GtfoPunk.Rules.Modules;
 
 /// <summary>
-/// Быстрая милишка (по умолчанию V): персонаж достаёт милишку, делает действие и сам возвращает то, что было в руках.
-///  - Нажал и отпустил — толчок/отбитие (как ПКМ с милишкой).
-///  - Держишь, пока милишка достаётся, — заряженный удар; отпустил — бьёт.
-/// Нажатия «подставляются» и в свойства оружия, и в опрос клавиш игры (InputMapper), чтобы сработало при любом способе чтения.
+/// Quick melee (V by default): the character draws the melee weapon, performs the action and puts back what was in hand.
+///  - Tap — shove/push (like RMB with the melee weapon).
+///  - Hold while the melee weapon is being drawn — charged hit; release — strike.
+/// Presses are injected both into the weapon's properties and into the game's key polling (InputMapper), so it works whichever way input is read.
 /// </summary>
 public class QuickMelee : ModuleBase
 {
     public override string Id => "QuickMelee";
-    public override string Description => "Быстрая милишка клавишей (по умолчанию V): нажать — отбитие, держать — заряженный удар; потом оружие возвращается.";
+    public override string Description => "Quick melee on a key (V by default): tap — shove, hold — charged hit; then your gun comes back.";
     public override ModuleSide Side => ModuleSide.Client;
 
     private static BepInEx.Configuration.ConfigEntry<KeyCode> _key;
 
     protected override void OnBindConfig()
     {
-        _key = Bind("Key", KeyCode.V, "Клавиша быстрой милишки.");
+        _key = Bind("Key", KeyCode.V, "Quick melee key.");
     }
 
     private enum Phase { None, Equipping, Shove, Charge }
 
     private static Phase _phase;
     private static InventorySlot _prevSlot = InventorySlot.None;
-    private static bool _keyHeld;          // клавиша всё ещё зажата с момента нажатия
+    private static bool _keyHeld;          // key still held since it was pressed
     private static bool _fireFrame, _fireHeld, _aimFrame;
     private static bool _leftIdle, _forced;
     private static float _pressTime, _phaseStart, _deadline, _releasedAt;
@@ -81,7 +81,7 @@ public class QuickMelee : ModuleBase
                 var melee = CurrentMelee(agent);
                 bool ready = melee != null && agent.FPItemHolder != null && !agent.FPItemHolder.ItemIsBusy
                              && melee.CurrentStateName == eMeleeWeaponState.Idle
-                             && (!_keyHeld || Time.time - _pressTime > HoldThreshold); // короткое нажатие = отбитие
+                             && (!_keyHeld || Time.time - _pressTime > HoldThreshold); // short press = shove
                 if (ready)
                 {
                     _leftIdle = _forced = false;
@@ -101,7 +101,7 @@ public class QuickMelee : ModuleBase
                 var st = m.CurrentStateName;
                 if (st != eMeleeWeaponState.Idle) _leftIdle = true;
                 else if (_leftIdle) { Back(agent); return; }
-                // Если игра не прочитала подставленный ПКМ — толкаем напрямую.
+                // If the game didn't read the injected RMB — push directly.
                 if (!_leftIdle && !_forced && Time.time - _phaseStart > 0.15f) { _forced = true; m.ChangeState(eMeleeWeaponState.Push); }
                 if (Time.time > _deadline) Back(agent);
                 break;
@@ -115,7 +115,7 @@ public class QuickMelee : ModuleBase
                 var st = m.CurrentStateName;
                 if (st != eMeleeWeaponState.Idle) _leftIdle = true;
                 else if (_leftIdle) { Back(agent); return; }
-                // Отпустили, а замах так и висит — отпускаем удар сами.
+                // Released, but the wind-up is still hanging — release the strike ourselves.
                 if (!_keyHeld && _releasedAt > 0f && Time.time - _releasedAt > 0.1f)
                 {
                     if (st == eMeleeWeaponState.AttackChargeUpLeft) m.ChangeState(eMeleeWeaponState.AttackChargeReleaseLeft);
@@ -141,7 +141,7 @@ public class QuickMelee : ModuleBase
     private static bool Ours(MeleeWeaponFirstPerson m) =>
         Active && m != null && m.Owner != null && m.Owner.IsLocallyOwned;
 
-    // ---- подстановка в свойства милишки ----
+    // ---- injection into melee weapon properties ----
     [HarmonyPatch(typeof(MeleeWeaponFirstPerson), nameof(MeleeWeaponFirstPerson.FireButtonPressed), MethodType.Getter)]
     private static class Patch_FirePressed
     {
@@ -160,7 +160,7 @@ public class QuickMelee : ModuleBase
         private static void Postfix(MeleeWeaponFirstPerson __instance, ref bool __result) { if (_aimFrame && Ours(__instance)) __result = true; }
     }
 
-    // ---- подстановка в опрос клавиш игры ----
+    // ---- injection into the game's key polling ----
     private static void Inject(InputAction action, bool down, ref bool result)
     {
         if (!Active || result) return;

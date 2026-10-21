@@ -15,11 +15,11 @@ using Localization;
 namespace GtfoPunk.Rules.Core;
 
 /// <summary>
-/// «Гараж»: новое снаряжение собирается из штатного. Снаряжение в игре — набор деталей (Comps: c = тип детали, v = ID),
-/// поэтому можно взять пушку, подменить ей категорию (свои статы/поведение) и детали (ствол, глушитель…) от другой.
-/// Модули подписываются на <see cref="OnInject"/>, который вызывается один раз: после загрузки данных игры,
-/// но до того, как игра разложит офлайн-снаряжение по слотам.
-/// ID выдаются детерминированно, поэтому у всех игроков с модом они совпадают (снаряжение передаётся по сети деталями).
+/// "Garage": new gear is assembled from stock gear. Gear in the game is a set of parts (Comps: c = part type, v = ID),
+/// so you can take a gun, swap its category (own stats/behaviour) and parts (barrel, silencer…) from another one.
+/// Modules subscribe to <see cref="OnInject"/>, which is called once: after the game data is loaded,
+/// but before the game distributes offline gear into slots.
+/// IDs are assigned deterministically, so they match for all players with the mod (gear is sent over the network as parts).
 /// </summary>
 public static class GearFactory
 {
@@ -33,7 +33,68 @@ public static class GearFactory
         var h = new Harmony(ModInfo.Guid + ".GearFactory");
         h.Patch(AccessTools.Method(typeof(GameDataInit), nameof(GameDataInit.Initialize)), postfix: new HarmonyMethod(typeof(GearFactory), nameof(Run)));
         h.Patch(AccessTools.Method(typeof(GearManager), nameof(GearManager.LoadOfflineGearDatas)), prefix: new HarmonyMethod(typeof(GearFactory), nameof(Run)));
+        try
+        {
+            h.Patch(AccessTools.Method(typeof(Player.PlayerBackpackManager), nameof(Player.PlayerBackpackManager.EquipBotGear), new[] { typeof(SNetwork.SNet_Player), typeof(GearIDRange) }),
+                prefix: new HarmonyMethod(typeof(GearFactory), nameof(GuardBotGear)));
+        }
+        catch (Exception e) { ModInfo.Log.LogWarning($"[Garage] bot gear guard not installed: {e.Message}"); }
         if (GameDataInit.IsLoaded) Run();
+    }
+
+    // ---------- stable IDs ----------
+
+    /// <summary>
+    /// Fixed IDs for everything the garage has ever added. Gear travels over the network and is saved in favorites
+    /// by category/gear ID, so an ID must never move to another item, and removing an item must not shift the others.
+    /// New keys get a deterministic ID from their name (see <see cref="StableId"/>).
+    /// </summary>
+    private static readonly Dictionary<string, uint> FixedIds = new()
+    {
+        ["GtfoPunk_SilencedGun"] = 4200,          // category
+        ["GtfoPunk_SilencedGun_0"] = 4200,        // gear
+        ["GtfoPunk_FogTurret"] = 4201,
+        ["GtfoPunk_LightTurret"] = 4202,
+        ["GtfoPunk_FogTurbineTurret"] = 4203,
+        ["GtfoPunk_TrackerTurret"] = 4204,
+        ["GtfoPunk_FoamTurret"] = 4205,
+        ["GtfoPunk_GrenadeTurret"] = 4206,
+        // 4207, 4208 — retired (test LT2-B/C in 0.4.2–0.4.3); kept as aliases, never reused.
+        ["GtfoPunk_LightTurret_Retired4207"] = 4207,
+        ["GtfoPunk_LightTurret_Retired4208"] = 4208,
+    };
+
+    /// <summary>ID for a key: from the fixed table, otherwise a hash of the name in 4300–9999 (probing on collision).</summary>
+    private static uint StableId<T>(string key) where T : GameDataBlockBase<T>
+    {
+        if (FixedIds.TryGetValue(key, out var fixedId)) return fixedId;
+        uint h = 2166136261;
+        foreach (char ch in key) { h ^= ch; h *= 16777619; }
+        uint id = 4300 + h % 5700;
+        for (int i = 0; i < 5700 && (GameDataBlockBase<T>.HasBlock(id) || FixedIds.ContainsValue(id)); i++) id = 4300 + (id - 4300 + 1) % 5700;
+        return id;
+    }
+
+    // ---------- broken favorites guard ----------
+
+    /// <summary>
+    /// A bot's saved favorite may reference a category that no longer exists (an item removed from the mod).
+    /// The game then fails to assemble the gear and the bot can't spawn (and the mission can't start).
+    /// Replace such a tool with the stock sentry instead.
+    /// </summary>
+    private static void GuardBotGear(ref GearIDRange gearSetup)
+    {
+        try
+        {
+            if (gearSetup == null) return;
+            uint cat = gearSetup.GetCompID(eGearComponent.Category);
+            if (cat == 0 || GameDataBlockBase<GearCategoryDataBlock>.HasBlock(cat)) return;
+            var sentry = FindByCategory(12, b => NameOf(b).IndexOf("Burst", StringComparison.OrdinalIgnoreCase) >= 0) ?? FindByCategory(12);
+            if (sentry == null) return;
+            ModInfo.Log.LogWarning($"[Garage] bot gear with missing category {cat} replaced by '{NameOf(sentry)}'");
+            gearSetup = new GearIDRange(sentry.GearJSON);
+        }
+        catch (Exception e) { ModInfo.Log.LogWarning($"[Garage] bot gear guard: {e.Message}"); }
     }
 
     private static void Run()
@@ -44,10 +105,10 @@ public static class GearFactory
         {
             try { a(); } catch (Exception e) { ModInfo.Log.LogError($"[Garage] {e}"); }
         }
-        try { Dump(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Garage] список снаряжения не записан: {e.Message}"); }
+        try { Dump(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Garage] gear list not written: {e.Message}"); }
     }
 
-    // ---------- поиск ----------
+    // ---------- lookup ----------
 
     public static string NameOf(PlayerOfflineGearDataBlock b)
     {
@@ -56,7 +117,7 @@ public static class GearFactory
 
     private static string Norm(string s) => new string((s ?? "").Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
 
-    /// <summary>Офлайн-снаряжение по имени (без учёта регистра и пробелов; сначала точное совпадение, потом «содержит»).</summary>
+    /// <summary>Offline gear by name (ignoring case and spaces; exact match first, then "contains").</summary>
     public static PlayerOfflineGearDataBlock FindByName(string name)
     {
         string n = Norm(name);
@@ -84,9 +145,9 @@ public static class GearFactory
         return first;
     }
 
-    // ---------- детали ----------
+    // ---------- parts ----------
 
-    /// <summary>Детали снаряжения: тип детали → ID.</summary>
+    /// <summary>Gear parts: part type → ID.</summary>
     public static Dictionary<int, uint> GetComps(string gearJson)
     {
         var res = new Dictionary<int, uint>();
@@ -101,51 +162,52 @@ public static class GearFactory
         return res;
     }
 
-    /// <summary>Разбор строки «тип=ID, тип=Имя пушки, тип=-» в замену деталей.</summary>
+    /// <summary>Parse 'type=ID, type=Gun name, type=-' into part replacements.</summary>
     public static Dictionary<int, uint?> ParseParts(string spec, string who)
     {
         var res = new Dictionary<int, uint?>();
         foreach (var item in (spec ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             var kv = item.Split('=', 2, StringSplitOptions.TrimEntries);
-            if (kv.Length != 2 || !int.TryParse(kv[0], out int c)) { ModInfo.Log.LogWarning($"[{who}] не понял деталь «{item}»"); continue; }
+            if (kv.Length != 2 || !int.TryParse(kv[0], out int c)) { ModInfo.Log.LogWarning($"[{who}] can't parse part '{item}'"); continue; }
             if (kv[1] == "-") { res[c] = null; continue; }
             if (uint.TryParse(kv[1], out uint id)) { res[c] = id; continue; }
             var donor = FindByName(kv[1]);
-            if (donor == null) { ModInfo.Log.LogWarning($"[{who}] пушка «{kv[1]}» не найдена"); continue; }
+            if (donor == null) { ModInfo.Log.LogWarning($"[{who}] gun '{kv[1]}' not found"); continue; }
             var dc = GetComps(donor.GearJSON);
             res[c] = dc.TryGetValue(c, out var v) ? v : null;
-            ModInfo.Log.LogInfo($"[{who}] деталь {c} взята у «{NameOf(donor)}»: {(dc.ContainsKey(c) ? v.ToString() : "нет — убрана")}");
+            ModInfo.Log.LogInfo($"[{who}] part {c} taken from '{NameOf(donor)}': {(dc.ContainsKey(c) ? v.ToString() : "none — removed")}");
         }
         return res;
     }
 
     private static string Key(int i) => i < 26 ? ((char)('a' + i)).ToString() : "a" + ((char)('a' + i - 26));
 
-    // ---------- создание ----------
+    // ---------- creation ----------
 
     public static uint FreeId<T>(uint start, uint max) where T : GameDataBlockBase<T>
     {
         for (uint id = start; id < max; id++) if (!GameDataBlockBase<T>.HasBlock(id)) return id;
-        throw new Exception($"нет свободного ID для {typeof(T).Name}");
+        throw new Exception($"no free ID for {typeof(T).Name}");
     }
 
     public static LocalizedText Text(string s)
     {
-        // Конструктор LocalizedText(string) в interop-обёртке падает, поэтому заполняем поля вручную.
+        // The LocalizedText(string) constructor crashes in the interop wrapper, so fill the fields manually.
         var t = new LocalizedText();
         t.Id = 0;
         t.UntranslatedText = s;
         return t;
     }
 
-    /// <summary>Копия категории под новым ID (ID должен влезать в ushort).</summary>
+    /// <summary>Copy of a category under a new ID (the ID must fit into ushort).</summary>
     public static uint CloneCategory(uint srcId, string key, string title, string desc)
     {
         if (GameDataBlockBase<GearCategoryDataBlock>.HasBlock(key)) return GameDataBlockBase<GearCategoryDataBlock>.GetBlockID(key);
-        var src = GameDataBlockBase<GearCategoryDataBlock>.GetBlock(srcId) ?? throw new Exception($"нет категории {srcId}");
+        var src = GameDataBlockBase<GearCategoryDataBlock>.GetBlock(srcId) ?? throw new Exception($"no category {srcId}");
         var cat = CloneBlock(src);
-        uint id = FreeId<GearCategoryDataBlock>(4200, 60000);
+        uint id = StableId<GearCategoryDataBlock>(key);
+        if (GameDataBlockBase<GearCategoryDataBlock>.HasBlock(id)) throw new Exception($"category ID {id} for {key} is taken");
         cat.persistentID = id;
         cat.name = key;
         cat.PublicName = Text(title);
@@ -155,7 +217,7 @@ public static class GearFactory
     }
 
     /// <summary>
-    /// Новое офлайн-снаряжение из штатного. <paramref name="comps"/>: тип детали → ID (null — убрать деталь).
+    /// New offline gear from stock gear. <paramref name="comps"/>: part type → ID (null — remove the part).
     /// </summary>
     public static PlayerOfflineGearDataBlock AddGear(PlayerOfflineGearDataBlock baseGear, string key, string title, IDictionary<int, uint?> comps)
     {
@@ -179,11 +241,12 @@ public static class GearFactory
         packet["Comps"] = newComps;
 
         var gear = CloneBlock(baseGear);
-        gear.persistentID = FreeId<PlayerOfflineGearDataBlock>(4200, 1_000_000);
+        gear.persistentID = StableId<PlayerOfflineGearDataBlock>(key);
+        if (GameDataBlockBase<PlayerOfflineGearDataBlock>.HasBlock(gear.persistentID)) throw new Exception($"gear ID {gear.persistentID} for {key} is taken");
         gear.name = key;
         gear.GearJSON = json.ToJsonString();
         GameDataBlockBase<PlayerOfflineGearDataBlock>.AddBlock(gear);
-        ModInfo.Log.LogInfo($"[Garage] добавлено: {title} (снаряжение {gear.persistentID}, на основе «{NameOf(baseGear)}»)");
+        ModInfo.Log.LogInfo($"[Garage] added: {title} (gear {gear.persistentID}, based on '{NameOf(baseGear)}')");
         return gear;
     }
 
@@ -199,9 +262,9 @@ public static class GearFactory
         return dst;
     }
 
-    // ---------- справка ----------
+    // ---------- reference ----------
 
-    /// <summary>Имя детали по типу и ID (для справочного файла).</summary>
+    /// <summary>Part name by type and ID (for the reference file).</summary>
     private static string PartName(int type, uint id)
     {
         try
@@ -247,14 +310,14 @@ public static class GearFactory
     }
 
     /// <summary>
-    /// Пишет BepInEx/config/GtfoPunk.GearList.txt — всё снаряжение с деталями (ID и имя детали),
-    /// и GtfoPunk.GearParts.txt — все детали каждого типа (имя, модель) и предметы. По ним собираются новые пушки.
+    /// Writes BepInEx/config/GtfoPunk.GearList.txt — all gear with parts (part ID and name),
+    /// and GtfoPunk.GearParts.txt — all parts of each type (name, model) and items. Use them to assemble new guns.
     /// </summary>
     private static void Dump()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("# Всё офлайн-снаряжение игры (генерирует GtfoPunk Rules при запуске). Детали: тип=ID(имя)");
-        sb.AppendLine("# Типы: " + string.Join(", ", Enum.GetValues(typeof(eGearComponent)).Cast<eGearComponent>().Select(e => $"{(int)e}={e}")));
+        sb.AppendLine("# All offline gear of the game (generated by GtfoPunk Rules at startup). Parts: type=ID(name)");
+        sb.AppendLine("# Types: " + string.Join(", ", Enum.GetValues(typeof(eGearComponent)).Cast<eGearComponent>().Select(e => $"{(int)e}={e}")));
         foreach (var b in GameDataBlockBase<PlayerOfflineGearDataBlock>.GetAllBlocks())
         {
             if (b == null || string.IsNullOrEmpty(b.GearJSON)) continue;
@@ -264,20 +327,43 @@ public static class GearFactory
         File.WriteAllText(Path.Combine(BepInEx.Paths.ConfigPath, "GtfoPunk.GearList.txt"), sb.ToString());
 
         sb.Clear();
-        sb.AppendLine("# Детали оружия и инструментов: ID  имя  публичное имя  модель");
-        DumpParts<GearFrontPartDataBlock>(sb, "12 FrontPart (ствол/перед)", b => b.General);
-        DumpParts<GearPartAttachmentDataBlock>(sb, "13/14/17/29/35 Attachment (насадки)", b => b.General, b => $"→ {b.AttachToAlign}");
-        DumpParts<GearReceiverPartDataBlock>(sb, "16 ReceiverPart (ствольная коробка)", b => b.General);
-        DumpParts<GearStockPartDataBlock>(sb, "19 StockPart (приклад)", b => b.General);
-        DumpParts<GearSightPartDataBlock>(sb, "21 SightPart (прицел)", b => b.General);
-        DumpParts<GearMagPartDataBlock>(sb, "23 MagPart (магазин)", b => b.General);
-        DumpParts<GearFlashlightPartDataBlock>(sb, "25 FlashlightPart (фонарь)", b => b.General);
-        sb.AppendLine().AppendLine("## Категории (2): ID  имя  публичное имя");
+        sb.AppendLine("# Weapon and tool parts: ID  name  public name  model");
+        DumpParts<GearFrontPartDataBlock>(sb, "12 FrontPart (barrel/front)", b => b.General);
+        DumpParts<GearPartAttachmentDataBlock>(sb, "13/14/17/29/35 Attachment", b => b.General, b => $"→ {b.AttachToAlign}");
+        DumpParts<GearReceiverPartDataBlock>(sb, "16 ReceiverPart", b => b.General);
+        DumpParts<GearStockPartDataBlock>(sb, "19 StockPart", b => b.General);
+        DumpParts<GearSightPartDataBlock>(sb, "21 SightPart", b => b.General);
+        DumpParts<GearMagPartDataBlock>(sb, "23 MagPart", b => b.General);
+        DumpParts<GearFlashlightPartDataBlock>(sb, "25 FlashlightPart", b => b.General);
+        DumpParts<GearToolMainPartDataBlock>(sb, "27 ToolMainPart (tool base)", b => b.General);
+        DumpParts<GearToolGripPartDataBlock>(sb, "30 ToolGripPart", b => b.General);
+        DumpParts<GearToolScreenPartDataBlock>(sb, "42 ToolScreenPart", b => b.General);
+        DumpTyped(sb, "33 ToolDeliveryPart (subtype = 32)", (GearToolDeliveryPartDataBlock b) => b.GeneralDatas, d => ((int)d.Type, d.Data));
+        DumpTyped(sb, "37 ToolPayloadPart (subtype = 36)", (GearToolPayloadPartDataBlock b) => b.GeneralDatas, d => ((int)d.Type, d.Data));
+        DumpTyped(sb, "40 ToolTargetingPart (subtype = 39)", (GearToolTargetingPartDataBlock b) => b.GeneralDatas, d => ((int)d.Type, d.Data));
+        sb.AppendLine().AppendLine("## Categories (2): ID  name  public name");
         foreach (var c in GameDataBlockBase<GearCategoryDataBlock>.GetAllBlocks())
             if (c != null) sb.AppendLine($"{c.persistentID,5}  {c.name,-40} {(string)c.PublicName}");
-        sb.AppendLine().AppendLine("## Предметы (ItemDataBlock): ID  имя  публичное имя");
+        sb.AppendLine().AppendLine("## Items (ItemDataBlock): ID  name  public name");
         foreach (var i in GameDataBlockBase<ItemDataBlock>.GetAllBlocks())
             if (i != null) sb.AppendLine($"{i.persistentID,5}  {i.name,-40} {i.publicName}");
         File.WriteAllText(Path.Combine(BepInEx.Paths.ConfigPath, "GtfoPunk.GearParts.txt"), sb.ToString());
+    }
+
+    private static void DumpTyped<T, TItem>(StringBuilder sb, string title, Func<T, Il2CppSystem.Collections.Generic.List<TItem>> list, Func<TItem, (int type, GearPartGeneralData data)> get) where T : GameDataBlockBase<T>
+    {
+        sb.AppendLine().AppendLine("## " + title);
+        foreach (var b in GameDataBlockBase<T>.GetAllBlocks())
+        {
+            if (b == null) continue;
+            var l = list(b);
+            if (l == null) continue;
+            foreach (var item in l)
+            {
+                var (type, data) = get(item);
+                if (data == null) continue;
+                sb.AppendLine($"{b.persistentID,5}/{type,-2} {b.name,-40} {data.PublicName,-24} {data.Model}");
+            }
+        }
     }
 }

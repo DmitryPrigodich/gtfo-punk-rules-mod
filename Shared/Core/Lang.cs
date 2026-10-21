@@ -3,9 +3,9 @@ using BepInEx.Configuration;
 namespace GtfoPunk.Core;
 
 /// <summary>
-/// Язык текста, который мод выводит в самой игре (HUD, лоадаут, терминал, итоги).
-/// По умолчанию английский: шрифты игры гарантированно его поддерживают.
-/// Русский можно включить в [General] Language = ru (если в шрифте игры есть кириллица).
+/// Language of the text the mod shows inside the game (HUD, loadout, terminal, summaries).
+/// English by default: the game's fonts are guaranteed to support it.
+/// Russian can be enabled with [General] Language = ru (if the game font has Cyrillic).
 /// </summary>
 public static class Lang
 {
@@ -14,11 +14,11 @@ public static class Lang
     internal static void Bind(ConfigFile config)
     {
         _lang = config.Bind("General", "Language", "en",
-            "Язык текста мода внутри игры: en или ru. Если вместо русских букв квадраты — верни en.");
+            "In-game text language of the mod: en or ru. If Russian letters show up as boxes, switch back to en.");
     }
 
     public static bool Ru => _lang != null && _lang.Value.Trim().ToLowerInvariant().StartsWith("ru");
 
-    /// <summary>Выбрать строку по текущему языку.</summary>
+    /// <summary>Pick the string for the current language.</summary>
     public static string T(string en, string ru) => Ru ? ru : en;
 }

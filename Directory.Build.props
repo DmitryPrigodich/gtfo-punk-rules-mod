@@ -6,7 +6,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DebugType>embedded</DebugType>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-    <!-- Папка с BepInEx/core + BepInEx/interop. По умолчанию lib/ рядом; можно указать профиль r2modman: -p:GameLibs=... -->
+    <!-- Folder with BepInEx/core + BepInEx/interop. Defaults to lib/ next to this file; an r2modman profile can be given: -p:GameLibs=... -->
     <GameLibs Condition="'$(GameLibs)' == ''">$(MSBuildThisFileDirectory)lib</GameLibs>
   </PropertyGroup>
   <ItemGroup>

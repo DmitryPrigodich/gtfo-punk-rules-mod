@@ -17,18 +17,18 @@ using UnityEngine;
 namespace GtfoPunk.Rules.Modules;
 
 /// <summary>
-/// Новые турели в слоте инструмента (выбираются в лоадауте, как обычная турель):
-///  - FT1 анти-туманная: не стреляет, вокруг себя держит сферу без тумана (как отпугиватель, но бесконечно).
-///  - LT2 фонарная: ставится в одну сторону, светит прожектором и поворачивается за врагами в своём секторе;
-///    когда видит врага — светит ярче. Не стреляет.
-///  - BT3 турель-биотрекер: не стреляет, раз в несколько секунд сканирует свой сектор и метит врагов (как биотрекер).
-///  - CF4 пенострел: вместо пуль стреляет сгустками пены (как пеногун) в цель, тратит патроны турели.
-/// Делается клонированием штатной турели в таблицах игры, поэтому мод должен стоять у ВСЕХ игроков.
+/// New sentries in the tool slot (picked in the loadout like the regular sentry):
+///  - FT1 anti-fog: doesn't shoot, keeps a fog-free sphere around itself (like a fog repeller, but endless).
+///  - LT2 searchlight: placed facing one way, shines a spotlight and turns after enemies in its sector;
+///    brighter when it sees an enemy. Doesn't shoot.
+///  - BT3 bio-tracker sentry: doesn't shoot, scans its sector every few seconds and tags enemies (like a bio-tracker).
+///  - CF4 foam sentry: fires foam globs (like the C-foam launcher) at the target instead of bullets, uses sentry ammo.
+/// Made by cloning the stock sentry in the game tables, so EVERY player must have the mod.
 /// </summary>
 public class TurretVariants : ModuleBase
 {
     public override string Id => "TurretVariants";
-    public override string Description => "Новые инструменты: DRED GARAGE FT1 (анти-туман), LT2 (прожектор), BT3 (биотрекер), CF4 (пенострел). Нужен у всех игроков.";
+    public override string Description => "New tools: DRED GARAGE FT1 (anti-fog), LT2 (searchlight), BT3 (bio-tracker), CF4 (foam), GL5 (grenades). Everyone needs it.";
     public override ModuleSide Side => ModuleSide.Everyone;
 
     private static BepInEx.Configuration.ConfigEntry<bool> _fog, _light;
@@ -40,64 +40,109 @@ public class TurretVariants : ModuleBase
     private static BepInEx.Configuration.ConfigEntry<string> _turbineOffset, _turbineKeywords;
     private static BepInEx.Configuration.ConfigEntry<string> _fogModelOffset, _fogModelRotation;
     private static BepInEx.Configuration.ConfigEntry<float> _lampGlow, _lampGlowForward;
-    private static BepInEx.Configuration.ConfigEntry<bool> _tracker, _trackerWalls, _foam, _foamSkipGlued;
+    private static BepInEx.Configuration.ConfigEntry<float> _lightWakeAfter;
+    private static BepInEx.Configuration.ConfigEntry<bool> _liveReload;
+    private static BepInEx.Configuration.ConfigEntry<string> _foamParts, _foamPartsOffset, _foamPartsRotation, _trackerParts, _trackerPartsOffset, _trackerPartsRotation;
+    private static BepInEx.Configuration.ConfigEntry<float> _foamPartsScale, _trackerPartsScale;
+    private static BepInEx.Configuration.ConfigEntry<bool> _gl, _hideSensor;
+    private static BepInEx.Configuration.ConfigEntry<float> _glInterval, _glSpeed, _glRange, _glMinRange, _glAmmo, _glSafe, _glPartsScale;
+    private static BepInEx.Configuration.ConfigEntry<string> _glParts, _glPartsOffset, _glPartsRotation;
+    private static BepInEx.Configuration.ConfigEntry<int> _foamBurst;
+    private static BepInEx.Configuration.ConfigEntry<float> _foamBurstDelay;
+    private static BepInEx.Configuration.ConfigEntry<bool> _foamLead;
+    private static BepInEx.Configuration.ConfigEntry<string> _foamModel, _foamModelOffset, _foamModelRotation;
+    private static BepInEx.Configuration.ConfigEntry<float> _foamModelScale;
+    private static BepInEx.Configuration.ConfigEntry<bool> _tracker, _trackerWalls, _foam, _foamSkipGlued, _trackerSound;
     private static BepInEx.Configuration.ConfigEntry<float> _trackerRange, _trackerAngle, _trackerInterval;
     private static BepInEx.Configuration.ConfigEntry<float> _foamInterval, _foamSpeed, _foamGravity, _foamAmmo, _foamExpand, _foamRange;
 
     protected override void OnBindConfig()
     {
-        _fog = Bind("FogTurret", true, "Добавить анти-туманную турель.");
-        _fogRange = Bind("FogRange2", 10f, "Радиус чистой от тумана сферы FT1 (м). 10 — как у настоящего отпугивателя (замер 0.3.1).");
-        _light = Bind("LightTurret", true, "Добавить фонарную турель.");
-        _lightRange = Bind("LightRange", 30f, "Дальность прожектора (м).");
-        _lightAngle = Bind("LightAngle", 45f, "Угол луча прожектора (градусы).");
-        _lightIntensity = Bind("LightIntensity2", 1.6f, "Яркость прожектора (при враге в секторе — в 1.6 раза ярче).");
-        _disturb = Bind("LightDisturbs", "Detectable", "Как свет действует на врагов в луче: Detectable — тревожит (может разбудить, как шаги рядом), PulseOnly — только пульс, Off — никак.");
-        _disturbInterval = Bind("LightDisturbInterval", 1.5f, "Как часто (сек) свет «тревожит» врагов в луче.");
-        _lampItem = Bind("LampModel", "Long Range Flashlight", "Предмет, модель которого ставится на фонарную турель (имя или часть имени; пусто — без модели).");
-        _lampOffset = Bind("LampOffset2", "0,-0.02,0.15", "Смещение модели фонаря относительно основания ствола (x — вбок, y — вверх, z — вперёд, м).");
-        _lampGlow = Bind("LampGlow", 1.5f, "Подсветка стекла фонаря (маленькая лампа прямо перед стеклом), 0 — без неё.");
-        _lampGlowForward = Bind("LampGlowForward", 0.2f, "На сколько вперёд от модели фонаря стоит подсветка стекла (м).");
-        _lampRotation = Bind("LampRotation3", "0,270,0", "Поворот модели фонаря (градусы x,y,z), если смотрит не туда.");
-        _lampScale = Bind("LampScale", 1f, "Масштаб модели фонаря.");
-        _lightForward = Bind("LightForward", 0.35f, "Насколько вынести источник света вперёд от модели фонаря (м), чтобы он не засвечивал сам фонарь.");
-        _hideGun = Bind("HideGun", true, "Прятать ствол автопушки у обеих турелей (остаётся тренога с корпусом).");
-        _fogModelOffset = Bind("FogModelOffset", "0,0.25,0", "Где на FT1 стоит модель отпугивателя (x,y,z, м от верха турели).");
-        _fogModelRotation = Bind("FogModelRotation", "0,0,0", "Доворот модели отпугивателя на FT1 (градусы x,y,z), если стоит криво.");
-        _fogModelScale = Bind("FogModelScale", 1f, "Масштаб модели отпугивателя на FT1.");
-        _turbine = Bind("FogTurbineTurret", true, "Тестовая турель DRED GARAGE FT1-T: уменьшенная большая турбина-отпугиватель.");
-        _turbineScale = Bind("TurbineScale", 0.3f, "Масштаб модели турбины на FT1-T.");
-        _turbineOffset = Bind("TurbineOffset", "0,0.05,0", "Где на FT1-T стоит турбина (x,y,z, м от верха турели).");
-        _turbineKeywords = Bind("TurbineModelSearch", "turbine,heavyfog,fogrepellerbig", "Если у предмета 133 нет модели — искать в памяти меш, в имени которого есть одно из слов.");
-        _turbineRange = Bind("TurbineRange2", 10f, "Радиус сферы без тумана у FT1-T (м). 10 — как у турбины (замер 0.3.1).");
-        _fogLamp = Bind("FogLamp", 0.5f, "Яркость тусклой лампочки на FT1 (как у светящейся палки). 0 — без лампочки.");
-        _tracker = Bind("TrackerTurret", true, "Добавить турель-биотрекер DRED GARAGE BT3 (метит врагов в своём секторе, не стреляет).");
-        _trackerRange = Bind("TrackerRange", 25f, "Дальность сканирования BT3 (м).");
-        _trackerAngle = Bind("TrackerAngle", 90f, "Ширина сектора BT3 (градусы, по горизонтали, от направления установки).");
-        _trackerInterval = Bind("TrackerInterval", 3f, "Как часто BT3 сканирует сектор (сек).");
-        _trackerWalls = Bind("TrackerThroughWalls", true, "BT3 видит сквозь стены (как ручной биотрекер). false — только в прямой видимости.");
-        _foam = Bind("FoamTurret", true, "Добавить пенострел DRED GARAGE CF4 (стреляет пеной вместо пуль).");
-        _foamInterval = Bind("FoamInterval", 1.2f, "Пауза между выстрелами пеной (сек).");
-        _foamSpeed = Bind("FoamSpeed", 20f, "Начальная скорость сгустка пены (м/с).");
-        _foamGravity = Bind("FoamGravity", 9.81f, "Гравитация для расчёта навесной траектории (м/с²). Настоящая пишется в лог при первом выстреле.");
-        _foamAmmo = Bind("FoamAmmoPerShot", 6f, "Сколько «пуль» турели стоит один сгусток пены.");
-        _foamExpand = Bind("FoamExpand", -1f, "Объём расширения сгустка (-1 — как у пеногуна по умолчанию).");
-        _foamRange = Bind("FoamRange", 20f, "Дальше этого (м) пенострел не стреляет.");
-        _foamSkipGlued = Bind("FoamSkipGlued", true, "Не тратить пену на врага, который уже залит и обездвижен.");
+        _fog = Bind("FogTurret", true, "Add the anti-fog sentry.");
+        _fogRange = Bind("FogRange2", 10f, "Radius of FT1's fog-free sphere (m). 10 — like the real fog repeller (measured in 0.3.1).");
+        _light = Bind("LightTurret", true, "Add the searchlight sentry.");
+        _lightRange = Bind("LightRange", 30f, "Searchlight range (m).");
+        _lightAngle = Bind("LightAngle", 45f, "Searchlight beam angle (degrees).");
+        _lightIntensity = Bind("LightIntensity3", 1.1f, "Searchlight brightness (1.6x brighter when an enemy is in the sector).");
+        _disturb = Bind("LightDisturbs2", "Detectable", "How the light affects enemies in the beam: Detectable — disturbs (may wake them, like footsteps nearby), PulseOnly — pulse only, Off — nothing.");
+        _disturbInterval = Bind("LightDisturbInterval", 1.5f, "How often (s) the light disturbs enemies in the beam.");
+        _lightWakeAfter = Bind("LightWakeAfter", 3f, "A sleeping enemy that stays in the beam this many seconds in a row wakes up. 0 — never wake.");
+        _lampItem = Bind("LampModel", "Long Range Flashlight", "Item whose model is mounted on the searchlight sentry (name or part of it; empty — no model).");
+        _lampOffset = Bind("LampOffset3", "0,-0.02,0.04", "Lamp model offset from the barrel root (x — sideways, y — up, z — forward, m).");
+        _lampGlow = Bind("LampGlow", 1.5f, "Lamp lens glow (small light right in front of the glass), 0 — none.");
+        _lampGlowForward = Bind("LampGlowForward", 0.2f, "How far in front of the lamp model the lens glow sits (m).");
+        _liveReload = Bind("LiveReload", true, "Re-read this config on the fly while the game runs: edit model positions in the file, save — models on placed sentries move right away.");
+        _lampRotation = Bind("LampRotation4", "90,270,0", "Lamp model rotation (degrees x,y,z). The first number is the roll around the lamp axis (90 / -90 — handle down or up, 0 — sideways).");
+        _lampScale = Bind("LampScale", 1f, "Lamp model scale.");
+        _lightForward = Bind("LightForward", 0.35f, "How far in front of the lamp model the light source sits (m), so it doesn't light up the lamp itself.");
+        _hideGun = Bind("HideGun", true, "Hide the autocannon barrel on sentries that don't shoot bullets (the tripod and body stay).");
+        _fogModelOffset = Bind("FogModelOffset2", "0,0.3,-0.05", "Where the repeller model sits on FT1 (x,y,z, m from the top of the sentry; z — forward).");
+        _fogModelRotation = Bind("FogModelRotation", "0,0,0", "Extra rotation of the repeller model on FT1 (degrees x,y,z) if it stands crooked.");
+        _fogModelScale = Bind("FogModelScale", 1f, "Repeller model scale on FT1.");
+        _turbine = Bind("FogTurbineTurret", true, "Test sentry DRED GARAGE FT1-T: scaled-down big fog repeller turbine.");
+        _turbineScale = Bind("TurbineScale", 0.3f, "Turbine model scale on FT1-T.");
+        _turbineOffset = Bind("TurbineSeat2", "0,-0.2,-0.05", "Where the turbine sits on FT1-T: the bottom of the model goes into the barrel cradle, plus this offset (x — sideways, y — up, z — forward, m).");
+        _turbineKeywords = Bind("TurbineModelSearch2", "defoggerbig", "If item 133 has no model — search loaded meshes whose name contains one of these words.");
+        _turbineRange = Bind("TurbineRange2", 10f, "Radius of FT1-T's fog-free sphere (m). 10 — like the turbine (measured in 0.3.1).");
+        _fogLamp = Bind("FogLamp", 0.5f, "Brightness of the dim bulb on FT1 (like a glow stick). 0 — no bulb.");
+        _tracker = Bind("TrackerTurret", true, "Add the bio-tracker sentry DRED GARAGE BT3 (tags enemies in its sector, doesn't shoot).");
+        _trackerRange = Bind("TrackerRange", 25f, "BT3 scan range (m).");
+        _trackerAngle = Bind("TrackerAngle", 90f, "BT3 sector width (degrees, horizontal, from the placement direction).");
+        _trackerInterval = Bind("TrackerInterval", 3f, "How often BT3 scans its sector (s).");
+        _trackerSound = Bind("TrackerSound", true, "BT3 beeps like a bio-tracker when enemies are in its sector.");
+        _trackerWalls = Bind("TrackerThroughWalls", true, "BT3 sees through walls (like the handheld bio-tracker). false — line of sight only.");
+        _foam = Bind("FoamTurret", true, "Add the foam sentry DRED GARAGE CF4 (shoots foam instead of bullets).");
+        _foamInterval = Bind("FoamInterval2", 1.5f, "Pause between foam bursts (s).");
+        _foamBurst = Bind("FoamBurst", 3, "Globs per burst.");
+        _foamBurstDelay = Bind("FoamBurstDelay", 0.12f, "Pause between globs in a burst (s).");
+        _foamSpeed = Bind("FoamSpeed2", 30f, "Initial foam glob speed (m/s).");
+        _foamGravity = Bind("FoamGravity2", 9f, "Glob gravity for the trajectory (m/s²; 9 in the game).");
+        _foamLead = Bind("FoamLead", true, "Lead moving targets (by target velocity).");
+        _foamAmmo = Bind("FoamAmmoPerShot3", 2f, "How many sentry 'bullets' one foam glob costs (sentry reserve is 150/0.58 ≈ 257 bullets).");
+        _foamModel = Bind("FoamModel", "C-Foam Grenade", "Model of the foam canisters on CF4 (item name; empty — none).");
+        _foamModelOffset = Bind("FoamModelOffset", "0.09,0.02,0.05", "Where the canisters hang on CF4 (x — sideways, mirrored on both sides; y — up; z — forward, m from the barrel root).");
+        _foamModelRotation = Bind("FoamModelRotation", "90,0,0", "Canister rotation (degrees x,y,z).");
+        _foamModelScale = Bind("FoamModelScale", 1f, "Canister scale.");
+        _foamParts = Bind("FoamGunParts2", "33=4/4", "C-foam launcher parts mounted in CF4's cradle instead of the barrel (type=ID/subtype from GearList: 33 — Delivery, subtype from 32; 37 — Payload, subtype from 36). Empty — keep the autocannon barrel.");
+        _foamPartsOffset = Bind("FoamGunOffset", "0,0,0", "Offset of the foam launcher parts in the cradle (x — sideways, y — up, z — forward, m).");
+        _foamPartsRotation = Bind("FoamGunRotation", "0,0,0", "Rotation of the foam launcher parts (degrees x,y,z).");
+        _foamPartsScale = Bind("FoamGunScale", 1f, "Scale of the foam launcher parts.");
+        _trackerParts = Bind("TrackerParts", "33=3", "Bio-tracker parts in BT3's cradle (33 — Delivery_Bio_Tracker; 42=3 — screen can be added). Empty — keep the barrel.");
+        _trackerPartsOffset = Bind("TrackerPartsOffset", "0,0,0", "Offset of the bio-tracker parts in the cradle (m).");
+        _trackerPartsRotation = Bind("TrackerPartsRotation", "0,0,0", "Rotation of the bio-tracker parts (degrees).");
+        _trackerPartsScale = Bind("TrackerPartsScale", 1f, "Scale of the bio-tracker parts.");
+        _hideSensor = Bind("HideSensor", false, "Hide the targeting sensor part on sentries with a hidden barrel — it floats in the air. The scan beam itself stays.");
+        _gl = Bind("GrenadeTurret", true, "Add the grenade launcher sentry DRED GARAGE GL5 (fires grenades that explode on contact; needs the Grenades module).");
+        _glInterval = Bind("GrenadeInterval", 2.5f, "Pause between grenade shots (s).");
+        _glSpeed = Bind("GrenadeSpeed", 16f, "Grenade launch speed (m/s).");
+        _glRange = Bind("GrenadeRange", 25f, "Doesn't fire beyond this distance (m).");
+        _glMinRange = Bind("GrenadeMinRange", 4f, "Doesn't fire closer than this (m) — so it doesn't blow itself up.");
+        _glSafe = Bind("GrenadePlayerSafe", 4f, "Don't fire if a player stands within this many meters of the impact point.");
+        _glAmmo = Bind("GrenadeAmmoPerShot", 12f, "How many sentry 'bullets' one grenade costs.");
+        _glParts = Bind("GrenadeParts", "33=2,37=1", "Mine deployer parts in GL5's cradle (33 — Delivery_Mine_Deployer, 37 — Payload_Mine_1). Empty — autocannon barrel.");
+        _glPartsOffset = Bind("GrenadePartsOffset", "0,0,0", "Offset of the mine deployer parts in the cradle (m).");
+        _glPartsRotation = Bind("GrenadePartsRotation", "0,0,0", "Rotation of the mine deployer parts (degrees).");
+        _glPartsScale = Bind("GrenadePartsScale", 1f, "Scale of the mine deployer parts.");
+        _foamExpand = Bind("FoamExpand", -1f, "Glob expansion volume (-1 — the foam launcher's default).");
+        _foamRange = Bind("FoamRange", 20f, "The foam sentry doesn't fire beyond this distance (m).");
+        _foamSkipGlued = Bind("FoamSkipGlued", true, "Don't waste foam on an enemy that is already glued and immobilized.");
     }
 
-    private enum Mode { Fog, Light, FogTurbine, Tracker, Foam }
+    private enum Mode { Fog, Light, FogTurbine, Tracker, Foam, Grenade }
 
-    /// <summary>Режимы, которые крутятся за врагами и сканируют штатно (остальные стоят неподвижно).</summary>
-    private static bool Tracks(Mode m) => m == Mode.Light || m == Mode.Tracker || m == Mode.Foam;
-    /// <summary>Режимы, у которых прячется ствол автопушки.</summary>
+    /// <summary>Modes that turn after enemies and scan normally (the others stand still).</summary>
+    private static bool Tracks(Mode m) => m == Mode.Light || m == Mode.Tracker || m == Mode.Foam || m == Mode.Grenade;
+    /// <summary>Modes that hide the autocannon barrel.</summary>
     private static bool HidesGun(Mode m) => m == Mode.Light || m == Mode.Fog || m == Mode.FogTurbine;
-    private const uint FogTurbineItemId = 133; // Carry_HeavyFogRepeller — большая турбина из миссий
+
+    /// <summary>This sentry has tool parts instead of the barrel — hide the barrel.</summary>
+    private static bool HidesGun(Turret t) => HidesGun(t.Mode) || t.PartsAttached;
+    private const uint FogTurbineItemId = 133; // Carry_HeavyFogRepeller — the big mission turbine
 
     private const uint SentryCategoryId = 12;
     private const uint FogRepellerItemId = 117; // CONSUMABLE_FogRepeller
 
-    private static readonly Dictionary<uint, Mode> _modeByCategory = new();
+    private static readonly Dictionary<uint, (Mode Mode, int Variant)> _modeByCategory = new();
 
     private class Turret
     {
@@ -110,8 +155,14 @@ public class TurretVariants : ModuleBase
         public FogRepeller_Sphere Sphere;
         public float NextDisturb, SpawnedAt, NextHide;
         public TMPro.TextMeshPro Screen;
-        public float NextScan, NextShot;
-        public int Tagged;
+        public float NextScan, NextShot, NextBurst;
+        public int Tagged, Variant, BurstLeft;
+        public bool PartsAttached;
+        public Vector3 LastAim, AimVel;
+        public float LastAimTime;
+        public bool HasLastAim;
+        public readonly List<Action> Reapply = new();               // re-place models after a config edit
+        public readonly Dictionary<IntPtr, float> LitSince = new();  // how long an enemy has been in the beam (LT2)
     }
 
     private static readonly Dictionary<IntPtr, Turret> _turrets = new();
@@ -123,36 +174,44 @@ public class TurretVariants : ModuleBase
         GearFactory.OnInject += Inject;
     }
 
-    // ---------- добавление инструментов в таблицы игры ----------
+    // ---------- adding tools to the game tables ----------
 
     private static void Inject()
     {
         var baseGear = GearFactory.FindByCategory(SentryCategoryId, b => GearFactory.NameOf(b).IndexOf("Burst", StringComparison.OrdinalIgnoreCase) >= 0);
-        if (baseGear == null) { ModInfo.Log.LogWarning("[TurretVariants] не нашёл штатную турель в данных игры — новые турели не добавлены"); return; }
+        if (baseGear == null) { ModInfo.Log.LogWarning("[TurretVariants] stock sentry not found in game data — new sentries not added"); return; }
         if (_fog.Value) AddVariant(baseGear, Mode.Fog, "GtfoPunk_FogTurret", "DRED GARAGE FT1",
             Lang.T("Stationary fog repeller. Keeps a fog-free sphere around itself. Does not shoot.", "Стационарный отпугиватель тумана. Держит вокруг себя сферу без тумана. Не стреляет."));
         if (_light.Value) AddVariant(baseGear, Mode.Light, "GtfoPunk_LightTurret", "DRED GARAGE LT2",
             Lang.T("Searchlight that tracks enemies in its sector. Does not shoot.", "Прожектор, который поворачивается за врагами в своём секторе. Не стреляет."));
-        // Тестовая: уменьшенная копия большой турбины-отпугивателя. Добавляется последней, чтобы не сдвигать номера остальных.
+        // Test: scaled-down copy of the big fog repeller turbine. Added last so the other IDs don't shift.
         if (_turbine.Value) AddVariant(baseGear, Mode.FogTurbine, "GtfoPunk_FogTurbineTurret", "DRED GARAGE FT1-T",
             Lang.T("TEST: miniature fog repeller turbine. Smaller fog-free sphere. Does not shoot.", "ТЕСТ: уменьшенная турбина-отпугиватель. Сфера без тумана поменьше. Не стреляет."));
-        // Новые — строго в конец, чтобы не сдвигать номера уже существующих.
+        // Categories of retired test LT2 variants stay as searchlight aliases, so old saved favorites still assemble.
+        if (_light.Value)
+            foreach (var retired in new[] { "GtfoPunk_LightTurret_Retired4207", "GtfoPunk_LightTurret_Retired4208" })
+                _modeByCategory[GearFactory.CloneCategory(SentryCategoryId, retired, "DRED GARAGE LT2", null)] = (Mode.Light, 0);
+        // IDs are fixed per key in GearFactory, so the order here no longer matters.
+        // (order: BT3, CF4, GL5; test LT2-A/B/C from 0.4.2 removed — they were last, no IDs shifted)
         if (_tracker.Value) AddVariant(baseGear, Mode.Tracker, "GtfoPunk_TrackerTurret", "DRED GARAGE BT3",
             Lang.T("Bio-tracker turret. Scans its sector every few seconds and tags enemies, even through walls. Does not shoot.",
                    "Турель-биотрекер. Раз в несколько секунд сканирует свой сектор и метит врагов, даже за стенами. Не стреляет."));
         if (_foam.Value) AddVariant(baseGear, Mode.Foam, "GtfoPunk_FoamTurret", "DRED GARAGE CF4",
             Lang.T("C-foam sentry. Lobs foam globs at enemies instead of bullets, gluing them in place. Uses sentry ammo.",
                    "Пенострел. Вместо пуль закидывает врагов сгустками пены и приклеивает их. Тратит патроны турели."));
+        if (_gl.Value) AddVariant(baseGear, Mode.Grenade, "GtfoPunk_GrenadeTurret", "DRED GARAGE GL5",
+            Lang.T("Grenade launcher sentry. Lobs grenades that explode on contact (smaller blast than a mine). Won't fire close to itself or near players. Uses sentry ammo.",
+                   "Гранатомётная турель. Закидывает врагов гранатами со взрывом на контакт (слабее мины). Не стреляет вплотную и рядом с игроками. Тратит патроны турели."));
     }
 
-    private static void AddVariant(PlayerOfflineGearDataBlock baseGear, Mode mode, string key, string title, string desc)
+    private static void AddVariant(PlayerOfflineGearDataBlock baseGear, Mode mode, string key, string title, string desc, int variant = 0)
     {
         uint catId = GearFactory.CloneCategory(SentryCategoryId, key, title, desc);
         GearFactory.AddGear(baseGear, key, title, new Dictionary<int, uint?> { [(int)eGearComponent.Category] = catId });
-        _modeByCategory[catId] = mode;
+        _modeByCategory[catId] = (mode, variant);
     }
 
-    // ---------- поведение поставленной турели ----------
+    // ---------- behaviour of a placed sentry ----------
 
     [HarmonyPatch(typeof(SentryGunInstance), nameof(SentryGunInstance.OnSpawn))]
     private static class Patch_Spawn
@@ -162,9 +221,10 @@ public class TurretVariants : ModuleBase
             try
             {
                 var gear = new GearIDRange(spawnData.gearIDRange);
-                if (!_modeByCategory.TryGetValue(gear.GetCompID(eGearComponent.Category), out var mode)) return;
-                _turrets[__instance.Pointer] = new Turret { Inst = __instance, Mode = mode, GiveUpAt = Time.time + 10f, SpawnedAt = Time.time };
-                ModInfo.Log.LogInfo($"[TurretVariants] поставлена турель {mode}");
+                if (!_modeByCategory.TryGetValue(gear.GetCompID(eGearComponent.Category), out var mv)) return;
+                var mode = mv.Mode;
+                _turrets[__instance.Pointer] = new Turret { Inst = __instance, Mode = mode, Variant = mv.Variant, GiveUpAt = Time.time + 10f, SpawnedAt = Time.time };
+                ModInfo.Log.LogInfo($"[TurretVariants] sentry placed: {mode}");
             }
             catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] OnSpawn: {e.Message}"); }
         }
@@ -189,14 +249,14 @@ public class TurretVariants : ModuleBase
         return inst != null && _turrets.TryGetValue(inst.Pointer, out var t) ? t : null;
     }
 
-    // Наши турели не стреляют.
+    // Our sentries don't shoot bullets.
     [HarmonyPatch(typeof(SentryGunInstance_Firing_Bullets), nameof(SentryGunInstance_Firing_Bullets.UpdateFireMaster))]
     private static class Patch_FireMaster { private static bool Prefix(SentryGunInstance_Firing_Bullets __instance) => Of(__instance) == null; }
 
     [HarmonyPatch(typeof(SentryGunInstance_Firing_Bullets), nameof(SentryGunInstance_Firing_Bullets.UpdateFireClient))]
     private static class Patch_FireClient { private static bool Prefix(SentryGunInstance_Firing_Bullets __instance) => Of(__instance) == null; }
 
-    // Анти-туманная не вертится за врагами.
+    // The anti-fog one doesn't turn after enemies.
     [HarmonyPatch(typeof(SentryGunInstance), nameof(SentryGunInstance.UpdateRotation))]
     private static class Patch_Rotation
     {
@@ -204,7 +264,7 @@ public class TurretVariants : ModuleBase
             !(_turrets.TryGetValue(__instance.Pointer, out var t) && !Tracks(t.Mode));
     }
 
-    // FT1 ничего не ищет: без сканирующего луча и без поворотов.
+    // FT1 doesn't look for anything: no scan beam and no turning.
     [HarmonyPatch(typeof(SentryGunInstance), nameof(SentryGunInstance.WantToScan))]
     private static class Patch_Scan
     {
@@ -225,7 +285,7 @@ public class TurretVariants : ModuleBase
         }
     }
 
-    /// <summary>Прячет ствол и ствольную коробку автопушки (только отрисовку — точки крепления остаются).</summary>
+    /// <summary>Hides the autocannon barrel and receiver (rendering only — attachment points stay).</summary>
     private static void HideGun(SentryGunInstance inst)
     {
         if (!_hideGun.Value) return;
@@ -237,10 +297,10 @@ public class TurretVariants : ModuleBase
             {
                 string n = tr.name;
                 if (n.StartsWith("GtfoPunk_")) break;
-                if (n.StartsWith("Front_") || n.StartsWith("Receiver_")) { if (r.enabled) hidden++; r.enabled = false; break; }
+                if (n.StartsWith("Front_") || n.StartsWith("Receiver_") || (_hideSensor.Value && n.StartsWith("Targeting"))) { if (r.enabled) hidden++; r.enabled = false; break; }
             }
         }
-        if (hidden > 0) ModInfo.Log.LogInfo($"[TurretVariants] спрятано деталей ствола: {hidden}");
+        if (hidden > 0) ModInfo.Log.LogInfo($"[TurretVariants] barrel parts hidden: {hidden}");
     }
 
     private static readonly List<IntPtr> _dead = new();
@@ -248,14 +308,51 @@ public class TurretVariants : ModuleBase
     private static float _fogDumpAt = -1f;
     private static bool _fogDumped;
 
+    // ---------- live config ----------
+
+    private static System.IO.FileSystemWatcher _watcher;
+    private static volatile bool _cfgChanged;
+    private static float _reloadAt;
+
+    private static void CheckReload()
+    {
+        if (!_liveReload.Value) return;
+        if (_watcher == null)
+        {
+            try
+            {
+                var path = _liveReload.ConfigFile.ConfigFilePath;
+                _watcher = new System.IO.FileSystemWatcher(System.IO.Path.GetDirectoryName(path), System.IO.Path.GetFileName(path))
+                { NotifyFilter = System.IO.NotifyFilters.LastWrite | System.IO.NotifyFilters.Size };
+                _watcher.Changed += (_, _) => _cfgChanged = true;
+                _watcher.EnableRaisingEvents = true;
+            }
+            catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] config watcher: {e.Message}"); _liveReload.Value = false; return; }
+        }
+        if (_cfgChanged) { _cfgChanged = false; _reloadAt = Time.unscaledTime + 0.3f; } // wait for the editor to finish writing
+        if (_reloadAt > 0f && Time.unscaledTime >= _reloadAt)
+        {
+            _reloadAt = 0f;
+            try
+            {
+                _liveReload.ConfigFile.Reload();
+                int n = 0;
+                foreach (var t in _turrets.Values) foreach (var a in t.Reapply) { try { a(); n++; } catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] re-placing: {e.Message}"); } }
+                ModInfo.Log.LogInfo($"[TurretVariants] config re-read, models re-placed: {n}");
+            }
+            catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] re-reading config: {e.Message}"); }
+        }
+    }
+
     private static void Tick()
     {
-        // Раз за уровень, через 5 с после высадки: настоящие параметры отпугивателей тумана — в лог и файл.
+        // Once per level, 5 s after drop-in: real fog repeller parameters — to the log and a file.
         if (!_fogDumped && GameUtil.InLevel)
         {
             if (_fogDumpAt < 0f) _fogDumpAt = Time.time + 5f;
-            else if (Time.time >= _fogDumpAt) { _fogDumped = true; try { DumpFogRepellers(); } catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] замер тумана: {e.Message}"); } }
+            else if (Time.time >= _fogDumpAt) { _fogDumped = true; try { DumpFogRepellers(); } catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] fog measurement: {e.Message}"); } }
         }
+        CheckReload();
         if (_turrets.Count == 0) return;
         _dead.Clear();
         foreach (var kv in _turrets)
@@ -266,21 +363,22 @@ public class TurretVariants : ModuleBase
             {
                 if (!t.Ready)
                 {
-                    t.Ready = t.Mode switch { Mode.Light => SetupLight(t), Mode.Tracker or Mode.Foam => true, _ => SetupFog(t) };
-                    if (!t.Ready && Time.time > t.GiveUpAt) { ModInfo.Log.LogWarning($"[TurretVariants] не удалось настроить турель ({t.Mode})"); t.Ready = true; }
-                    else if (t.Ready) ModInfo.Log.LogInfo($"[TurretVariants] турель {t.Mode} настроена");
+                    t.Ready = t.Mode switch { Mode.Light => SetupLight(t), Mode.Tracker => SetupTracker(t), Mode.Foam => SetupFoam(t), Mode.Grenade => SetupGrenade(t), _ => SetupFog(t) };
+                    if (!t.Ready && Time.time > t.GiveUpAt) { ModInfo.Log.LogWarning($"[TurretVariants] failed to set up sentry ({t.Mode})"); t.Ready = true; }
+                    else if (t.Ready) ModInfo.Log.LogInfo($"[TurretVariants] sentry {t.Mode} set up");
                 }
                 else
                 {
                     UpdateScreen(t);
-                    // Детали турели могут досоздаваться позже — несколько секунд повторяем «спрятать ствол».
-                    if (HidesGun(t.Mode) && Time.time - t.SpawnedAt < 8f && Time.time >= t.NextHide) { t.NextHide = Time.time + 0.5f; HideGun(t.Inst); }
-                    if (t.Mode == Mode.Tracker && SNetwork.SNet.IsMaster && Time.time >= t.NextScan)
+                    // Sentry parts may be created later — keep "hiding the barrel" for a few seconds.
+                    if (HidesGun(t) && Time.time - t.SpawnedAt < 8f && Time.time >= t.NextHide) { t.NextHide = Time.time + 0.5f; HideGun(t.Inst); }
+                    if (t.Mode == Mode.Tracker && Time.time >= t.NextScan)
                     {
                         t.NextScan = Time.time + Math.Max(0.5f, _trackerInterval.Value);
                         TrackerScan(t);
                     }
-                    if (t.Mode == Mode.Foam && SNetwork.SNet.IsMaster && Time.time >= t.NextShot) FoamFire(t);
+                    if (t.Mode == Mode.Foam && SNetwork.SNet.IsMaster) FoamTick(t);
+                    if (t.Mode == Mode.Grenade && SNetwork.SNet.IsMaster) GrenadeTick(t);
                     if (t.Mode == Mode.Light && t.Light != null)
                     {
                         bool target = t.Inst.m_detection != null && t.Inst.m_detection.HasTarget;
@@ -300,33 +398,16 @@ public class TurretVariants : ModuleBase
 
     private static bool SetupLight(Turret t)
     {
-        var firing = t.Inst.m_firing == null ? null : ((Il2CppObjectBase)t.Inst.m_firing).TryCast<SentryGunInstance_Firing_Bullets>();
-        var align = firing?.MuzzleAlign;
-        if (align == null) return false;
-
-        // Точка ствола (MuzzleAlign) — на конце спрятанного ствола, далеко впереди. Фонарь ставим у основания ствола:
-        // на корне детали Front_*, которая поворачивается вместе с головой турели; направление — как у ствола.
-        // Front_M — сама точка крепления; берём самого верхнего предка с именем Front_* (корень детали ствола).
-        Transform root = align.parent ?? align;
-        var chain = new List<string>();
-        for (var tr = align.parent; tr != null && tr != t.Inst.transform; tr = tr.parent)
-        {
-            chain.Add(tr.name);
-            if (tr.name.StartsWith("Front_")) root = tr;
-        }
-        ModInfo.Log.LogInfo($"[TurretVariants] цепочка от ствола: {string.Join(" > ", chain)}");
-        var head = new GameObject("GtfoPunk_Head");
-        head.transform.SetParent(root, false);
-        head.transform.position = root.position;
-        head.transform.rotation = align.rotation;
+        var head = MakeHead(t, out var root, out var align);
+        if (head == null) return false;
 
         var go = new GameObject("GtfoPunk_Searchlight");
         go.transform.SetParent(head.transform, false);
         go.transform.localRotation = Quaternion.identity;
-        try { AttachLamp(head.transform); } catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] модель фонаря: {e.Message}"); }
-        go.transform.localPosition = Vec(_lampOffset.Value, Vector3.zero) + Vector3.forward * _lightForward.Value; // свет перед стеклом фонаря, а не внутри модели
+        GameObject lamp = null;
+        try { lamp = AttachLamp(head.transform); } catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] lamp model: {e.Message}"); }
         HideGun(t.Inst);
-        ModInfo.Log.LogInfo($"[TurretVariants] фонарь крепится к «{root.name}», до точки ствола {Vector3.Distance(root.position, align.position):0.00} м");
+        ModInfo.Log.LogInfo($"[TurretVariants] lamp attached to '{root.name}', {Vector3.Distance(root.position, align.position):0.00} m from the muzzle point");
         var light = go.AddComponent<Light>();
         light.type = LightType.Spot;
         light.range = _lightRange.Value;
@@ -334,13 +415,13 @@ public class TurretVariants : ModuleBase
         light.intensity = _lightIntensity.Value;
         light.color = new Color(1f, 0.95f, 0.85f);
         light.shadows = LightShadows.None;
-        CL_Light.Create(eClusteredLightType.Spot, go, light); // GTFO рисует свет через свою кластерную систему
+        CL_Light.Create(eClusteredLightType.Spot, go, light); // GTFO renders lights through its own clustered system
 
+        GameObject glow = null;
         if (_lampGlow.Value > 0f)
         {
-            var glow = new GameObject("GtfoPunk_LampGlow");
+            glow = new GameObject("GtfoPunk_LampGlow");
             glow.transform.SetParent(head.transform, false);
-            glow.transform.localPosition = Vec(_lampOffset.Value, Vector3.zero) + Vector3.forward * _lampGlowForward.Value;
             var gl = glow.AddComponent<Light>();
             gl.type = LightType.Point;
             gl.range = 0.5f;
@@ -350,9 +431,232 @@ public class TurretVariants : ModuleBase
             CL_Light.Create(eClusteredLightType.Point, glow, gl);
         }
 
+        // Lamp and light position come from the config; re-placed when the config is edited on the fly.
+        void Place()
+        {
+            var off = Vec(_lampOffset.Value, Vector3.zero);
+            if (lamp != null)
+            {
+                lamp.transform.localPosition = off;
+                lamp.transform.localRotation = Quaternion.Euler(Vec(_lampRotation.Value, Vector3.zero));
+                lamp.transform.localScale = Vector3.one * _lampScale.Value;
+            }
+            go.transform.localPosition = off + Vector3.forward * _lightForward.Value; // light in front of the lens, not inside the model
+            light.range = _lightRange.Value;
+            light.spotAngle = _lightAngle.Value;
+            if (glow != null)
+            {
+                glow.transform.localPosition = off + Vector3.forward * _lampGlowForward.Value;
+                var gl = glow.GetComponent<Light>();
+                if (gl != null) gl.intensity = _lampGlow.Value;
+            }
+        }
+        Place();
+        t.Reapply.Add(Place);
+
         t.Extra = go;
         t.Light = light;
         return true;
+    }
+
+    /// <summary>
+    /// A point at the barrel root that rotates with the sentry head; direction — same as the barrel.
+    /// MuzzleAlign is at the barrel tip, far in front; take the topmost ancestor named Front_* (the barrel part root).
+    /// </summary>
+    private static GameObject MakeHead(Turret t, out Transform root, out Transform align)
+    {
+        root = null;
+        var firing = t.Inst.m_firing == null ? null : ((Il2CppObjectBase)t.Inst.m_firing).TryCast<SentryGunInstance_Firing_Bullets>();
+        align = firing?.MuzzleAlign;
+        if (align == null) return null;
+        root = align.parent ?? align;
+        for (var tr = align.parent; tr != null && tr != t.Inst.transform; tr = tr.parent)
+            if (tr.name.StartsWith("Front_")) root = tr;
+        var head = new GameObject("GtfoPunk_Head");
+        head.transform.SetParent(root, false);
+        head.transform.position = root.position;
+        head.transform.rotation = align.rotation;
+        return head;
+    }
+
+    /// <summary>Moves the model so the bottom of its bounds is at the seat point and its center is above it.</summary>
+    private static void SeatModel(GameObject model, Vector3 seat)
+    {
+        Bounds b = default; bool any = false;
+        foreach (var r in model.GetComponentsInChildren<Renderer>(true))
+        {
+            if (!any) { b = r.bounds; any = true; } else b.Encapsulate(r.bounds);
+        }
+        if (!any) return;
+        var bottomCenter = new Vector3(b.center.x, b.min.y, b.center.z);
+        model.transform.position += seat - bottomCenter;
+        ModInfo.Log.LogInfo($"[TurretVariants] FT1-T: turbine {b.size.x:0.00}x{b.size.y:0.00}x{b.size.z:0.00} m, seated in the cradle (moved {(seat - bottomCenter).magnitude:0.00} m)");
+    }
+
+    /// <summary>Model length along the z axis of the given node (from renderer bounds).</summary>
+    private static float LengthAlongZ(GameObject model, Transform space)
+    {
+        float min = float.MaxValue, max = float.MinValue;
+        foreach (var r in model.GetComponentsInChildren<Renderer>(true))
+        {
+            var b = r.bounds;
+            for (int i = 0; i < 8; i++)
+            {
+                var c = b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1));
+                float z = space.InverseTransformPoint(c).z;
+                min = Math.Min(min, z); max = Math.Max(max, z);
+            }
+        }
+        return max > min ? max - min : 0f;
+    }
+
+    private static bool SetupFoam(Turret t)
+    {
+        var head = MakeHead(t, out _, out _);
+        if (head == null) return Time.time - t.SpawnedAt > 4f; // no barrel — just shoot without canisters
+        AttachParts(t, head.transform, _foamParts, _foamPartsOffset, _foamPartsRotation, _foamPartsScale, "CF4");
+        string item = _foamModel.Value;
+        if (!string.IsNullOrWhiteSpace(item))
+        {
+            uint id = FindItemId(item);
+            try
+            {
+                var rgo = AttachModel(head.transform, id, Vector3.zero, Vector3.zero, 1f, "GtfoPunk_FoamTankR");
+                var lgo = AttachModel(head.transform, id, Vector3.zero, Vector3.zero, 1f, "GtfoPunk_FoamTankL");
+                void Place()
+                {
+                    var off = Vec(_foamModelOffset.Value, Vector3.zero);
+                    var rot = Quaternion.Euler(Vec(_foamModelRotation.Value, Vector3.zero));
+                    if (rgo != null) { rgo.transform.localPosition = off; rgo.transform.localRotation = rot; rgo.transform.localScale = Vector3.one * _foamModelScale.Value; }
+                    if (lgo != null)
+                    {
+                        lgo.SetActive(Math.Abs(off.x) > 0.001f);
+                        lgo.transform.localPosition = new Vector3(-off.x, off.y, off.z); lgo.transform.localRotation = rot; lgo.transform.localScale = Vector3.one * _foamModelScale.Value;
+                    }
+                }
+                Place();
+                t.Reapply.Add(Place);
+            }
+            catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] CF4 canisters: {e.Message}"); }
+        }
+        return true;
+    }
+
+    private static bool SetupTracker(Turret t)
+    {
+        var head = MakeHead(t, out _, out _);
+        if (head == null) return Time.time - t.SpawnedAt > 4f;
+        AttachParts(t, head.transform, _trackerParts, _trackerPartsOffset, _trackerPartsRotation, _trackerPartsScale, "BT3");
+        return true;
+    }
+
+    /// <summary>Mounts copies of tool parts (from 'type=ID,type=ID') in the barrel cradle, if their models are loaded.</summary>
+    private static void AttachParts(Turret t, Transform head,
+        BepInEx.Configuration.ConfigEntry<string> parts, BepInEx.Configuration.ConfigEntry<string> offset,
+        BepInEx.Configuration.ConfigEntry<string> rotation, BepInEx.Configuration.ConfigEntry<float> scale, string tag)
+    {
+        if (string.IsNullOrWhiteSpace(parts.Value)) return;
+        var holder = new GameObject("GtfoPunk_Parts");
+        holder.transform.SetParent(head, false);
+        int n = 0;
+        foreach (var kv in parts.Value.Split(','))
+        {
+            var p = kv.Split('=');
+            if (p.Length != 2 || !int.TryParse(p[0].Trim(), out int type)) continue;
+            var idSub = p[1].Split('/');
+            if (!uint.TryParse(idSub[0].Trim(), out uint id)) continue;
+            int sub = idSub.Length > 1 && int.TryParse(idSub[1].Trim(), out var ss) ? ss : -1;
+            var prefab = FindPartPrefab(type, id, sub, out string name);
+            if (prefab == null) { ModInfo.Log.LogWarning($"[TurretVariants] {tag}: model of part {type}={id} ({name ?? "?"}) not loaded"); continue; }
+            if (CopyModel(prefab, holder.transform, "GtfoPunk_Part_" + type) != null) n++;
+        }
+        if (n == 0) { UnityEngine.Object.Destroy(holder); return; }
+        t.PartsAttached = true;
+        HideGun(t.Inst);
+        void Place()
+        {
+            holder.transform.localPosition = Vec(offset.Value, Vector3.zero);
+            holder.transform.localRotation = Quaternion.Euler(Vec(rotation.Value, Vector3.zero));
+            holder.transform.localScale = Vector3.one * scale.Value;
+        }
+        Place();
+        t.Reapply.Add(Place);
+        ModInfo.Log.LogInfo($"[TurretVariants] {tag}: parts mounted in the cradle: {n}");
+    }
+
+    private static readonly Dictionary<string, GameObject> _partPrefabs = new();
+
+    /// <summary>Gear part prefab by type and ID: model file name from the part table → loaded object with that name.</summary>
+    /// <summary>Parts with subtypes (Delivery/Payload/Targeting) have a model per subtype: take the requested one or the first with a model.</summary>
+    private static GearPartGeneralData Pick<T>(Il2CppSystem.Collections.Generic.List<T> list, Func<T, (int type, GearPartGeneralData data)> get, int sub)
+    {
+        if (list == null) return null;
+        GearPartGeneralData first = null;
+        foreach (var item in list)
+        {
+            var (type, data) = get(item);
+            if (data == null || string.IsNullOrEmpty(data.Model)) continue;
+            if (sub >= 0 && type == sub) return data;
+            first ??= data;
+        }
+        return first;
+    }
+
+    private static GameObject FindPartPrefab(int type, uint id, int sub, out string name)
+    {
+        name = null;
+        GearPartGeneralData general = type switch
+        {
+            12 => GameDataBlockBase<GearFrontPartDataBlock>.GetBlock(id)?.General,
+            16 => GameDataBlockBase<GearReceiverPartDataBlock>.GetBlock(id)?.General,
+            27 => GameDataBlockBase<GearToolMainPartDataBlock>.GetBlock(id)?.General,
+            30 => GameDataBlockBase<GearToolGripPartDataBlock>.GetBlock(id)?.General,
+            33 => Pick(GameDataBlockBase<GearToolDeliveryPartDataBlock>.GetBlock(id)?.GeneralDatas, d => ((int)d.Type, d.Data), sub),
+            37 => Pick(GameDataBlockBase<GearToolPayloadPartDataBlock>.GetBlock(id)?.GeneralDatas, d => ((int)d.Type, d.Data), sub),
+            40 => Pick(GameDataBlockBase<GearToolTargetingPartDataBlock>.GetBlock(id)?.GeneralDatas, d => ((int)d.Type, d.Data), sub),
+            42 => GameDataBlockBase<GearToolScreenPartDataBlock>.GetBlock(id)?.General,
+            _ => null,
+        };
+        string model = general?.Model;
+        if (string.IsNullOrEmpty(model)) return null;
+        name = System.IO.Path.GetFileNameWithoutExtension(model);
+        if (_partPrefabs.TryGetValue(name, out var cached) && cached != null) return cached;
+        GameObject best = null;
+        var arr = Resources.FindObjectsOfTypeAll(Il2CppInterop.Runtime.Il2CppType.Of<GameObject>());
+        if (arr != null)
+            foreach (var o in arr)
+            {
+                var g = o?.TryCast<GameObject>();
+                if (g == null || g.name != name) continue;
+                if (g.GetComponentsInChildren<Renderer>(true).Length == 0) continue;
+                best = g;
+                if (!g.scene.IsValid()) break; // a prefab (not a scene copy) — best
+            }
+        if (best != null) _partPrefabs[name] = best;
+        return best;
+    }
+
+    private static readonly Dictionary<string, uint> _itemIds = new();
+
+    private static uint FindItemId(string name)
+    {
+        if (_itemIds.TryGetValue(name, out var cached)) return cached;
+        uint found = 0;
+        string want = new string(name.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+        if (want.Length > 0)
+            foreach (var b in GameDataBlockBase<ItemDataBlock>.GetAllBlocks())
+            {
+                if (b == null) continue;
+                foreach (var n in new[] { b.publicName, b.name })
+                {
+                    string nn = new string((n ?? "").Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+                    if (nn.Length > 0 && nn.Contains(want)) { found = b.persistentID; break; }
+                }
+                if (found != 0) break;
+            }
+        if (found == 0) ModInfo.Log.LogWarning($"[TurretVariants] item '{name}' not found");
+        _itemIds[name] = found;
+        return found;
     }
 
     private static bool SetupFog(Turret t)
@@ -365,26 +669,55 @@ public class TurretVariants : ModuleBase
         if (list == null || list.Count == 0 || list[0] == null) return false;
 
         var firing = t.Inst.m_firing == null ? null : ((Il2CppObjectBase)t.Inst.m_firing).TryCast<SentryGunInstance_Firing_Bullets>();
-        // Ждём, пока турель соберёт свои детали (иначе нечего прятать и некуда крепить).
+        // Wait until the sentry assembles its parts (otherwise nothing to hide and nowhere to attach).
         if (firing?.MuzzleAlign == null && Time.time - t.SpawnedAt < 4f) return false;
         var top = firing?.MuzzleAlign != null ? firing.MuzzleAlign.position : t.Inst.transform.position + Vector3.up * 0.6f;
         var go = UnityEngine.Object.Instantiate(list[0], top, Quaternion.identity);
         go.transform.SetParent(t.Inst.transform, true);
         go.name = "GtfoPunk_FogSphere";
         HideGun(t.Inst);
-        // Модель отпугивателя сверху (копия мешей) и тусклая лампочка.
+        // Repeller model on top (mesh copy) and a dim bulb.
         try
         {
             var anchor = new GameObject("GtfoPunk_FogTop");
             anchor.transform.SetParent(t.Inst.transform, false);
             anchor.transform.position = top;
-            // Ровно по вертикали, даже если турель стоит на склоне; поворот — только по направлению турели.
+            // Exactly vertical even if the sentry stands on a slope; rotation — only the sentry's heading.
             anchor.transform.rotation = Quaternion.Euler(0f, t.Inst.transform.eulerAngles.y, 0f);
+            GameObject turbine = null;
             if (t.Mode == Mode.FogTurbine)
-                AttachModel(anchor.transform, FogTurbineItemId, Vec(_turbineOffset.Value, Vector3.zero), Vector3.zero, _turbineScale.Value, "GtfoPunk_FogModel", AnyMode);
-            else
-                // Брошенный (Instance) отпугиватель стоит ровно; «подбираемая» модель лежит наклонно.
-                AttachModel(anchor.transform, FogRepellerItemId, Vec(_fogModelOffset.Value, Vector3.zero), Vec(_fogModelRotation.Value, Vector3.zero), _fogModelScale.Value, "GtfoPunk_FogModel", InstanceFirst);
+            {
+                turbine = AttachModel(anchor.transform, FogTurbineItemId, Vector3.zero, Vector3.zero, _turbineScale.Value, "GtfoPunk_FogModel", AnyMode);
+                if (turbine != null)
+                {
+                    // The barrel cradle is the root of the Front_* part (barrel hidden). Put the turbine's bottom there, centered.
+                    var head = MakeHead(t, out var cradle, out _);
+                    if (head != null) UnityEngine.Object.Destroy(head);
+                    var cradlePos = cradle != null ? cradle.position : top;
+                    var tb = turbine; var an = anchor.transform;
+                    void Seat()
+                    {
+                        tb.transform.localPosition = Vector3.zero;
+                        tb.transform.localScale = Vector3.one * _turbineScale.Value;
+                        SeatModel(tb, cradlePos + an.rotation * Vec(_turbineOffset.Value, Vector3.zero));
+                    }
+                    Seat();
+                    t.Reapply.Add(Seat);
+                }
+                else ModInfo.Log.LogInfo("[TurretVariants] FT1-T: no turbine on this level — using the regular repeller");
+            }
+            if (turbine == null)
+            {
+                // The thrown (Instance) repeller stands upright; the pickup model lies tilted.
+                var rep = AttachModel(anchor.transform, FogRepellerItemId, Vec(_fogModelOffset.Value, Vector3.zero), Vec(_fogModelRotation.Value, Vector3.zero), _fogModelScale.Value, "GtfoPunk_FogModel", InstanceFirst);
+                if (rep != null)
+                    t.Reapply.Add(() =>
+                    {
+                        rep.transform.localPosition = Vec(_fogModelOffset.Value, Vector3.zero);
+                        rep.transform.localRotation = Quaternion.Euler(Vec(_fogModelRotation.Value, Vector3.zero));
+                        rep.transform.localScale = Vector3.one * _fogModelScale.Value;
+                    });
+            }
             if (_fogLamp.Value > 0f)
             {
                 var lgo = new GameObject("GtfoPunk_FogLamp");
@@ -394,14 +727,14 @@ public class TurretVariants : ModuleBase
                 l.type = LightType.Point;
                 l.range = 5f;
                 l.intensity = _fogLamp.Value;
-                l.color = new Color(1f, 0.75f, 0.45f); // тёплая «лампочка Ильича»
+                l.color = new Color(1f, 0.75f, 0.45f); // warm incandescent bulb
                 l.shadows = LightShadows.None;
                 CL_Light.Create(eClusteredLightType.Point, lgo, l);
             }
         }
-        catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] модель FT1: {e.Message}"); }
+        catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] FT1 model: {e.Message}"); }
 
-        // От брошенного отпугивателя оставляем только сферу: без физики, коллайдеров и модельки.
+        // Of the thrown repeller keep only the sphere: no physics, colliders or model.
         foreach (var c in go.GetComponentsInChildren<FogRepellerInstance>(true)) UnityEngine.Object.Destroy(c);
         foreach (var rb in go.GetComponentsInChildren<Rigidbody>(true)) { rb.isKinematic = true; rb.useGravity = false; }
         foreach (var col in go.GetComponentsInChildren<Collider>(true)) col.enabled = false;
@@ -419,7 +752,7 @@ public class TurretVariants : ModuleBase
         return true;
     }
 
-    // ---------- экран, «тревога» от света, модель фонаря ----------
+    // ---------- screen, light disturbance, lamp model ----------
 
     private static void UpdateScreen(Turret t)
     {
@@ -429,8 +762,8 @@ public class TurretVariants : ModuleBase
             t.Screen = scr?.m_ammoText;
             if (t.Screen == null) return;
         }
-        if (t.Mode == Mode.Foam) return; // у пенострела на экране обычный счётчик патронов
-        string text = t.Mode switch { Mode.Light => "LT2", Mode.FogTurbine => "FT1-T", Mode.Tracker => t.Tagged > 0 ? $"BT3 {t.Tagged}" : "BT3", _ => "FT1" };
+        if (t.Mode == Mode.Foam || t.Mode == Mode.Grenade) return; // shooting sentries keep the regular ammo counter
+        string text = t.Mode switch { Mode.Light => t.Variant == 0 ? "LT2" : "LT2-" + (char)('A' + t.Variant - 1), Mode.FogTurbine => "FT1-T", Mode.Tracker => t.Tagged > 0 ? $"BT3 {t.Tagged}" : "BT3", _ => "FT1" };
         if (t.Screen.text != text) t.Screen.text = text;
     }
 
@@ -439,8 +772,9 @@ public class TurretVariants : ModuleBase
         if (!Enum.TryParse<NM_NoiseType>(_disturb.Value, true, out var type)) return; // Off
         var tr = t.Light.transform;
         float range = _lightRange.Value, half = _lightAngle.Value * 0.5f;
-        var owner = t.Inst.Owner;
-        var maker = owner != null ? ((Il2CppObjectBase)owner).TryCast<INM_NoiseMaker>() : ((Il2CppObjectBase)t.Inst).TryCast<INM_NoiseMaker>();
+        INM_NoiseMaker maker = null;
+        // Il2Cpp: get the interface via Cast (TryCast on an interface returns null — that's why the light used to disturb nobody).
+        try { var owner = t.Inst.Owner; if (owner != null) maker = ((Il2CppObjectBase)owner).Cast<INM_NoiseMaker>(); } catch { }
         if (maker == null) return;
         var seen = new HashSet<IntPtr>();
         foreach (var col in Physics.OverlapSphere(tr.position, range, LayerManager.MASK_ENEMY_DAMAGABLE))
@@ -448,10 +782,12 @@ public class TurretVariants : ModuleBase
             var enemy = col == null ? null : col.GetComponent<Dam_EnemyDamageLimb>()?.GlueTargetEnemyAgent;
             if (enemy == null || !enemy.Alive || !seen.Add(enemy.Pointer)) continue;
             var to = enemy.EyePosition - tr.position;
-            if (Vector3.Angle(tr.forward, to) > half) continue;           // не в луче
-            if (Physics.Linecast(tr.position, enemy.EyePosition, LayerManager.MASK_WORLD)) continue; // за стеной
+            if (Vector3.Angle(tr.forward, to) > half) continue;           // not in the beam
+            if (Physics.Linecast(tr.position, enemy.EyePosition, LayerManager.MASK_WORLD)) continue; // behind a wall
             var node = enemy.CourseNode;
             if (node == null) continue;
+            if (!t.LitSince.TryGetValue(enemy.Pointer, out var since)) t.LitSince[enemy.Pointer] = since = Time.time;
+            bool wake = _lightWakeAfter.Value > 0f && Time.time - since >= _lightWakeAfter.Value;
             NoiseManager.MakeNoise(new NM_NoiseData
             {
                 noiseMaker = maker,
@@ -460,14 +796,16 @@ public class TurretVariants : ModuleBase
                 radiusMin = 0.01f,
                 radiusMax = 1f,
                 yScale = 1f,
-                type = type,
+                type = wake ? NM_NoiseType.InstaDetect : type,
                 includeToNeightbourAreas = false,
                 raycastFirstNode = false,
             });
         }
+        // Whoever left the beam — reset their timer.
+        foreach (var k in t.LitSince.Keys.Where(k => !seen.Contains(k)).ToList()) t.LitSince.Remove(k);
     }
 
-    // ---------- BT3: сканирование сектора ----------
+    // ---------- BT3: sector scan ----------
 
     private static void TrackerScan(Turret t)
     {
@@ -481,52 +819,183 @@ public class TurretVariants : ModuleBase
             var enemy = col == null ? null : col.GetComponent<Dam_EnemyDamageLimb>()?.GlueTargetEnemyAgent;
             if (enemy == null || !enemy.Alive || !seen.Add(enemy.Pointer)) continue;
             var to = enemy.Position - origin; to.y = 0f;
-            if (to.sqrMagnitude > 0.01f && fwd.sqrMagnitude > 0.01f && Vector3.Angle(fwd, to) > half) continue; // вне сектора
+            if (to.sqrMagnitude > 0.01f && fwd.sqrMagnitude > 0.01f && Vector3.Angle(fwd, to) > half) continue; // outside the sector
             if (!_trackerWalls.Value && Physics.Linecast(origin, enemy.EyePosition, LayerManager.MASK_WORLD)) continue;
             count++;
-            if (enemy.IsTagged) continue;
+            if (enemy.IsTagged || !SNetwork.SNet.IsMaster) continue;
             ToolSyncManager.WantToTagEnemy(enemy);
             tagged++;
         }
         t.Tagged = count;
-        if (tagged > 0) ModInfo.Log.LogInfo($"[TurretVariants] BT3: в секторе {count}, помечено новых {tagged}");
+        // Like the handheld bio-tracker: a beep when someone is in the sector (for all players).
+        if (count > 0 && _trackerSound.Value) CellSound.Post(AK.EVENTS.BIOTRACKER_TAG, origin);
+        if (tagged > 0) ModInfo.Log.LogInfo($"[TurretVariants] BT3: in sector {count}, newly tagged {tagged}");
     }
 
-    // ---------- CF4: стрельба пеной ----------
+    // ---------- CF4: foam shooting ----------
 
     private static bool _foamLogged, _glueGravityLogged;
 
-    private static void FoamFire(Turret t)
+    /// <summary>Target velocity — from the aim point displacement between frames (smoothed).</summary>
+    private static void TrackAim(Turret t)
     {
         var det = t.Inst.m_detection;
-        if (det == null || !det.HasTarget) return;
-        if (!t.Inst.TryGetTargetAimPos(out var aim)) return;
-        var target = det.Target;
-        var enemy = target == null ? null : target.GetComponentInParent<EnemyAgent>();
-        if (enemy != null && _foamSkipGlued.Value && enemy.Damage != null && enemy.Damage.IsStuckInGlue) return;
+        if (det != null && det.HasTarget && t.Inst.TryGetTargetAimPos(out var cur))
+        {
+            float dt = Time.time - t.LastAimTime;
+            if (t.HasLastAim && dt > 0.01f && dt < 0.5f && (cur - t.LastAim).sqrMagnitude < 25f)
+                t.AimVel = Vector3.Lerp(t.AimVel, (cur - t.LastAim) / dt, 0.3f);
+            else if (!t.HasLastAim || dt >= 0.5f) t.AimVel = Vector3.zero;
+            t.LastAim = cur; t.LastAimTime = Time.time; t.HasLastAim = true;
+        }
+        else t.HasLastAim = false;
+    }
 
+    /// <summary>Lead point: where the target will be when the projectile arrives.</summary>
+    private static Vector3 Lead(Vector3 from, Vector3 aim, Vector3 vel, float speed, float g)
+    {
+        var target = aim;
+        if (vel.sqrMagnitude <= 0.04f) return target;
+        for (int i = 0; i < 2; i++)
+        {
+            var v0 = Ballistic(from, target, speed, g);
+            var flat = new Vector3(v0.x, 0f, v0.z).magnitude;
+            float tof = flat > 0.1f ? new Vector3(target.x - from.x, 0f, target.z - from.z).magnitude / flat : (target - from).magnitude / speed;
+            target = aim + new Vector3(vel.x, 0f, vel.z) * Math.Min(tof, 1.5f);
+        }
+        return target;
+    }
+
+    // ---------- GL5: grenade launcher ----------
+
+    private static bool SetupGrenade(Turret t)
+    {
+        var head = MakeHead(t, out _, out _);
+        if (head == null) return Time.time - t.SpawnedAt > 4f;
+        AttachParts(t, head.transform, _glParts, _glPartsOffset, _glPartsRotation, _glPartsScale, "GL5");
+        return true;
+    }
+
+    private static bool _glLogged;
+
+    private static void GrenadeTick(Turret t)
+    {
+        TrackAim(t);
+        if (Time.time < t.NextShot) return;
+        var det = t.Inst.m_detection;
+        if (det == null || !det.HasTarget || !t.Inst.TryGetTargetAimPos(out var aim)) return;
+        var owner = t.Inst.Owner;
+        if (owner == null) return;
+        float cost = Math.Max(0f, t.Inst.CostOfBullet * _glAmmo.Value);
+        if (t.Inst.m_ammo < cost) return;
+
+        var firing = t.Inst.m_firing == null ? null : ((Il2CppObjectBase)t.Inst.m_firing).TryCast<SentryGunInstance_Firing_Bullets>();
+        var muzzle = firing?.MuzzleAlign;
+        var from = muzzle != null ? muzzle.position + muzzle.forward * 0.5f : t.Inst.transform.position + Vector3.up * 0.8f;
+        float dist = Vector3.Distance(from, aim);
+        if (dist > _glRange.Value || dist < _glMinRange.Value) return;
+
+        float speed = Math.Max(1f, _glSpeed.Value), g = Math.Abs(Physics.gravity.y);
+        var target = Lead(from, aim, t.AimVel, speed, g);
+        // Don't blow up our own: no players (and not the sentry itself) near the impact point.
+        float safe = Math.Max(0f, _glSafe.Value);
+        if (Vector3.Distance(target, t.Inst.transform.position) < safe) return;
+        foreach (var p in PlayerManager.PlayerAgentsInLevel)
+            if (p != null && p.Alive && Vector3.Distance(p.Position, target) < safe) { t.NextShot = Time.time + 0.5f; return; }
+
+        var node = owner.CourseNode ?? t.Inst.CourseNode;
+        if (!Grenades.Throw(owner, from, Ballistic(from, target, speed, g), node))
+        {
+            if (!_glLogged) { _glLogged = true; ModInfo.Log.LogWarning("[TurretVariants] GL5: no grenade model (item 136) — sentry won't fire"); }
+            t.NextShot = Time.time + 5f;
+            return;
+        }
+        try { CellSound.Post(AK.EVENTS.GLUEGUNFIRE1SHOT, from); } catch { }
+        t.Inst.m_ammo = Math.Max(0f, t.Inst.m_ammo - cost);
+        t.NextShot = Time.time + Math.Max(0.5f, _glInterval.Value);
+    }
+
+    private static void FoamTick(Turret t)
+    {
+        TrackAim(t);
+
+        if (t.BurstLeft > 0)
+        {
+            if (Time.time < t.NextBurst) return;
+            if (!FoamShot(t)) { t.BurstLeft = 0; return; }
+            t.BurstLeft--;
+            t.NextBurst = Time.time + Math.Max(0.03f, _foamBurstDelay.Value);
+            return;
+        }
+        if (Time.time < t.NextShot) return;
+        if (!FoamShot(t)) return;
+        t.BurstLeft = Math.Max(0, _foamBurst.Value - 1);
+        t.NextBurst = Time.time + Math.Max(0.03f, _foamBurstDelay.Value);
+        t.NextShot = Time.time + Math.Max(0.2f, _foamInterval.Value);
+    }
+
+    /// <summary>One foam glob. false — nothing to shoot at or nothing to shoot with.</summary>
+    private static bool FoamShot(Turret t)
+    {
+        var owner = t.Inst.Owner;
+        if (owner == null) return false;
         float cost = Math.Max(0f, t.Inst.CostOfBullet * _foamAmmo.Value);
         if (!_foamLogged)
         {
             _foamLogged = true;
-            ModInfo.Log.LogInfo($"[TurretVariants] CF4: патроны {t.Inst.Ammo:0.##}/{t.Inst.AmmoMaxCap:0.##}, цена пули {t.Inst.CostOfBullet:0.###}, цена сгустка {cost:0.###}");
+            ModInfo.Log.LogInfo($"[TurretVariants] CF4: ammo {t.Inst.Ammo:0.##}/{t.Inst.AmmoMaxCap:0.##}, bullet cost {t.Inst.CostOfBullet:0.###}, glob cost {cost:0.###}");
         }
-        if (t.Inst.m_ammo < cost) return;
+        if (t.Inst.m_ammo < cost) return false;
 
-        var owner = t.Inst.Owner;
-        if (owner == null) return;
         var firing = t.Inst.m_firing == null ? null : ((Il2CppObjectBase)t.Inst.m_firing).TryCast<SentryGunInstance_Firing_Bullets>();
         var muzzle = firing?.MuzzleAlign;
         var from = muzzle != null ? muzzle.position + muzzle.forward * 0.3f : t.Inst.transform.position + Vector3.up * 0.7f;
-        if (Vector3.Distance(from, aim) > _foamRange.Value) return;
 
-        var vel = Ballistic(from, aim, Math.Max(1f, _foamSpeed.Value), Math.Max(0f, _foamGravity.Value));
-        ProjectileManager.WantToFireGlue(owner, from, vel, _foamExpand.Value, true);
+        // Target: the one the sentry picked, unless it's already glued; otherwise the nearest unglued enemy in line of sight.
+        Vector3 aim = default, vel = Vector3.zero;
+        bool have = false;
+        var det = t.Inst.m_detection;
+        if (det != null && det.HasTarget && t.Inst.TryGetTargetAimPos(out var a))
+        {
+            var e = det.Target == null ? null : det.Target.GetComponentInParent<EnemyAgent>();
+            if (!(e != null && _foamSkipGlued.Value && Glued(e)) && Vector3.Distance(from, a) <= _foamRange.Value) { aim = a; vel = t.AimVel; have = true; }
+        }
+        if (!have)
+        {
+            var e = NearestUnglued(from, muzzle != null ? muzzle.forward : t.Inst.transform.forward);
+            if (e == null) return false;
+            aim = e.EyePosition + Vector3.down * 0.4f; // center mass
+            have = true;
+        }
+
+        float speed = Math.Max(1f, _foamSpeed.Value), g = Math.Max(0f, _foamGravity.Value);
+        var target = _foamLead.Value ? Lead(from, aim, vel, speed, g) : aim;
+        ProjectileManager.WantToFireGlue(owner, from, Ballistic(from, target, speed, g), _foamExpand.Value, true);
+        try { CellSound.Post(AK.EVENTS.GLUEGUNFIRE1SHOT, from); } catch { }
         t.Inst.m_ammo = Math.Max(0f, t.Inst.m_ammo - cost);
-        t.NextShot = Time.time + Math.Max(0.2f, _foamInterval.Value);
+        return true;
     }
 
-    /// <summary>Скорость для попадания из from в to при заданной начальной скорости и гравитации (низкая дуга; если не достаёт — 45°).</summary>
+    private static bool Glued(EnemyAgent e) => e.Damage != null && e.Damage.IsStuckInGlue;
+
+    private static EnemyAgent NearestUnglued(Vector3 from, Vector3 fwd)
+    {
+        EnemyAgent best = null; float bestD = float.MaxValue;
+        var seen = new HashSet<IntPtr>();
+        foreach (var col in Physics.OverlapSphere(from, _foamRange.Value, LayerManager.MASK_ENEMY_DAMAGABLE))
+        {
+            var e = col == null ? null : col.GetComponent<Dam_EnemyDamageLimb>()?.GlueTargetEnemyAgent;
+            if (e == null || !e.Alive || !seen.Add(e.Pointer) || Glued(e)) continue;
+            var to = e.EyePosition - from;
+            if (Vector3.Angle(fwd, to) > 75f) continue; // the sentry doesn't shoot backwards
+            if (Physics.Linecast(from, e.EyePosition, LayerManager.MASK_WORLD)) continue;
+            float d = to.sqrMagnitude;
+            if (d < bestD) { bestD = d; best = e; }
+        }
+        return best;
+    }
+
+    /// <summary>Velocity to hit 'to' from 'from' with the given launch speed and gravity (low arc; if out of reach — 45°).</summary>
     private static Vector3 Ballistic(Vector3 from, Vector3 to, float speed, float g)
     {
         var d = to - from;
@@ -540,7 +1009,7 @@ public class TurretVariants : ModuleBase
         return (dir * Mathf.Cos(angle) + Vector3.up * Mathf.Sin(angle)) * speed;
     }
 
-    // Один раз пишем в лог настоящую гравитацию сгустка пены — чтобы выставить FoamGravity.
+    // Log the real foam glob gravity once — to set FoamGravity.
     [HarmonyPatch(typeof(ProjectileManager), nameof(ProjectileManager.SpawnGlueGunProjectileIfNeeded))]
     private static class Patch_GlueSpawn
     {
@@ -548,8 +1017,18 @@ public class TurretVariants : ModuleBase
         {
             if (_glueGravityLogged || __result == null) return;
             _glueGravityLogged = true;
-            try { ModInfo.Log.LogInfo($"[TurretVariants] пена: гравитация сгустка {__result.m_gravity}"); } catch { }
+            try { ModInfo.Log.LogInfo($"[TurretVariants] foam: glob gravity {__result.m_gravity}"); } catch { }
         }
+    }
+
+    private static Vector2 Vec2(string s)
+    {
+        var p = (s ?? "").Split(',');
+        var ci = System.Globalization.CultureInfo.InvariantCulture;
+        float x = 0f, y = 0f;
+        if (p.Length > 0) float.TryParse(p[0], System.Globalization.NumberStyles.Float, ci, out x);
+        if (p.Length > 1) float.TryParse(p[1], System.Globalization.NumberStyles.Float, ci, out y);
+        return new Vector2(x, y);
     }
 
     private static Vector3 Vec(string s, Vector3 def)
@@ -575,10 +1054,10 @@ public class TurretVariants : ModuleBase
             foreach (var n in new[] { b.publicName, b.name })
             {
                 string nn = new string((n ?? "").Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
-                if (nn.Length > 0 && nn.Contains(want)) { _lampId = b.persistentID; ModInfo.Log.LogInfo($"[TurretVariants] модель фонаря: {b.publicName} ({b.persistentID})"); return _lampId; }
+                if (nn.Length > 0 && nn.Contains(want)) { _lampId = b.persistentID; ModInfo.Log.LogInfo($"[TurretVariants] lamp model: {b.publicName} ({b.persistentID})"); return _lampId; }
             }
         }
-        ModInfo.Log.LogWarning($"[TurretVariants] предмет «{_lampItem.Value}» не найден — фонарная турель без модели");
+        ModInfo.Log.LogWarning($"[TurretVariants] item '{_lampItem.Value}' not found — searchlight sentry without a model");
         return 0;
     }
 
@@ -597,11 +1076,11 @@ public class TurretVariants : ModuleBase
             if (dict == null || !dict.ContainsKey(id)) continue;
             var list = dict[id];
             if (list == null) continue;
-            // Берём первый вариант модели, в котором реально есть меши (у некоторых предметов модель «от третьего лица» пустая).
+            // Take the first model variant that actually has meshes (some items have an empty third-person model).
             for (int k = 0; k < list.Count; k++)
                 if (list[k] != null && list[k].GetComponentsInChildren<Renderer>(true).Length > 0)
                 {
-                    ModInfo.Log.LogInfo($"[TurretVariants] модель предмета {id}: вид {mode}, вариант {k}");
+                    ModInfo.Log.LogInfo($"[TurretVariants] item {id} model: mode {mode}, variant {k}");
                     return list[k];
                 }
         }
@@ -609,8 +1088,8 @@ public class TurretVariants : ModuleBase
     }
 
     /// <summary>
-    /// Ищет среди всех загруженных в память мешей объект, чьё имя (или имя предка) содержит одно из слов.
-    /// Нужен для турбины: у предмета 133 модели без мешей, а сама турбина, видимо, грузится отдельно.
+    /// Searches all loaded meshes for an object whose name (or an ancestor's name) contains one of the words.
+    /// Needed for the turbine: item 133's models have no meshes, the turbine itself is apparently loaded separately.
     /// </summary>
     private static GameObject FindLoadedModel(string keywords)
     {
@@ -621,7 +1100,7 @@ public class TurretVariants : ModuleBase
         foreach (var mf in AllMeshFilters())
         {
             if (mf == null || mf.sharedMesh == null) continue;
-            // Самый верхний предок с подходящим именем — корень модели.
+            // The topmost ancestor with a matching name is the model root.
             Transform root = null;
             for (var tr = mf.transform; tr != null; tr = tr.parent) if (Match(tr.name)) root = tr;
             if (root == null && Match(mf.sharedMesh.name)) root = mf.transform;
@@ -629,7 +1108,7 @@ public class TurretVariants : ModuleBase
             int n = root.GetComponentsInChildren<MeshFilter>(true).Length;
             if (n > bestCount) { best = root; bestCount = n; }
         }
-        if (best != null) ModInfo.Log.LogInfo($"[TurretVariants] модель турбины найдена в памяти: «{best.name}», мешей {bestCount}");
+        if (best != null) ModInfo.Log.LogInfo($"[TurretVariants] turbine model found in memory: '{best.name}', meshes {bestCount}");
         return best?.gameObject;
     }
 
@@ -651,13 +1130,13 @@ public class TurretVariants : ModuleBase
             for (var tr = mf.transform; tr != null; tr = tr.parent) path = tr.name + (path.Length > 0 ? "/" + path : "");
             string all = (path + " " + mf.sharedMesh.name).ToLowerInvariant();
             if (!keys.Any(all.Contains) || !seen.Add(path)) continue;
-            lines.Add($"  меш в памяти: {path} [{mf.sharedMesh.name}]");
+            lines.Add($"  mesh in memory: {path} [{mf.sharedMesh.name}]");
             if (seen.Count >= 40) break;
         }
-        if (seen.Count == 0) lines.Add($"  мешей по словам «{keywords}» в памяти нет");
+        if (seen.Count == 0) lines.Add($"  no meshes matching '{keywords}' in memory");
     }
 
-    /// <summary>Подробно пишет в лог, что лежит в загруженных моделях предмета (для поиска модели турбины).</summary>
+    /// <summary>Logs in detail what the item's loaded models contain (to find the turbine model).</summary>
     private static void DumpItemModels(uint id, List<string> lines)
     {
         var perMode = ItemSpawnManager.m_loadedPrefabsPerItemMode;
@@ -670,39 +1149,46 @@ public class TurretVariants : ModuleBase
             for (int k = 0; list != null && k < list.Count; k++)
             {
                 var go = list[k];
-                if (go == null) { lines.Add($"  предмет {id} вид {(ItemMode)m} [{k}]: пусто"); continue; }
+                if (go == null) { lines.Add($"  item {id} mode {(ItemMode)m} [{k}]: empty"); continue; }
                 var rs = go.GetComponentsInChildren<Renderer>(true);
                 var mfs = go.GetComponentsInChildren<MeshFilter>(true);
                 var trs = go.GetComponentsInChildren<Transform>(true);
-                var comps = go.GetComponentsInChildren<Component>(true).Select(c => c == null ? "null" : c.GetIl2CppType().Name).GroupBy(n => n).Select(g => $"{g.Key}×{g.Count()}");
-                lines.Add($"  предмет {id} вид {(ItemMode)m} [{k}] «{go.name}»: узлов {trs.Length}, рендеров {rs.Length}, мешей {mfs.Length}; компоненты: {string.Join(", ", comps)}");
+                var comps = go.GetComponentsInChildren<Component>(true).Select(c => c == null ? "null" : c.GetIl2CppType().Name).GroupBy(n => n).Select(g => $"{g.Key}x{g.Count()}");
+                lines.Add($"  item {id} mode {(ItemMode)m} [{k}] '{go.name}': nodes {trs.Length}, renderers {rs.Length}, meshes {mfs.Length}; components: {string.Join(", ", comps)}");
                 foreach (var tr in trs.Take(40)) lines.Add($"    - {tr.name} (pos {tr.localPosition}, scale {tr.localScale})");
             }
         }
     }
 
-    /// <summary>Ставит на турель копию модели фонаря: только меши, без скриптов, физики и коллайдеров.</summary>
-    private static void AttachLamp(Transform parent) =>
+    /// <summary>Mounts a copy of the lamp model on the sentry: meshes only, no scripts, physics or colliders.</summary>
+    private static GameObject AttachLamp(Transform parent) =>
         AttachModel(parent, LampItemId(), Vec(_lampOffset.Value, Vector3.zero), Vec(_lampRotation.Value, Vector3.zero), _lampScale.Value, "GtfoPunk_Lamp");
 
-    private static void AttachModel(Transform parent, uint id, Vector3 offset, Vector3 euler, float scale, string name, ItemMode[] order = null)
+    private static GameObject AttachModel(Transform parent, uint id, Vector3 offset, Vector3 euler, float scale, string name, ItemMode[] order = null)
     {
-        if (id == 0) return;
+        if (id == 0) return null;
         var prefab = LampPrefab(id, order);
         if (prefab == null && id == FogTurbineItemId) prefab = FindLoadedModel(_turbineKeywords.Value);
-        if (prefab == null) { ModInfo.Log.LogWarning($"[TurretVariants] модель предмета {id} не загружена"); return; }
+        if (prefab == null) { ModInfo.Log.LogWarning($"[TurretVariants] item {id} model not loaded"); return null; }
 
-        var holder = new GameObject(name);
-        holder.SetActive(false); // пока выключен — скрипты копии не запустятся
-        holder.transform.SetParent(parent, false);
+        var holder = CopyModel(prefab, parent, name);
         holder.transform.localPosition = offset;
         holder.transform.localRotation = Quaternion.Euler(euler);
         holder.transform.localScale = Vector3.one * scale;
+        return holder;
+    }
+
+    /// <summary>Model copy: meshes only, no scripts, physics or colliders.</summary>
+    private static GameObject CopyModel(GameObject prefab, Transform parent, string name)
+    {
+        var holder = new GameObject(name);
+        holder.SetActive(false); // inactive for now — the copy's scripts won't start
+        holder.transform.SetParent(parent, false);
 
         var copy = UnityEngine.Object.Instantiate(prefab, holder.transform, false);
         copy.transform.localPosition = Vector3.zero;
         copy.transform.localRotation = Quaternion.identity;
-        for (int pass = 0; pass < 3; pass++) // несколько проходов: часть компонентов держится за другие
+        for (int pass = 0; pass < 3; pass++) // several passes: some components depend on others
             foreach (var c in copy.GetComponentsInChildren<Component>(true))
             {
                 if (c == null) continue;
@@ -714,18 +1200,19 @@ public class TurretVariants : ModuleBase
         int n = 0;
         foreach (var r in copy.GetComponentsInChildren<Renderer>(true)) { r.enabled = true; r.forceRenderingOff = false; n++; }
         holder.SetActive(true);
-        ModInfo.Log.LogInfo($"[TurretVariants] модель {name}: {n} мешей, слой {layer}");
+        ModInfo.Log.LogInfo($"[TurretVariants] model {name}: {n} meshes, layer {layer}");
+        return holder;
     }
 
-    // ---------- замер настоящих отпугивателей ----------
+    // ---------- measuring real repellers ----------
 
     private static string Describe(FogRepeller_Sphere f) =>
-        $"радиус {f.Range:0.##} м, работает {(f.InfiniteDuration ? "бесконечно" : f.LifeDuration.ToString("0.#") + " с")}, " +
-        $"раздувается {f.GrowDuration:0.#} с, сдувается {f.ShrinkDuration:0.#} с, плотность {f.Density:0.##}";
+        $"radius {f.Range:0.##} m, lasts {(f.InfiniteDuration ? "forever" : f.LifeDuration.ToString("0.#") + " s")}, " +
+        $"grows {f.GrowDuration:0.#} s, shrinks {f.ShrinkDuration:0.#} s, density {f.Density:0.##}";
 
     private static void DumpFogRepellers()
     {
-        var lines = new List<string> { $"# Отпугиватели тумана ({DateTime.Now:yyyy-MM-dd HH:mm}), уровень: {RundownManager.ActiveExpedition?.Descriptive?.PublicName}" };
+        var lines = new List<string> { $"# Fog repellers ({DateTime.Now:yyyy-MM-dd HH:mm}), level: {RundownManager.ActiveExpedition?.Descriptive?.PublicName}" };
         var perMode = ItemSpawnManager.m_loadedPrefabsPerItemMode;
         if (perMode != null)
             for (int m = 0; m < perMode.Length; m++)
@@ -739,18 +1226,18 @@ public class TurretVariants : ModuleBase
                     foreach (var f in list[0].GetComponentsInChildren<FogRepeller_Sphere>(true))
                     {
                         var item = GameDataBlockBase<ItemDataBlock>.GetBlock(kv.Key);
-                        lines.Add($"модель: {item?.publicName ?? kv.Key.ToString()} ({kv.Key}), вид {(ItemMode)m}: {Describe(f)}");
+                        lines.Add($"model: {item?.publicName ?? kv.Key.ToString()} ({kv.Key}), mode {(ItemMode)m}: {Describe(f)}");
                     }
                 }
             }
         DumpItemModels(FogTurbineItemId, lines);
         DumpLoadedMeshes(_turbineKeywords.Value + ",fog,repell", lines);
         foreach (var g in UnityEngine.Object.FindObjectsOfType<HeavyFogRepellerGlobalState>())
-            if (g != null && g.m_repellerSphere != null) lines.Add($"на уровне: турбина «{g.gameObject.name}»: {Describe(g.m_repellerSphere)}");
+            if (g != null && g.m_repellerSphere != null) lines.Add($"in level: turbine '{g.gameObject.name}': {Describe(g.m_repellerSphere)}");
         foreach (var f in UnityEngine.Object.FindObjectsOfType<FogRepeller_Sphere>())
-            if (f != null) lines.Add($"на уровне: «{f.gameObject.name}» ({f.CurrentState}, сейчас {f.m_currentRange:0.##} м): {Describe(f)}");
-        if (lines.Count == 1) lines.Add("отпугивателей не найдено (модели не загружены на этом уровне)");
-        foreach (var l in lines) ModInfo.Log.LogInfo($"[Туман] {l}");
+            if (f != null) lines.Add($"in level: '{f.gameObject.name}' ({f.CurrentState}, now {f.m_currentRange:0.##} m): {Describe(f)}");
+        if (lines.Count == 1) lines.Add("no repellers found (models not loaded on this level)");
+        foreach (var l in lines) ModInfo.Log.LogInfo($"[Fog] {l}");
         System.IO.File.AppendAllLines(System.IO.Path.Combine(BepInEx.Paths.ConfigPath, "GtfoPunk.FogRepellers.txt"), lines);
     }
 }

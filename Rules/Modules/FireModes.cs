@@ -11,14 +11,14 @@ using UnityEngine;
 namespace GtfoPunk.Rules.Modules;
 
 /// <summary>
-/// Переключение режима огня клавишей (по умолчанию B): одиночный → очередь → авто → … по кругу.
-/// Работает для любого огнестрела игрока (не турелей). Темп берётся из данных оружия,
-/// темп стрельбы всегда родной. Очередь — только у оружия с родной очередью (настройка BurstForAll).
+/// Switch fire mode with a key (B by default): semi → burst → auto → … in a loop.
+/// Works for any player firearm (not sentries). Data comes from the weapon itself,
+/// the rate of fire is always the native one. Burst — only for weapons with a native burst (option BurstForAll).
 /// </summary>
 public class FireModes : ModuleBase
 {
     public override string Id => "FireModes";
-    public override string Description => "Переключение режима огня (одиночный / очередь / авто) клавишей, по умолчанию B.";
+    public override string Description => "Switch fire mode (semi / burst / auto) with a key, B by default.";
     public override ModuleSide Side => ModuleSide.Client;
     public override IReadOnlyList<string> ReplacedBy => new[] { "Dinorush.ExtraWeaponCustomization", "ExtraWeaponCustomization" };
 
@@ -30,11 +30,11 @@ public class FireModes : ModuleBase
 
     protected override void OnBindConfig()
     {
-        _key = Bind("Key", KeyCode.B, "Клавиша переключения режима огня.");
-        _modes = Bind("Modes", "Semi,Burst,Auto", "Доступные режимы по порядку (Semi, Burst, Auto). Родной режим оружия добавляется всегда.");
-        _burstCount = Bind("BurstShots", 3, "Выстрелов в очереди (для оружия, у которого нет своей очереди).");
-        _burstDelay = Bind("BurstDelay", 0.3f, "Пауза между очередями, сек (для оружия без своей очереди).");
-        _burstForAll = Bind("BurstForAll", false, "Давать очередь и оружию, у которого её нет родной. Выключено: очередь только у «родного» бурста, у остальных одиночный/авто.");
+        _key = Bind("Key", KeyCode.B, "Fire mode switch key.");
+        _modes = Bind("Modes", "Semi,Burst,Auto", "Available modes in order (Semi, Burst, Auto). The weapon's native mode is always included.");
+        _burstCount = Bind("BurstShots", 3, "Shots per burst (for weapons without their own burst).");
+        _burstDelay = Bind("BurstDelay", 0.3f, "Pause between bursts, s (for weapons without their own burst).");
+        _burstForAll = Bind("BurstForAll", false, "Give burst to weapons that don't have it natively. Off: burst only for native-burst weapons, others get semi/auto.");
     }
 
     private class WeaponModes
@@ -93,7 +93,7 @@ public class FireModes : ModuleBase
         var wm = ModesOf(gun);
         if (wm.Order.Count < 2) return;
         var old = gun.m_archeType;
-        if (old.m_firing) return; // не переключаем посреди очереди/стрельбы
+        if (old.m_firing) return; // don't switch in the middle of a burst/firing
 
         wm.Index = (wm.Index + 1) % wm.Order.Count;
         var mode = wm.Order[wm.Index];
@@ -135,7 +135,7 @@ public class FireModes : ModuleBase
         return arch;
     }
 
-    /// <summary>Копия блока данных оружия (все публичные свойства-поля interop-обёртки).</summary>
+    /// <summary>Copy of a weapon data block (all public property-fields of the interop wrapper).</summary>
     private static ArchetypeDataBlock Clone(ArchetypeDataBlock src)
     {
         var dst = new ArchetypeDataBlock();
@@ -143,7 +143,7 @@ public class FireModes : ModuleBase
         {
             if (!p.CanRead || !p.CanWrite || p.GetIndexParameters().Length > 0) continue;
             if (p.DeclaringType == typeof(Il2CppObjectBase) || p.DeclaringType == typeof(Il2CppSystem.Object)) continue;
-            try { p.SetValue(dst, p.GetValue(src)); } catch { /* служебные свойства пропускаем */ }
+            try { p.SetValue(dst, p.GetValue(src)); } catch { /* skip internal properties */ }
         }
         return dst;
     }

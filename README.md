@@ -1,26 +1,29 @@
 # GtfoPunk My Game My Rules
 
-Геймплейные изменения для GTFO: новые турели и пушки, режимы огня, быстрая милишка, полный боезапас. Ставить всем в компании, с рандомами не играть.
+Gameplay changes for GTFO: new sentries and guns, grenades, fire modes, quick melee, full ammo. Everyone in the lobby must have it; not for playing with randoms.
 
-Плагин для [BepInEx 6 IL2CPP](https://thunderstore.io/c/gtfo/p/BepInEx/BepInExPack_GTFO/) (GTFO). Описание фич для игроков: [packaging/Rules/README.md](packaging/Rules/README.md), история версий: [packaging/Rules/CHANGELOG.md](packaging/Rules/CHANGELOG.md).
+A plugin for [BepInEx 6 IL2CPP](https://thunderstore.io/c/gtfo/p/BepInEx/BepInExPack_GTFO/) (GTFO). Feature description for players: [packaging/Rules/README.md](packaging/Rules/README.md), version history: [packaging/Rules/CHANGELOG.md](packaging/Rules/CHANGELOG.md).
 
-## Установка (игрокам)
-Zip из релизов → r2modman → *Settings → Import local mod*. Нужен BepInExPack_GTFO.
+## Install (players)
+Zip from releases → r2modman → *Settings → Import local mod*. Requires BepInExPack_GTFO.
 
-## Сборка
-- .NET SDK 6+ (цель `net6.0`).
-- Папка `lib/` со ссылками на игру (в репозиторий не входит — это файлы игры и BepInEx). Скопировать из профиля r2modman:
+## Build
+- .NET SDK 6+ (target `net6.0`).
+- A `lib/` folder with game references (not in the repo — these are game and BepInEx files). Copy from an r2modman profile:
   - `BepInEx/core/*.dll` (0Harmony, BepInEx.Core, BepInEx.Unity.IL2CPP, BepInEx.Unity.Common, BepInEx.Preloader.Core, Il2CppInterop.*)
-  - `BepInEx/interop/*.dll` (Modules-ASM, GameData-ASM, SNet_ASM, Il2Cppmscorlib, Il2CppSystem*, UnityEngine.*Module, Unity.TextMeshPro, Shards-ASM, CellSound-ASM, …)
-  - `interop` появляется после первого запуска игры с BepInEx.
-- `./build.sh` → `dist/GtfoPunk_MyGameMyRules-<версия>.zip` (готовый пакет для r2modman/Thunderstore). Другой путь к библиотекам: `dotnet build Rules/GtfoPunk.Rules.csproj -c Release -p:GameLibs=/путь/к/lib`.
+  - `BepInEx/interop/*.dll` (Modules-ASM, GameData-ASM, SNet_ASM, Il2Cppmscorlib, Il2CppSystem*, UnityEngine.*Module, Unity.TextMeshPro, Shards-ASM, CellSound-ASM, Wwise-ASM, …)
+  - `interop` appears after the first game launch with BepInEx.
+- `./build.sh` → `dist/GtfoPunk_MyGameMyRules-<version>.zip` (ready package for r2modman/Thunderstore). Other library path: `dotnet build Rules/GtfoPunk.Rules.csproj -c Release -p:GameLibs=/path/to/lib`.
 
-## Устройство
-- `Shared/Core` — общее ядро GtfoPunk (одинаковое в обоих репозиториях): модули с отдельными переключателями в конфиге, пометка Client/Host/Everyone, автоотключение модуля, если стоит мод с той же функцией, язык en/ru.
-- `Rules/Modules` — по файлу на фичу.
-- `packaging/Rules` — manifest, README, CHANGELOG, иконка пакета.
+## Layout
+- `Shared/Core` — the shared GtfoPunk core (identical in both repositories): modules with individual config toggles, Client/Host/Everyone marking, auto-disable when a mod with the same feature is installed, en/ru in-game language.
+- `Rules/Modules` — one file per feature.
+- `packaging/Rules` — manifest, README, CHANGELOG, package icon.
 
-Связанный репозиторий: gtfo-punk-qol-mod (удобства, без изменения баланса).
+## Conventions
+- Code comments, config descriptions and log messages are in English. Russian lives only in localization (`Lang.T(en, ru)`) and in the Russian section of the player README.
 
-## Лицензия
-MIT — см. [LICENSE](LICENSE).
+Related repository: gtfo-punk-qol-mod (quality of life, no balance changes).
+
+## License
+MIT — see [LICENSE](LICENSE).

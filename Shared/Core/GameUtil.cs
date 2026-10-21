@@ -4,12 +4,12 @@ using SNetwork;
 
 namespace GtfoPunk.Core;
 
-/// <summary>Мелкие хелперы поверх игрового API.</summary>
+/// <summary>Small helpers on top of the game API.</summary>
 public static class GameUtil
 {
     public static bool InLevel => GameStateManager.CurrentStateName == eGameStateName.InLevel;
 
-    /// <summary>PlayerAgent локального игрока или null (в меню, до спавна и т.п.).</summary>
+    /// <summary>Local player's PlayerAgent, or null (in menus, before spawn, etc.).</summary>
     public static PlayerAgent LocalAgent
     {
         get
