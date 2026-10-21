@@ -34,7 +34,7 @@ public class SilencedGun : ModuleBase
     {
         _stats = Bind("StatsFrom", "Shelling Arid 5", "От какого оружия урон, магазин, темп (категория).");
         _sound = Bind("SoundFrom", "Shelling S49", "От какого оружия звук выстрела.");
-        _guns = Bind("Guns", "AM DRED GP1-S: Shelling Nano + 12=Shelling Arid 5; AM DRED GP2-S: Bataldo 3RB + 12=Shelling Arid 5; AM DRED GP3-S: Bataldo 3RB + 12=Mastaba R66",
+        _guns = Bind("SilencedGuns", "AM DRED GP1-S: Bataldo 3RB + 12=Mastaba R66",
             "Бесшумные пушки через «;»: «Название: Корпус + деталь=откуда, …». Корпус — оружие, чьи детали берутся за основу; 12 — ствол/верх. Детали и номера — в GtfoPunk.GearList.txt.");
         _hard = Bind("HardRadius", 10f, "Радиус (м), в котором выстрел будит врагов.");
         _soft = Bind("SoftRadius", 25f, "Радиус (м), в котором выстрел только тревожит (пульс), но не будит. 0 — не тревожить.");

@@ -402,13 +402,14 @@ public class TurretVariants : ModuleBase
     {
         var perMode = ItemSpawnManager.m_loadedPrefabsPerItemMode;
         if (perMode == null) return null;
-        foreach (var mode in new[] { ItemMode.ThirdPerson, ItemMode.Pickup, ItemMode.Instance, ItemMode.FirstPerson })
+        foreach (var mode in new[] { ItemMode.Pickup, ItemMode.ThirdPerson, ItemMode.Instance, ItemMode.FirstPerson })
         {
             if (perMode.Length <= (int)mode) continue;
             var dict = perMode[(int)mode];
             if (dict == null || !dict.ContainsKey(id)) continue;
             var list = dict[id];
-            if (list != null && list.Count > 0 && list[0] != null) return list[0];
+            // Берём первый вариант модели, в котором реально есть меши (у некоторых предметов модель «от третьего лица» пустая).
+            if (list != null && list.Count > 0 && list[0] != null && list[0].GetComponentsInChildren<Renderer>(true).Length > 0) return list[0];
         }
         return null;
     }

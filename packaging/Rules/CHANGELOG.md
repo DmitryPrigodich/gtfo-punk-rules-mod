@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.5
+- Silenced pistol: one gun left — **AM DRED GP1-S** = Bataldo 3RB body + Mastaba R66 top (Arid 5 damage, S49 sound). Option renamed to `SilencedGuns`.
+- DRED GARAGE LT2: the flashlight model is taken from the variant that actually has meshes (the third-person one was empty).
+
 ## 0.2.4
 - Silenced pistols reworked: damage from Shelling Arid 5, sound from Shelling S49; three looks: GP1-S (Nano body + Arid top), GP2-S (Bataldo 3RB + Arid top), GP3-S (3RB + Mastaba top). Option `Guns`. Fitting room removed.
 - Turrets: wait for parts to assemble before setup, re-hide the gun barrel for a few seconds, force-enable the lamp/repeller model meshes; diagnostic log lines.
