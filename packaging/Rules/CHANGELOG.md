@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.0
+- TEST turret **DRED GARAGE FT1-T**: miniature copy of the mission fog repeller turbine on the sentry, smaller fog-free sphere (5 m). Options FogTurbineTurret, TurbineScale, TurbineOffset, TurbineRange.
+
 ## 0.2.9
 - DRED SILENZIO GP6-S: arm pose and left-hand grip taken from Mastaba R66 (option PoseFrom) — the reload hand was missing because Arid's grip expects a magazine. Test variant B removed.
 - DRED GARAGE LT2: lamp turned another 90° (option LampRotation3).

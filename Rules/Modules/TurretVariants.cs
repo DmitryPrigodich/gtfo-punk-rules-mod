@@ -33,7 +33,9 @@ public class TurretVariants : ModuleBase
     private static BepInEx.Configuration.ConfigEntry<float> _fogRange, _lightRange, _lightAngle, _lightIntensity, _disturbInterval;
     private static BepInEx.Configuration.ConfigEntry<string> _disturb, _lampItem, _lampOffset, _lampRotation;
     private static BepInEx.Configuration.ConfigEntry<float> _lampScale, _lightForward, _fogLamp, _fogModelScale;
-    private static BepInEx.Configuration.ConfigEntry<bool> _hideGun;
+    private static BepInEx.Configuration.ConfigEntry<bool> _hideGun, _turbine;
+    private static BepInEx.Configuration.ConfigEntry<float> _turbineScale, _turbineRange;
+    private static BepInEx.Configuration.ConfigEntry<string> _turbineOffset;
     private static BepInEx.Configuration.ConfigEntry<string> _fogModelOffset;
 
     protected override void OnBindConfig()
@@ -54,10 +56,15 @@ public class TurretVariants : ModuleBase
         _hideGun = Bind("HideGun", true, "Прятать ствол автопушки у обеих турелей (остаётся тренога с корпусом).");
         _fogModelOffset = Bind("FogModelOffset", "0,0.25,0", "Где на FT1 стоит модель отпугивателя (x,y,z, м от верха турели).");
         _fogModelScale = Bind("FogModelScale", 1f, "Масштаб модели отпугивателя на FT1.");
+        _turbine = Bind("FogTurbineTurret", true, "Тестовая турель DRED GARAGE FT1-T: уменьшенная большая турбина-отпугиватель.");
+        _turbineScale = Bind("TurbineScale", 0.3f, "Масштаб модели турбины на FT1-T.");
+        _turbineOffset = Bind("TurbineOffset", "0,0.05,0", "Где на FT1-T стоит турбина (x,y,z, м от верха турели).");
+        _turbineRange = Bind("TurbineRange", 5f, "Радиус сферы без тумана у FT1-T (м).");
         _fogLamp = Bind("FogLamp", 0.5f, "Яркость тусклой лампочки на FT1 (как у светящейся палки). 0 — без лампочки.");
     }
 
-    private enum Mode { Fog, Light }
+    private enum Mode { Fog, Light, FogTurbine }
+    private const uint FogTurbineItemId = 133; // Carry_HeavyFogRepeller — большая турбина из миссий
 
     private const uint SentryCategoryId = 12;
     private const uint FogRepellerItemId = 117; // CONSUMABLE_FogRepeller
@@ -96,6 +103,9 @@ public class TurretVariants : ModuleBase
             Lang.T("Stationary fog repeller. Keeps a fog-free sphere around itself. Does not shoot.", "Стационарный отпугиватель тумана. Держит вокруг себя сферу без тумана. Не стреляет."));
         if (_light.Value) AddVariant(baseGear, Mode.Light, "GtfoPunk_LightTurret", "DRED GARAGE LT2",
             Lang.T("Searchlight that tracks enemies in its sector. Does not shoot.", "Прожектор, который поворачивается за врагами в своём секторе. Не стреляет."));
+        // Тестовая: уменьшенная копия большой турбины-отпугивателя. Добавляется последней, чтобы не сдвигать номера остальных.
+        if (_turbine.Value) AddVariant(baseGear, Mode.FogTurbine, "GtfoPunk_FogTurbineTurret", "DRED GARAGE FT1-T",
+            Lang.T("TEST: miniature fog repeller turbine. Smaller fog-free sphere. Does not shoot.", "ТЕСТ: уменьшенная турбина-отпугиватель. Сфера без тумана поменьше. Не стреляет."));
     }
 
     private static void AddVariant(PlayerOfflineGearDataBlock baseGear, Mode mode, string key, string title, string desc)
@@ -154,7 +164,7 @@ public class TurretVariants : ModuleBase
     private static class Patch_Rotation
     {
         private static bool Prefix(SentryGunInstance __instance) =>
-            !(_turrets.TryGetValue(__instance.Pointer, out var t) && t.Mode == Mode.Fog);
+            !(_turrets.TryGetValue(__instance.Pointer, out var t) && t.Mode != Mode.Light);
     }
 
     // FT1 ничего не ищет: без сканирующего луча и без поворотов.
@@ -163,7 +173,7 @@ public class TurretVariants : ModuleBase
     {
         private static bool Prefix(SentryGunInstance __instance, ref bool __result)
         {
-            if (_turrets.TryGetValue(__instance.Pointer, out var t) && t.Mode == Mode.Fog) { __result = false; return false; }
+            if (_turrets.TryGetValue(__instance.Pointer, out var t) && t.Mode != Mode.Light) { __result = false; return false; }
             return true;
         }
     }
@@ -304,7 +314,10 @@ public class TurretVariants : ModuleBase
             anchor.transform.position = top;
             // Ровно по вертикали, даже если турель стоит на склоне; поворот — только по направлению турели.
             anchor.transform.rotation = Quaternion.Euler(0f, t.Inst.transform.eulerAngles.y, 0f);
-            AttachModel(anchor.transform, FogRepellerItemId, Vec(_fogModelOffset.Value, Vector3.zero), Vector3.zero, _fogModelScale.Value, "GtfoPunk_FogModel");
+            if (t.Mode == Mode.FogTurbine)
+                AttachModel(anchor.transform, FogTurbineItemId, Vec(_turbineOffset.Value, Vector3.zero), Vector3.zero, _turbineScale.Value, "GtfoPunk_FogModel");
+            else
+                AttachModel(anchor.transform, FogRepellerItemId, Vec(_fogModelOffset.Value, Vector3.zero), Vector3.zero, _fogModelScale.Value, "GtfoPunk_FogModel");
             if (_fogLamp.Value > 0f)
             {
                 var lgo = new GameObject("GtfoPunk_FogLamp");
@@ -330,7 +343,7 @@ public class TurretVariants : ModuleBase
         var sphere = go.GetComponentInChildren<FogRepeller_Sphere>(true);
         if (sphere == null) { UnityEngine.Object.Destroy(go); return false; }
         sphere.InfiniteDuration = true;
-        sphere.Range = _fogRange.Value;
+        sphere.Range = t.Mode == Mode.FogTurbine ? _turbineRange.Value : _fogRange.Value;
         sphere.gameObject.SetActive(true);
         sphere.StartRepelling();
 
@@ -349,7 +362,7 @@ public class TurretVariants : ModuleBase
             t.Screen = scr?.m_ammoText;
             if (t.Screen == null) return;
         }
-        string text = t.Mode == Mode.Light ? "LT2" : "FT1";
+        string text = t.Mode switch { Mode.Light => "LT2", Mode.FogTurbine => "FT1-T", _ => "FT1" };
         if (t.Screen.text != text) t.Screen.text = text;
     }
 
