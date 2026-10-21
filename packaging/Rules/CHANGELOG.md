@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1
+- DRED GARAGE LT2: lamp moved lower and forward (option LampOffset2), the lens now glows (small light right in front of the glass; options LampGlow, LampGlowForward).
+- DRED GARAGE FT1: repeller model taken from the deployed (standing) variant instead of the tilted pickup one; extra option FogModelRotation for fine-tuning.
+- Fog-free radius of FT1 and FT1-T set to 10 m, as measured on the real repeller and turbine (options FogRange2, TurbineRange2).
+- DRED GARAGE FT1-T: item 133 has no meshes in its loaded models, so the turbine model is now also searched among all meshes in memory (option TurbineModelSearch); the fog dump file lists what was found.
+
 ## 0.4.0
 - New tool **DRED GARAGE BT3** — bio-tracker turret. Doesn't shoot; every 3 s scans its sector (90°, 25 m, through walls) and tags enemies like a handheld bio-tracker. Screen shows how many enemies are in the sector. Options TrackerTurret, TrackerRange, TrackerAngle, TrackerInterval, TrackerThroughWalls.
 - New tool **DRED GARAGE CF4** — C-foam sentry. Lobs foam globs at its target instead of bullets (arcing shot, every 1.2 s, up to 20 m), skips enemies already glued, each glob costs 6 bullets of sentry ammo. Options FoamTurret, FoamInterval, FoamSpeed, FoamGravity, FoamAmmoPerShot, FoamExpand, FoamRange, FoamSkipGlued.

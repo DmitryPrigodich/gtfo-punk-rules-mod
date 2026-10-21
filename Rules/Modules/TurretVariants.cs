@@ -37,8 +37,9 @@ public class TurretVariants : ModuleBase
     private static BepInEx.Configuration.ConfigEntry<float> _lampScale, _lightForward, _fogLamp, _fogModelScale;
     private static BepInEx.Configuration.ConfigEntry<bool> _hideGun, _turbine;
     private static BepInEx.Configuration.ConfigEntry<float> _turbineScale, _turbineRange;
-    private static BepInEx.Configuration.ConfigEntry<string> _turbineOffset;
-    private static BepInEx.Configuration.ConfigEntry<string> _fogModelOffset;
+    private static BepInEx.Configuration.ConfigEntry<string> _turbineOffset, _turbineKeywords;
+    private static BepInEx.Configuration.ConfigEntry<string> _fogModelOffset, _fogModelRotation;
+    private static BepInEx.Configuration.ConfigEntry<float> _lampGlow, _lampGlowForward;
     private static BepInEx.Configuration.ConfigEntry<bool> _tracker, _trackerWalls, _foam, _foamSkipGlued;
     private static BepInEx.Configuration.ConfigEntry<float> _trackerRange, _trackerAngle, _trackerInterval;
     private static BepInEx.Configuration.ConfigEntry<float> _foamInterval, _foamSpeed, _foamGravity, _foamAmmo, _foamExpand, _foamRange;
@@ -46,7 +47,7 @@ public class TurretVariants : ModuleBase
     protected override void OnBindConfig()
     {
         _fog = Bind("FogTurret", true, "Добавить анти-туманную турель.");
-        _fogRange = Bind("FogRange", 8f, "Радиус чистой от тумана сферы (м).");
+        _fogRange = Bind("FogRange2", 10f, "Радиус чистой от тумана сферы FT1 (м). 10 — как у настоящего отпугивателя (замер 0.3.1).");
         _light = Bind("LightTurret", true, "Добавить фонарную турель.");
         _lightRange = Bind("LightRange", 30f, "Дальность прожектора (м).");
         _lightAngle = Bind("LightAngle", 45f, "Угол луча прожектора (градусы).");
@@ -54,17 +55,21 @@ public class TurretVariants : ModuleBase
         _disturb = Bind("LightDisturbs", "Detectable", "Как свет действует на врагов в луче: Detectable — тревожит (может разбудить, как шаги рядом), PulseOnly — только пульс, Off — никак.");
         _disturbInterval = Bind("LightDisturbInterval", 1.5f, "Как часто (сек) свет «тревожит» врагов в луче.");
         _lampItem = Bind("LampModel", "Long Range Flashlight", "Предмет, модель которого ставится на фонарную турель (имя или часть имени; пусто — без модели).");
-        _lampOffset = Bind("LampOffset", "0,0.08,0.05", "Смещение модели фонаря относительно ствола турели (x,y,z, м).");
+        _lampOffset = Bind("LampOffset2", "0,-0.02,0.15", "Смещение модели фонаря относительно основания ствола (x — вбок, y — вверх, z — вперёд, м).");
+        _lampGlow = Bind("LampGlow", 1.5f, "Подсветка стекла фонаря (маленькая лампа прямо перед стеклом), 0 — без неё.");
+        _lampGlowForward = Bind("LampGlowForward", 0.2f, "На сколько вперёд от модели фонаря стоит подсветка стекла (м).");
         _lampRotation = Bind("LampRotation3", "0,270,0", "Поворот модели фонаря (градусы x,y,z), если смотрит не туда.");
         _lampScale = Bind("LampScale", 1f, "Масштаб модели фонаря.");
         _lightForward = Bind("LightForward", 0.35f, "Насколько вынести источник света вперёд от модели фонаря (м), чтобы он не засвечивал сам фонарь.");
         _hideGun = Bind("HideGun", true, "Прятать ствол автопушки у обеих турелей (остаётся тренога с корпусом).");
         _fogModelOffset = Bind("FogModelOffset", "0,0.25,0", "Где на FT1 стоит модель отпугивателя (x,y,z, м от верха турели).");
+        _fogModelRotation = Bind("FogModelRotation", "0,0,0", "Доворот модели отпугивателя на FT1 (градусы x,y,z), если стоит криво.");
         _fogModelScale = Bind("FogModelScale", 1f, "Масштаб модели отпугивателя на FT1.");
         _turbine = Bind("FogTurbineTurret", true, "Тестовая турель DRED GARAGE FT1-T: уменьшенная большая турбина-отпугиватель.");
         _turbineScale = Bind("TurbineScale", 0.3f, "Масштаб модели турбины на FT1-T.");
         _turbineOffset = Bind("TurbineOffset", "0,0.05,0", "Где на FT1-T стоит турбина (x,y,z, м от верха турели).");
-        _turbineRange = Bind("TurbineRange", 5f, "Радиус сферы без тумана у FT1-T (м).");
+        _turbineKeywords = Bind("TurbineModelSearch", "turbine,heavyfog,fogrepellerbig", "Если у предмета 133 нет модели — искать в памяти меш, в имени которого есть одно из слов.");
+        _turbineRange = Bind("TurbineRange2", 10f, "Радиус сферы без тумана у FT1-T (м). 10 — как у турбины (замер 0.3.1).");
         _fogLamp = Bind("FogLamp", 0.5f, "Яркость тусклой лампочки на FT1 (как у светящейся палки). 0 — без лампочки.");
         _tracker = Bind("TrackerTurret", true, "Добавить турель-биотрекер DRED GARAGE BT3 (метит врагов в своём секторе, не стреляет).");
         _trackerRange = Bind("TrackerRange", 25f, "Дальность сканирования BT3 (м).");
@@ -331,6 +336,20 @@ public class TurretVariants : ModuleBase
         light.shadows = LightShadows.None;
         CL_Light.Create(eClusteredLightType.Spot, go, light); // GTFO рисует свет через свою кластерную систему
 
+        if (_lampGlow.Value > 0f)
+        {
+            var glow = new GameObject("GtfoPunk_LampGlow");
+            glow.transform.SetParent(head.transform, false);
+            glow.transform.localPosition = Vec(_lampOffset.Value, Vector3.zero) + Vector3.forward * _lampGlowForward.Value;
+            var gl = glow.AddComponent<Light>();
+            gl.type = LightType.Point;
+            gl.range = 0.5f;
+            gl.intensity = _lampGlow.Value;
+            gl.color = new Color(1f, 0.95f, 0.85f);
+            gl.shadows = LightShadows.None;
+            CL_Light.Create(eClusteredLightType.Point, glow, gl);
+        }
+
         t.Extra = go;
         t.Light = light;
         return true;
@@ -362,9 +381,10 @@ public class TurretVariants : ModuleBase
             // Ровно по вертикали, даже если турель стоит на склоне; поворот — только по направлению турели.
             anchor.transform.rotation = Quaternion.Euler(0f, t.Inst.transform.eulerAngles.y, 0f);
             if (t.Mode == Mode.FogTurbine)
-                AttachModel(anchor.transform, FogTurbineItemId, Vec(_turbineOffset.Value, Vector3.zero), Vector3.zero, _turbineScale.Value, "GtfoPunk_FogModel");
+                AttachModel(anchor.transform, FogTurbineItemId, Vec(_turbineOffset.Value, Vector3.zero), Vector3.zero, _turbineScale.Value, "GtfoPunk_FogModel", AnyMode);
             else
-                AttachModel(anchor.transform, FogRepellerItemId, Vec(_fogModelOffset.Value, Vector3.zero), Vector3.zero, _fogModelScale.Value, "GtfoPunk_FogModel");
+                // Брошенный (Instance) отпугиватель стоит ровно; «подбираемая» модель лежит наклонно.
+                AttachModel(anchor.transform, FogRepellerItemId, Vec(_fogModelOffset.Value, Vector3.zero), Vec(_fogModelRotation.Value, Vector3.zero), _fogModelScale.Value, "GtfoPunk_FogModel", InstanceFirst);
             if (_fogLamp.Value > 0f)
             {
                 var lgo = new GameObject("GtfoPunk_FogLamp");
@@ -562,30 +582,114 @@ public class TurretVariants : ModuleBase
         return 0;
     }
 
-    private static GameObject LampPrefab(uint id)
+    private static readonly ItemMode[] PickupFirst = { ItemMode.Pickup, ItemMode.ThirdPerson, ItemMode.Instance, ItemMode.FirstPerson };
+    private static readonly ItemMode[] InstanceFirst = { ItemMode.Instance, ItemMode.Pickup, ItemMode.ThirdPerson, ItemMode.FirstPerson };
+    private static readonly ItemMode[] AnyMode = PickupFirst;
+
+    private static GameObject LampPrefab(uint id, ItemMode[] order = null)
     {
         var perMode = ItemSpawnManager.m_loadedPrefabsPerItemMode;
         if (perMode == null) return null;
-        foreach (var mode in new[] { ItemMode.Pickup, ItemMode.ThirdPerson, ItemMode.Instance, ItemMode.FirstPerson })
+        foreach (var mode in order ?? PickupFirst)
         {
             if (perMode.Length <= (int)mode) continue;
             var dict = perMode[(int)mode];
             if (dict == null || !dict.ContainsKey(id)) continue;
             var list = dict[id];
+            if (list == null) continue;
             // Берём первый вариант модели, в котором реально есть меши (у некоторых предметов модель «от третьего лица» пустая).
-            if (list != null && list.Count > 0 && list[0] != null && list[0].GetComponentsInChildren<Renderer>(true).Length > 0) return list[0];
+            for (int k = 0; k < list.Count; k++)
+                if (list[k] != null && list[k].GetComponentsInChildren<Renderer>(true).Length > 0)
+                {
+                    ModInfo.Log.LogInfo($"[TurretVariants] модель предмета {id}: вид {mode}, вариант {k}");
+                    return list[k];
+                }
         }
         return null;
+    }
+
+    /// <summary>
+    /// Ищет среди всех загруженных в память мешей объект, чьё имя (или имя предка) содержит одно из слов.
+    /// Нужен для турбины: у предмета 133 модели без мешей, а сама турбина, видимо, грузится отдельно.
+    /// </summary>
+    private static GameObject FindLoadedModel(string keywords)
+    {
+        var keys = (keywords ?? "").Split(',').Select(k => k.Trim().ToLowerInvariant()).Where(k => k.Length > 0).ToArray();
+        if (keys.Length == 0) return null;
+        bool Match(string n) { n = (n ?? "").ToLowerInvariant(); return keys.Any(n.Contains); }
+        Transform best = null; int bestCount = 0;
+        foreach (var mf in AllMeshFilters())
+        {
+            if (mf == null || mf.sharedMesh == null) continue;
+            // Самый верхний предок с подходящим именем — корень модели.
+            Transform root = null;
+            for (var tr = mf.transform; tr != null; tr = tr.parent) if (Match(tr.name)) root = tr;
+            if (root == null && Match(mf.sharedMesh.name)) root = mf.transform;
+            if (root == null || root.name.StartsWith("GtfoPunk_")) continue;
+            int n = root.GetComponentsInChildren<MeshFilter>(true).Length;
+            if (n > bestCount) { best = root; bestCount = n; }
+        }
+        if (best != null) ModInfo.Log.LogInfo($"[TurretVariants] модель турбины найдена в памяти: «{best.name}», мешей {bestCount}");
+        return best?.gameObject;
+    }
+
+    private static IEnumerable<MeshFilter> AllMeshFilters()
+    {
+        var arr = Resources.FindObjectsOfTypeAll(Il2CppInterop.Runtime.Il2CppType.Of<MeshFilter>());
+        if (arr == null) yield break;
+        foreach (var o in arr) { var mf = o?.TryCast<MeshFilter>(); if (mf != null) yield return mf; }
+    }
+
+    private static void DumpLoadedMeshes(string keywords, List<string> lines)
+    {
+        var keys = (keywords ?? "").Split(',').Select(k => k.Trim().ToLowerInvariant()).Where(k => k.Length > 0).ToArray();
+        var seen = new HashSet<string>();
+        foreach (var mf in AllMeshFilters())
+        {
+            if (mf == null || mf.sharedMesh == null) continue;
+            string path = "";
+            for (var tr = mf.transform; tr != null; tr = tr.parent) path = tr.name + (path.Length > 0 ? "/" + path : "");
+            string all = (path + " " + mf.sharedMesh.name).ToLowerInvariant();
+            if (!keys.Any(all.Contains) || !seen.Add(path)) continue;
+            lines.Add($"  меш в памяти: {path} [{mf.sharedMesh.name}]");
+            if (seen.Count >= 40) break;
+        }
+        if (seen.Count == 0) lines.Add($"  мешей по словам «{keywords}» в памяти нет");
+    }
+
+    /// <summary>Подробно пишет в лог, что лежит в загруженных моделях предмета (для поиска модели турбины).</summary>
+    private static void DumpItemModels(uint id, List<string> lines)
+    {
+        var perMode = ItemSpawnManager.m_loadedPrefabsPerItemMode;
+        if (perMode == null) return;
+        for (int m = 0; m < perMode.Length; m++)
+        {
+            var dict = perMode[m];
+            if (dict == null || !dict.ContainsKey(id)) continue;
+            var list = dict[id];
+            for (int k = 0; list != null && k < list.Count; k++)
+            {
+                var go = list[k];
+                if (go == null) { lines.Add($"  предмет {id} вид {(ItemMode)m} [{k}]: пусто"); continue; }
+                var rs = go.GetComponentsInChildren<Renderer>(true);
+                var mfs = go.GetComponentsInChildren<MeshFilter>(true);
+                var trs = go.GetComponentsInChildren<Transform>(true);
+                var comps = go.GetComponentsInChildren<Component>(true).Select(c => c == null ? "null" : c.GetIl2CppType().Name).GroupBy(n => n).Select(g => $"{g.Key}×{g.Count()}");
+                lines.Add($"  предмет {id} вид {(ItemMode)m} [{k}] «{go.name}»: узлов {trs.Length}, рендеров {rs.Length}, мешей {mfs.Length}; компоненты: {string.Join(", ", comps)}");
+                foreach (var tr in trs.Take(40)) lines.Add($"    - {tr.name} (pos {tr.localPosition}, scale {tr.localScale})");
+            }
+        }
     }
 
     /// <summary>Ставит на турель копию модели фонаря: только меши, без скриптов, физики и коллайдеров.</summary>
     private static void AttachLamp(Transform parent) =>
         AttachModel(parent, LampItemId(), Vec(_lampOffset.Value, Vector3.zero), Vec(_lampRotation.Value, Vector3.zero), _lampScale.Value, "GtfoPunk_Lamp");
 
-    private static void AttachModel(Transform parent, uint id, Vector3 offset, Vector3 euler, float scale, string name)
+    private static void AttachModel(Transform parent, uint id, Vector3 offset, Vector3 euler, float scale, string name, ItemMode[] order = null)
     {
         if (id == 0) return;
-        var prefab = LampPrefab(id);
+        var prefab = LampPrefab(id, order);
+        if (prefab == null && id == FogTurbineItemId) prefab = FindLoadedModel(_turbineKeywords.Value);
         if (prefab == null) { ModInfo.Log.LogWarning($"[TurretVariants] модель предмета {id} не загружена"); return; }
 
         var holder = new GameObject(name);
@@ -639,6 +743,8 @@ public class TurretVariants : ModuleBase
                     }
                 }
             }
+        DumpItemModels(FogTurbineItemId, lines);
+        DumpLoadedMeshes(_turbineKeywords.Value + ",fog,repell", lines);
         foreach (var g in UnityEngine.Object.FindObjectsOfType<HeavyFogRepellerGlobalState>())
             if (g != null && g.m_repellerSphere != null) lines.Add($"на уровне: турбина «{g.gameObject.name}»: {Describe(g.m_repellerSphere)}");
         foreach (var f in UnityEngine.Object.FindObjectsOfType<FogRepeller_Sphere>())
