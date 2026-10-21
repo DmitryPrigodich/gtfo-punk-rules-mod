@@ -21,3 +21,6 @@ Zip из релизов → r2modman → *Settings → Import local mod*. Нуж
 - `packaging/Rules` — manifest, README, CHANGELOG, иконка пакета.
 
 Связанный репозиторий: gtfo-punk-qol-mod (удобства, без изменения баланса).
+
+## Лицензия
+MIT — см. [LICENSE](LICENSE).
