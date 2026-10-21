@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.7
+- Silenced pistol renamed: **DRED SILENZIO GP6-S** (old config value is migrated, loadout slot kept).
+
 ## 0.2.6
 - AM DRED GP1-S: hand animations from Mastaba R66 (the reload hand was missing).
 - DRED GARAGE LT2: the lamp sits at the base of the (hidden) barrel instead of floating at the muzzle point.

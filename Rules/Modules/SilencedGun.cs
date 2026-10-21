@@ -14,7 +14,7 @@ using UnityEngine;
 namespace GtfoPunk.Rules.Modules;
 
 /// <summary>
-/// «AM DRED GP1-S»: бесшумный пистолет из «гаража». Урон от Shelling Arid 5, звук от S49,
+/// «DRED SILENZIO GP6-S»: бесшумный пистолет из «гаража». Урон от Shelling Arid 5, звук от S49,
 /// корпус и ствол собираются из деталей разных пушек (настройка Guns). Выстрел будит спящих только в радиусе HardRadius (10 м),
 /// дальше, до SoftRadius, только тревожит (пульс), ещё дальше — тишина. Через стены не слышно.
 /// Шум считает хост, поэтому мод нужен у всех.
@@ -22,7 +22,7 @@ namespace GtfoPunk.Rules.Modules;
 public class SilencedGun : ModuleBase
 {
     public override string Id => "SilencedGun";
-    public override string Description => "Бесшумные пистолеты AM DRED GP1-S/GP2-S/GP3-S: урон Arid 5, звук S49, корпуса из разных пушек. Будит только вблизи. Нужен у всех.";
+    public override string Description => "Бесшумный пистолет DRED SILENZIO GP6-S: урон Arid 5, звук S49, корпус 3RB + верх Mastaba. Будит только вблизи. Нужен у всех.";
     public override ModuleSide Side => ModuleSide.Everyone;
     public override IReadOnlyList<string> ReplacedBy => Array.Empty<string>();
 
@@ -43,7 +43,7 @@ public class SilencedGun : ModuleBase
 
     // 4 (ItemFPSSettings) — анимации рук: берём от Mastaba, иначе при перезарядке «пропадает» рука, вставляющая патроны.
     private const string OldDefault = "AM DRED GP1-S: Bataldo 3RB + 12=Mastaba R66";
-    private const string NewDefault = "AM DRED GP1-S: Bataldo 3RB + 12=Mastaba R66, 4=Mastaba R66";
+    private const string NewDefault = "DRED SILENZIO GP6-S: Bataldo 3RB + 12=Mastaba R66, 4=Mastaba R66";
 
     private static readonly HashSet<uint> _categories = new();
     private static readonly Dictionary<IntPtr, float> _cooldown = new();
@@ -57,11 +57,13 @@ public class SilencedGun : ModuleBase
     private static void Inject()
     {
         if (_guns.Value == OldDefault) _guns.Value = NewDefault; // обновляем старое значение по умолчанию
+        foreach (var old in new[] { "AM DRED GP1-S:", "DRED SILENZIO GP7-S:" }) // переименования
+            if (_guns.Value.Contains(old)) _guns.Value = _guns.Value.Replace(old, "DRED SILENZIO GP6-S:");
         var statsGear = GearFactory.FindByName(_stats.Value);
         if (statsGear == null) { ModInfo.Log.LogWarning($"[SilencedGun] не нашёл оружие «{_stats.Value}» — см. GtfoPunk.GearList.txt"); return; }
         var sc = GearFactory.GetComps(statsGear.GearJSON);
         if (!sc.TryGetValue((int)eGearComponent.Category, out var statsCat)) return;
-        uint catId = GearFactory.CloneCategory(statsCat, "GtfoPunk_SilencedGun", "AM DRED silenced",
+        uint catId = GearFactory.CloneCategory(statsCat, "GtfoPunk_SilencedGun", "DRED SILENZIO",
             Lang.T("Silenced. Wakes enemies only within 10 m; farther ones only stir.", "С глушителем. Будит только в 10 м, дальше враги лишь тревожатся."));
         _categories.Add(catId);
 
