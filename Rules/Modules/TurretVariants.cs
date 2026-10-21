@@ -17,16 +17,18 @@ using UnityEngine;
 namespace GtfoPunk.Rules.Modules;
 
 /// <summary>
-/// Две новые турели в слоте инструмента (выбираются в лоадауте, как обычная турель):
-///  - Анти-туманная: не стреляет, вокруг себя держит сферу без тумана (как отпугиватель, но бесконечно).
-///  - Фонарная: ставится в одну сторону, светит прожектором и поворачивается за врагами в своём секторе;
+/// Новые турели в слоте инструмента (выбираются в лоадауте, как обычная турель):
+///  - FT1 анти-туманная: не стреляет, вокруг себя держит сферу без тумана (как отпугиватель, но бесконечно).
+///  - LT2 фонарная: ставится в одну сторону, светит прожектором и поворачивается за врагами в своём секторе;
 ///    когда видит врага — светит ярче. Не стреляет.
+///  - BT3 турель-биотрекер: не стреляет, раз в несколько секунд сканирует свой сектор и метит врагов (как биотрекер).
+///  - CF4 пенострел: вместо пуль стреляет сгустками пены (как пеногун) в цель, тратит патроны турели.
 /// Делается клонированием штатной турели в таблицах игры, поэтому мод должен стоять у ВСЕХ игроков.
 /// </summary>
 public class TurretVariants : ModuleBase
 {
     public override string Id => "TurretVariants";
-    public override string Description => "Новые инструменты: DRED GARAGE FT1 (анти-туманная турель) и DRED GARAGE LT2 (фонарная турель). Нужен у всех игроков.";
+    public override string Description => "Новые инструменты: DRED GARAGE FT1 (анти-туман), LT2 (прожектор), BT3 (биотрекер), CF4 (пенострел). Нужен у всех игроков.";
     public override ModuleSide Side => ModuleSide.Everyone;
 
     private static BepInEx.Configuration.ConfigEntry<bool> _fog, _light;
@@ -37,6 +39,9 @@ public class TurretVariants : ModuleBase
     private static BepInEx.Configuration.ConfigEntry<float> _turbineScale, _turbineRange;
     private static BepInEx.Configuration.ConfigEntry<string> _turbineOffset;
     private static BepInEx.Configuration.ConfigEntry<string> _fogModelOffset;
+    private static BepInEx.Configuration.ConfigEntry<bool> _tracker, _trackerWalls, _foam, _foamSkipGlued;
+    private static BepInEx.Configuration.ConfigEntry<float> _trackerRange, _trackerAngle, _trackerInterval;
+    private static BepInEx.Configuration.ConfigEntry<float> _foamInterval, _foamSpeed, _foamGravity, _foamAmmo, _foamExpand, _foamRange;
 
     protected override void OnBindConfig()
     {
@@ -61,9 +66,27 @@ public class TurretVariants : ModuleBase
         _turbineOffset = Bind("TurbineOffset", "0,0.05,0", "Где на FT1-T стоит турбина (x,y,z, м от верха турели).");
         _turbineRange = Bind("TurbineRange", 5f, "Радиус сферы без тумана у FT1-T (м).");
         _fogLamp = Bind("FogLamp", 0.5f, "Яркость тусклой лампочки на FT1 (как у светящейся палки). 0 — без лампочки.");
+        _tracker = Bind("TrackerTurret", true, "Добавить турель-биотрекер DRED GARAGE BT3 (метит врагов в своём секторе, не стреляет).");
+        _trackerRange = Bind("TrackerRange", 25f, "Дальность сканирования BT3 (м).");
+        _trackerAngle = Bind("TrackerAngle", 90f, "Ширина сектора BT3 (градусы, по горизонтали, от направления установки).");
+        _trackerInterval = Bind("TrackerInterval", 3f, "Как часто BT3 сканирует сектор (сек).");
+        _trackerWalls = Bind("TrackerThroughWalls", true, "BT3 видит сквозь стены (как ручной биотрекер). false — только в прямой видимости.");
+        _foam = Bind("FoamTurret", true, "Добавить пенострел DRED GARAGE CF4 (стреляет пеной вместо пуль).");
+        _foamInterval = Bind("FoamInterval", 1.2f, "Пауза между выстрелами пеной (сек).");
+        _foamSpeed = Bind("FoamSpeed", 20f, "Начальная скорость сгустка пены (м/с).");
+        _foamGravity = Bind("FoamGravity", 9.81f, "Гравитация для расчёта навесной траектории (м/с²). Настоящая пишется в лог при первом выстреле.");
+        _foamAmmo = Bind("FoamAmmoPerShot", 6f, "Сколько «пуль» турели стоит один сгусток пены.");
+        _foamExpand = Bind("FoamExpand", -1f, "Объём расширения сгустка (-1 — как у пеногуна по умолчанию).");
+        _foamRange = Bind("FoamRange", 20f, "Дальше этого (м) пенострел не стреляет.");
+        _foamSkipGlued = Bind("FoamSkipGlued", true, "Не тратить пену на врага, который уже залит и обездвижен.");
     }
 
-    private enum Mode { Fog, Light, FogTurbine }
+    private enum Mode { Fog, Light, FogTurbine, Tracker, Foam }
+
+    /// <summary>Режимы, которые крутятся за врагами и сканируют штатно (остальные стоят неподвижно).</summary>
+    private static bool Tracks(Mode m) => m == Mode.Light || m == Mode.Tracker || m == Mode.Foam;
+    /// <summary>Режимы, у которых прячется ствол автопушки.</summary>
+    private static bool HidesGun(Mode m) => m == Mode.Light || m == Mode.Fog || m == Mode.FogTurbine;
     private const uint FogTurbineItemId = 133; // Carry_HeavyFogRepeller — большая турбина из миссий
 
     private const uint SentryCategoryId = 12;
@@ -82,6 +105,8 @@ public class TurretVariants : ModuleBase
         public FogRepeller_Sphere Sphere;
         public float NextDisturb, SpawnedAt, NextHide;
         public TMPro.TextMeshPro Screen;
+        public float NextScan, NextShot;
+        public int Tagged;
     }
 
     private static readonly Dictionary<IntPtr, Turret> _turrets = new();
@@ -106,6 +131,13 @@ public class TurretVariants : ModuleBase
         // Тестовая: уменьшенная копия большой турбины-отпугивателя. Добавляется последней, чтобы не сдвигать номера остальных.
         if (_turbine.Value) AddVariant(baseGear, Mode.FogTurbine, "GtfoPunk_FogTurbineTurret", "DRED GARAGE FT1-T",
             Lang.T("TEST: miniature fog repeller turbine. Smaller fog-free sphere. Does not shoot.", "ТЕСТ: уменьшенная турбина-отпугиватель. Сфера без тумана поменьше. Не стреляет."));
+        // Новые — строго в конец, чтобы не сдвигать номера уже существующих.
+        if (_tracker.Value) AddVariant(baseGear, Mode.Tracker, "GtfoPunk_TrackerTurret", "DRED GARAGE BT3",
+            Lang.T("Bio-tracker turret. Scans its sector every few seconds and tags enemies, even through walls. Does not shoot.",
+                   "Турель-биотрекер. Раз в несколько секунд сканирует свой сектор и метит врагов, даже за стенами. Не стреляет."));
+        if (_foam.Value) AddVariant(baseGear, Mode.Foam, "GtfoPunk_FoamTurret", "DRED GARAGE CF4",
+            Lang.T("C-foam sentry. Lobs foam globs at enemies instead of bullets, gluing them in place. Uses sentry ammo.",
+                   "Пенострел. Вместо пуль закидывает врагов сгустками пены и приклеивает их. Тратит патроны турели."));
     }
 
     private static void AddVariant(PlayerOfflineGearDataBlock baseGear, Mode mode, string key, string title, string desc)
@@ -164,7 +196,7 @@ public class TurretVariants : ModuleBase
     private static class Patch_Rotation
     {
         private static bool Prefix(SentryGunInstance __instance) =>
-            !(_turrets.TryGetValue(__instance.Pointer, out var t) && t.Mode != Mode.Light);
+            !(_turrets.TryGetValue(__instance.Pointer, out var t) && !Tracks(t.Mode));
     }
 
     // FT1 ничего не ищет: без сканирующего луча и без поворотов.
@@ -173,7 +205,7 @@ public class TurretVariants : ModuleBase
     {
         private static bool Prefix(SentryGunInstance __instance, ref bool __result)
         {
-            if (_turrets.TryGetValue(__instance.Pointer, out var t) && t.Mode != Mode.Light) { __result = false; return false; }
+            if (_turrets.TryGetValue(__instance.Pointer, out var t) && !Tracks(t.Mode)) { __result = false; return false; }
             return true;
         }
     }
@@ -229,7 +261,7 @@ public class TurretVariants : ModuleBase
             {
                 if (!t.Ready)
                 {
-                    t.Ready = t.Mode == Mode.Light ? SetupLight(t) : SetupFog(t);
+                    t.Ready = t.Mode switch { Mode.Light => SetupLight(t), Mode.Tracker or Mode.Foam => true, _ => SetupFog(t) };
                     if (!t.Ready && Time.time > t.GiveUpAt) { ModInfo.Log.LogWarning($"[TurretVariants] не удалось настроить турель ({t.Mode})"); t.Ready = true; }
                     else if (t.Ready) ModInfo.Log.LogInfo($"[TurretVariants] турель {t.Mode} настроена");
                 }
@@ -237,7 +269,13 @@ public class TurretVariants : ModuleBase
                 {
                     UpdateScreen(t);
                     // Детали турели могут досоздаваться позже — несколько секунд повторяем «спрятать ствол».
-                    if (Time.time - t.SpawnedAt < 8f && Time.time >= t.NextHide) { t.NextHide = Time.time + 0.5f; HideGun(t.Inst); }
+                    if (HidesGun(t.Mode) && Time.time - t.SpawnedAt < 8f && Time.time >= t.NextHide) { t.NextHide = Time.time + 0.5f; HideGun(t.Inst); }
+                    if (t.Mode == Mode.Tracker && SNetwork.SNet.IsMaster && Time.time >= t.NextScan)
+                    {
+                        t.NextScan = Time.time + Math.Max(0.5f, _trackerInterval.Value);
+                        TrackerScan(t);
+                    }
+                    if (t.Mode == Mode.Foam && SNetwork.SNet.IsMaster && Time.time >= t.NextShot) FoamFire(t);
                     if (t.Mode == Mode.Light && t.Light != null)
                     {
                         bool target = t.Inst.m_detection != null && t.Inst.m_detection.HasTarget;
@@ -371,7 +409,8 @@ public class TurretVariants : ModuleBase
             t.Screen = scr?.m_ammoText;
             if (t.Screen == null) return;
         }
-        string text = t.Mode switch { Mode.Light => "LT2", Mode.FogTurbine => "FT1-T", _ => "FT1" };
+        if (t.Mode == Mode.Foam) return; // у пенострела на экране обычный счётчик патронов
+        string text = t.Mode switch { Mode.Light => "LT2", Mode.FogTurbine => "FT1-T", Mode.Tracker => t.Tagged > 0 ? $"BT3 {t.Tagged}" : "BT3", _ => "FT1" };
         if (t.Screen.text != text) t.Screen.text = text;
     }
 
@@ -405,6 +444,91 @@ public class TurretVariants : ModuleBase
                 includeToNeightbourAreas = false,
                 raycastFirstNode = false,
             });
+        }
+    }
+
+    // ---------- BT3: сканирование сектора ----------
+
+    private static void TrackerScan(Turret t)
+    {
+        var origin = t.Inst.transform.position + Vector3.up * 0.6f;
+        var fwd = t.Inst.transform.forward; fwd.y = 0f;
+        float half = _trackerAngle.Value * 0.5f;
+        var seen = new HashSet<IntPtr>();
+        int count = 0, tagged = 0;
+        foreach (var col in Physics.OverlapSphere(origin, _trackerRange.Value, LayerManager.MASK_ENEMY_DAMAGABLE))
+        {
+            var enemy = col == null ? null : col.GetComponent<Dam_EnemyDamageLimb>()?.GlueTargetEnemyAgent;
+            if (enemy == null || !enemy.Alive || !seen.Add(enemy.Pointer)) continue;
+            var to = enemy.Position - origin; to.y = 0f;
+            if (to.sqrMagnitude > 0.01f && fwd.sqrMagnitude > 0.01f && Vector3.Angle(fwd, to) > half) continue; // вне сектора
+            if (!_trackerWalls.Value && Physics.Linecast(origin, enemy.EyePosition, LayerManager.MASK_WORLD)) continue;
+            count++;
+            if (enemy.IsTagged) continue;
+            ToolSyncManager.WantToTagEnemy(enemy);
+            tagged++;
+        }
+        t.Tagged = count;
+        if (tagged > 0) ModInfo.Log.LogInfo($"[TurretVariants] BT3: в секторе {count}, помечено новых {tagged}");
+    }
+
+    // ---------- CF4: стрельба пеной ----------
+
+    private static bool _foamLogged, _glueGravityLogged;
+
+    private static void FoamFire(Turret t)
+    {
+        var det = t.Inst.m_detection;
+        if (det == null || !det.HasTarget) return;
+        if (!t.Inst.TryGetTargetAimPos(out var aim)) return;
+        var target = det.Target;
+        var enemy = target == null ? null : target.GetComponentInParent<EnemyAgent>();
+        if (enemy != null && _foamSkipGlued.Value && enemy.Damage != null && enemy.Damage.IsStuckInGlue) return;
+
+        float cost = Math.Max(0f, t.Inst.CostOfBullet * _foamAmmo.Value);
+        if (!_foamLogged)
+        {
+            _foamLogged = true;
+            ModInfo.Log.LogInfo($"[TurretVariants] CF4: патроны {t.Inst.Ammo:0.##}/{t.Inst.AmmoMaxCap:0.##}, цена пули {t.Inst.CostOfBullet:0.###}, цена сгустка {cost:0.###}");
+        }
+        if (t.Inst.m_ammo < cost) return;
+
+        var owner = t.Inst.Owner;
+        if (owner == null) return;
+        var firing = t.Inst.m_firing == null ? null : ((Il2CppObjectBase)t.Inst.m_firing).TryCast<SentryGunInstance_Firing_Bullets>();
+        var muzzle = firing?.MuzzleAlign;
+        var from = muzzle != null ? muzzle.position + muzzle.forward * 0.3f : t.Inst.transform.position + Vector3.up * 0.7f;
+        if (Vector3.Distance(from, aim) > _foamRange.Value) return;
+
+        var vel = Ballistic(from, aim, Math.Max(1f, _foamSpeed.Value), Math.Max(0f, _foamGravity.Value));
+        ProjectileManager.WantToFireGlue(owner, from, vel, _foamExpand.Value, true);
+        t.Inst.m_ammo = Math.Max(0f, t.Inst.m_ammo - cost);
+        t.NextShot = Time.time + Math.Max(0.2f, _foamInterval.Value);
+    }
+
+    /// <summary>Скорость для попадания из from в to при заданной начальной скорости и гравитации (низкая дуга; если не достаёт — 45°).</summary>
+    private static Vector3 Ballistic(Vector3 from, Vector3 to, float speed, float g)
+    {
+        var d = to - from;
+        var flat = new Vector3(d.x, 0f, d.z);
+        float x = flat.magnitude, y = d.y;
+        if (g <= 0.01f || x < 0.05f) return d.normalized * speed;
+        float v2 = speed * speed;
+        float disc = v2 * v2 - g * (g * x * x + 2f * y * v2);
+        float angle = disc >= 0f ? Mathf.Atan((v2 - Mathf.Sqrt(disc)) / (g * x)) : Mathf.PI / 4f;
+        var dir = flat / x;
+        return (dir * Mathf.Cos(angle) + Vector3.up * Mathf.Sin(angle)) * speed;
+    }
+
+    // Один раз пишем в лог настоящую гравитацию сгустка пены — чтобы выставить FoamGravity.
+    [HarmonyPatch(typeof(ProjectileManager), nameof(ProjectileManager.SpawnGlueGunProjectileIfNeeded))]
+    private static class Patch_GlueSpawn
+    {
+        private static void Postfix(GlueGunProjectile __result)
+        {
+            if (_glueGravityLogged || __result == null) return;
+            _glueGravityLogged = true;
+            try { ModInfo.Log.LogInfo($"[TurretVariants] пена: гравитация сгустка {__result.m_gravity}"); } catch { }
         }
     }
 

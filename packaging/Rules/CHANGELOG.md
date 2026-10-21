@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+- New tool **DRED GARAGE BT3** — bio-tracker turret. Doesn't shoot; every 3 s scans its sector (90°, 25 m, through walls) and tags enemies like a handheld bio-tracker. Screen shows how many enemies are in the sector. Options TrackerTurret, TrackerRange, TrackerAngle, TrackerInterval, TrackerThroughWalls.
+- New tool **DRED GARAGE CF4** — C-foam sentry. Lobs foam globs at its target instead of bullets (arcing shot, every 1.2 s, up to 20 m), skips enemies already glued, each glob costs 6 bullets of sentry ammo. Options FoamTurret, FoamInterval, FoamSpeed, FoamGravity, FoamAmmoPerShot, FoamExpand, FoamRange, FoamSkipGlued.
+- Both are added after FT1-T, so existing turret IDs don't change. Everyone in the lobby needs the same version.
+
 ## 0.3.1
 - Measures the real fog repeller / fog turbine parameters (radius, duration, grow/shrink time) 5 s after drop-in; writes them to the log and `BepInEx/config/GtfoPunk.FogRepellers.txt`.
 
