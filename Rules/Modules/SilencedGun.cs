@@ -5,6 +5,7 @@ using Enemies;
 using Gear;
 using GtfoPunk.Core;
 using GtfoPunk.Rules.Core;
+using GameData;
 using HarmonyLib;
 using Il2CppInterop.Runtime.InteropTypes;
 using Player;
@@ -26,7 +27,7 @@ public class SilencedGun : ModuleBase
     public override ModuleSide Side => ModuleSide.Everyone;
     public override IReadOnlyList<string> ReplacedBy => Array.Empty<string>();
 
-    private static BepInEx.Configuration.ConfigEntry<string> _stats, _sound, _guns;
+    private static BepInEx.Configuration.ConfigEntry<string> _stats, _sound, _guns, _pose;
     private static BepInEx.Configuration.ConfigEntry<float> _hard, _soft;
     private static BepInEx.Configuration.ConfigEntry<bool> _softPulse;
 
@@ -34,6 +35,7 @@ public class SilencedGun : ModuleBase
     {
         _stats = Bind("StatsFrom", "Shelling Arid 5", "От какого оружия урон, магазин, темп (категория).");
         _sound = Bind("SoundFrom", "Shelling S49", "От какого оружия звук выстрела.");
+        _pose = Bind("PoseFrom", "Mastaba R66", "От какого оружия хват и позиция рук (поза и за какую деталь держится левая рука). Должно совпадать с «верхом» пушки, иначе пропадает рука при перезарядке.");
         _guns = Bind("SilencedGuns", NewDefault,
             "Бесшумные пушки через «;»: «Название: Корпус + деталь=откуда, …». Корпус — оружие, чьи детали берутся за основу; 12 — ствол/верх. Детали и номера — в GtfoPunk.GearList.txt.");
         _hard = Bind("HardRadius", 10f, "Радиус (м), в котором выстрел будит врагов.");
@@ -42,7 +44,8 @@ public class SilencedGun : ModuleBase
     }
 
     // 4 (ItemFPSSettings) — анимации рук: берём от Mastaba, иначе при перезарядке «пропадает» рука, вставляющая патроны.
-    private const string NewDefault = "DRED SILENZIO GP6-S: Bataldo 3RB + 12=Mastaba R66, 4=Mastaba R66; GP6-S TEST B: Mastaba R66 + 19=Bataldo 3RB";
+    private const string NewDefault = "DRED SILENZIO GP6-S: Bataldo 3RB + 12=Mastaba R66, 4=Mastaba R66";
+    private const string TestDefault = NewDefault + "; GP6-S TEST B: Mastaba R66 + 19=Bataldo 3RB";
 
     private static readonly HashSet<uint> _categories = new();
     private static readonly Dictionary<IntPtr, float> _cooldown = new();
@@ -58,8 +61,7 @@ public class SilencedGun : ModuleBase
         foreach (var old in new[] { "AM DRED GP1-S:", "DRED SILENZIO GP7-S:" }) // переименования
             if (_guns.Value.Contains(old)) _guns.Value = _guns.Value.Replace(old, "DRED SILENZIO GP6-S:");
         // Обновляем прежние значения по умолчанию (временно — с тестовым вариантом B: весь Mastaba + приклад 3RB).
-        if (_guns.Value == "DRED SILENZIO GP6-S: Bataldo 3RB + 12=Mastaba R66"
-            || _guns.Value == "DRED SILENZIO GP6-S: Bataldo 3RB + 12=Mastaba R66, 4=Mastaba R66") _guns.Value = NewDefault;
+        if (_guns.Value == "DRED SILENZIO GP6-S: Bataldo 3RB + 12=Mastaba R66" || _guns.Value == TestDefault) _guns.Value = NewDefault;
         var statsGear = GearFactory.FindByName(_stats.Value);
         if (statsGear == null) { ModInfo.Log.LogWarning($"[SilencedGun] не нашёл оружие «{_stats.Value}» — см. GtfoPunk.GearList.txt"); return; }
         var sc = GearFactory.GetComps(statsGear.GearJSON);
@@ -67,6 +69,22 @@ public class SilencedGun : ModuleBase
         uint catId = GearFactory.CloneCategory(statsCat, "GtfoPunk_SilencedGun", "DRED SILENZIO",
             Lang.T("Silenced. Wakes enemies only within 10 m; farther ones only stir.", "С глушителем. Будит только в 10 м, дальше враги лишь тревожатся."));
         _categories.Add(catId);
+
+        // Хват рук берётся из категории: поза и приоритет деталей для левой руки. У Arid левая рука держится за магазин,
+        // а у револьверного верха магазина нет — поэтому рука пропадала. Копируем из категории оружия-«верха».
+        var poseGear = GearFactory.FindByName(_pose.Value);
+        if (poseGear != null && GearFactory.GetComps(poseGear.GearJSON).TryGetValue((int)eGearComponent.Category, out var poseCat))
+        {
+            var src = GameDataBlockBase<GearCategoryDataBlock>.GetBlock(poseCat);
+            var dst = GameDataBlockBase<GearCategoryDataBlock>.GetBlock(catId);
+            if (src != null && dst != null)
+            {
+                dst.FPSArmPoseName = src.FPSArmPoseName;
+                dst.PartAlignPriority = src.PartAlignPriority;
+                dst.ThirdPersonFullbodyMovement = src.ThirdPersonFullbodyMovement;
+                ModInfo.Log.LogInfo($"[SilencedGun] хват рук от «{GearFactory.NameOf(poseGear)}» (поза {src.FPSArmPoseName})");
+            }
+        }
 
         uint? sound = null;
         var soundGear = GearFactory.FindByName(_sound.Value);

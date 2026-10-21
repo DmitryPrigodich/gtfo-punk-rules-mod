@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.9
+- DRED SILENZIO GP6-S: arm pose and left-hand grip taken from Mastaba R66 (option PoseFrom) — the reload hand was missing because Arid's grip expects a magazine. Test variant B removed.
+- DRED GARAGE LT2: lamp turned another 90° (option LampRotation3).
+- DRED GARAGE FT1: repeller model stands upright even on slopes.
+
 ## 0.2.8
 - DRED GARAGE LT2: lamp anchored to the barrel root (not the muzzle point), turned lens-forward (option LampRotation2).
 - Temporary test pistol "GP6-S TEST B" (Mastaba body + 3RB stock, Arid stats) to find where the reload hand goes missing.

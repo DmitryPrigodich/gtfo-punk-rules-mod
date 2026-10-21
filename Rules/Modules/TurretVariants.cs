@@ -48,7 +48,7 @@ public class TurretVariants : ModuleBase
         _disturbInterval = Bind("LightDisturbInterval", 1.5f, "Как часто (сек) свет «тревожит» врагов в луче.");
         _lampItem = Bind("LampModel", "Long Range Flashlight", "Предмет, модель которого ставится на фонарную турель (имя или часть имени; пусто — без модели).");
         _lampOffset = Bind("LampOffset", "0,0.08,0.05", "Смещение модели фонаря относительно ствола турели (x,y,z, м).");
-        _lampRotation = Bind("LampRotation2", "0,180,0", "Поворот модели фонаря (градусы x,y,z), если смотрит не туда.");
+        _lampRotation = Bind("LampRotation3", "0,270,0", "Поворот модели фонаря (градусы x,y,z), если смотрит не туда.");
         _lampScale = Bind("LampScale", 1f, "Масштаб модели фонаря.");
         _lightForward = Bind("LightForward", 0.35f, "Насколько вынести источник света вперёд от модели фонаря (м), чтобы он не засвечивал сам фонарь.");
         _hideGun = Bind("HideGun", true, "Прятать ствол автопушки у обеих турелей (остаётся тренога с корпусом).");
@@ -302,6 +302,8 @@ public class TurretVariants : ModuleBase
             var anchor = new GameObject("GtfoPunk_FogTop");
             anchor.transform.SetParent(t.Inst.transform, false);
             anchor.transform.position = top;
+            // Ровно по вертикали, даже если турель стоит на склоне; поворот — только по направлению турели.
+            anchor.transform.rotation = Quaternion.Euler(0f, t.Inst.transform.eulerAngles.y, 0f);
             AttachModel(anchor.transform, FogRepellerItemId, Vec(_fogModelOffset.Value, Vector3.zero), Vector3.zero, _fogModelScale.Value, "GtfoPunk_FogModel");
             if (_fogLamp.Value > 0f)
             {
