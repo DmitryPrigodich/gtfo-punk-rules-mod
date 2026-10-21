@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.8
+- DRED GARAGE LT2: lamp anchored to the barrel root (not the muzzle point), turned lens-forward (option LampRotation2).
+- Temporary test pistol "GP6-S TEST B" (Mastaba body + 3RB stock, Arid stats) to find where the reload hand goes missing.
+
 ## 0.2.7
 - Silenced pistol renamed: **DRED SILENZIO GP6-S** (old config value is migrated, loadout slot kept).
 

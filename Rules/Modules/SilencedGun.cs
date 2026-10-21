@@ -42,8 +42,7 @@ public class SilencedGun : ModuleBase
     }
 
     // 4 (ItemFPSSettings) — анимации рук: берём от Mastaba, иначе при перезарядке «пропадает» рука, вставляющая патроны.
-    private const string OldDefault = "AM DRED GP1-S: Bataldo 3RB + 12=Mastaba R66";
-    private const string NewDefault = "DRED SILENZIO GP6-S: Bataldo 3RB + 12=Mastaba R66, 4=Mastaba R66";
+    private const string NewDefault = "DRED SILENZIO GP6-S: Bataldo 3RB + 12=Mastaba R66, 4=Mastaba R66; GP6-S TEST B: Mastaba R66 + 19=Bataldo 3RB";
 
     private static readonly HashSet<uint> _categories = new();
     private static readonly Dictionary<IntPtr, float> _cooldown = new();
@@ -56,9 +55,11 @@ public class SilencedGun : ModuleBase
 
     private static void Inject()
     {
-        if (_guns.Value == OldDefault) _guns.Value = NewDefault; // обновляем старое значение по умолчанию
         foreach (var old in new[] { "AM DRED GP1-S:", "DRED SILENZIO GP7-S:" }) // переименования
             if (_guns.Value.Contains(old)) _guns.Value = _guns.Value.Replace(old, "DRED SILENZIO GP6-S:");
+        // Обновляем прежние значения по умолчанию (временно — с тестовым вариантом B: весь Mastaba + приклад 3RB).
+        if (_guns.Value == "DRED SILENZIO GP6-S: Bataldo 3RB + 12=Mastaba R66"
+            || _guns.Value == "DRED SILENZIO GP6-S: Bataldo 3RB + 12=Mastaba R66, 4=Mastaba R66") _guns.Value = NewDefault;
         var statsGear = GearFactory.FindByName(_stats.Value);
         if (statsGear == null) { ModInfo.Log.LogWarning($"[SilencedGun] не нашёл оружие «{_stats.Value}» — см. GtfoPunk.GearList.txt"); return; }
         var sc = GearFactory.GetComps(statsGear.GearJSON);
