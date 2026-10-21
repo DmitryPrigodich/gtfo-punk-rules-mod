@@ -34,12 +34,16 @@ public class SilencedGun : ModuleBase
     {
         _stats = Bind("StatsFrom", "Shelling Arid 5", "От какого оружия урон, магазин, темп (категория).");
         _sound = Bind("SoundFrom", "Shelling S49", "От какого оружия звук выстрела.");
-        _guns = Bind("SilencedGuns", "AM DRED GP1-S: Bataldo 3RB + 12=Mastaba R66",
+        _guns = Bind("SilencedGuns", NewDefault,
             "Бесшумные пушки через «;»: «Название: Корпус + деталь=откуда, …». Корпус — оружие, чьи детали берутся за основу; 12 — ствол/верх. Детали и номера — в GtfoPunk.GearList.txt.");
         _hard = Bind("HardRadius", 10f, "Радиус (м), в котором выстрел будит врагов.");
         _soft = Bind("SoftRadius", 25f, "Радиус (м), в котором выстрел только тревожит (пульс), но не будит. 0 — не тревожить.");
         _softPulse = Bind("SoftIsPulseOnly", true, "true — дальние враги только «пульсируют»; false — получают обычный шум (могут проснуться при повторных выстрелах).");
     }
+
+    // 4 (ItemFPSSettings) — анимации рук: берём от Mastaba, иначе при перезарядке «пропадает» рука, вставляющая патроны.
+    private const string OldDefault = "AM DRED GP1-S: Bataldo 3RB + 12=Mastaba R66";
+    private const string NewDefault = "AM DRED GP1-S: Bataldo 3RB + 12=Mastaba R66, 4=Mastaba R66";
 
     private static readonly HashSet<uint> _categories = new();
     private static readonly Dictionary<IntPtr, float> _cooldown = new();
@@ -52,6 +56,7 @@ public class SilencedGun : ModuleBase
 
     private static void Inject()
     {
+        if (_guns.Value == OldDefault) _guns.Value = NewDefault; // обновляем старое значение по умолчанию
         var statsGear = GearFactory.FindByName(_stats.Value);
         if (statsGear == null) { ModInfo.Log.LogWarning($"[SilencedGun] не нашёл оружие «{_stats.Value}» — см. GtfoPunk.GearList.txt"); return; }
         var sc = GearFactory.GetComps(statsGear.GearJSON);

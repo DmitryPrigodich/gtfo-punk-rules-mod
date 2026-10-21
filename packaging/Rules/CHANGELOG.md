@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.6
+- AM DRED GP1-S: hand animations from Mastaba R66 (the reload hand was missing).
+- DRED GARAGE LT2: the lamp sits at the base of the (hidden) barrel instead of floating at the muzzle point.
+
 ## 0.2.5
 - Silenced pistol: one gun left — **AM DRED GP1-S** = Bataldo 3RB body + Mastaba R66 top (Arid 5 damage, S49 sound). Option renamed to `SilencedGuns`.
 - DRED GARAGE LT2: the flashlight model is taken from the variant that actually has meshes (the third-person one was empty).

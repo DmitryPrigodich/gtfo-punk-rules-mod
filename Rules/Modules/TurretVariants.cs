@@ -242,13 +242,23 @@ public class TurretVariants : ModuleBase
         var align = firing?.MuzzleAlign;
         if (align == null) return false;
 
+        // Точка ствола (MuzzleAlign) — на конце спрятанного ствола, далеко впереди. Фонарь ставим у основания ствола:
+        // на корне детали Front_*, которая поворачивается вместе с головой турели; направление — как у ствола.
+        Transform root = align;
+        for (var tr = align; tr != null && tr != t.Inst.transform; tr = tr.parent)
+            if (tr.name.StartsWith("Front_")) { root = tr; break; }
+        var head = new GameObject("GtfoPunk_Head");
+        head.transform.SetParent(root, false);
+        head.transform.position = root.position;
+        head.transform.rotation = align.rotation;
+
         var go = new GameObject("GtfoPunk_Searchlight");
-        go.transform.SetParent(align, false);
-        go.transform.localPosition = Vector3.zero;
+        go.transform.SetParent(head.transform, false);
         go.transform.localRotation = Quaternion.identity;
-        try { AttachLamp(align); } catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] модель фонаря: {e.Message}"); }
+        try { AttachLamp(head.transform); } catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] модель фонаря: {e.Message}"); }
         go.transform.localPosition = Vec(_lampOffset.Value, Vector3.zero) + Vector3.forward * _lightForward.Value; // свет перед стеклом фонаря, а не внутри модели
         HideGun(t.Inst);
+        ModInfo.Log.LogInfo($"[TurretVariants] фонарь крепится к «{root.name}», до точки ствола {Vector3.Distance(root.position, align.position):0.00} м");
         var light = go.AddComponent<Light>();
         light.type = LightType.Spot;
         light.range = _lightRange.Value;
