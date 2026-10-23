@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.0
+- New module **Loadout**: the three booster slots in the lobby become a loadout. Click a slot to cycle:
+  - 1st slot — **pack**: ammo / medi / tool / disinfection (5 charges, PackCharges);
+  - 2nd slot — **extra item**: grenade, C-foam grenade, explosive / C-foam trip mine, fog repeller, glow sticks, lock melter, I2-LP syringe (ItemChoices);
+  - 3rd slot — **perk**: bio-tracker pulse every 8 s within 15 m, tags enemies and beeps (PerkScanInterval / PerkScanRange / PerkThroughWalls).
+  Choices are saved in the config and shown on every player's lobby card. At drop-in the host spawns each player's pack and item next to them and picks them up for them. Bots can get a pack/item too (BotPack, BotItem).
+  Stock boosters can't be selected while BlockStockBoosters is on; already selected ones are unselected (not used up).
+- Mod-to-mod messaging over the game's network (no GTFO-API needed) — players without the mod can't play with you.
+
+## 0.6.0
+- New module **Syringes**: every artifact spot in a level now holds a **Booster Syringe** instead of the artifact (a copy of the IIx syringe — same model and injection animation; not listed in the terminal, so you find it by exploring). Injecting it applies the effects of a random booster from the game data for 5 minutes (SyringeMinutes), synced like real booster effects; negative booster effects included unless KeepDownsides = false. Active effects and time left are shown on the HUD above the watermark and posted to your chat. Several syringes stack. Artifacts (and the booster progress they give) are gone while ReplaceArtifacts is on.
+
 ## 0.5.4
 - **Battery** for the non-shooting sentries (LT2, FT1, FT1-T, BT3): their ammo now works as a battery that drains while they run — a full one lasts 300 s (BatterySecondsLT2 / FT1 / BT3). The screen shows the charge ("LT2 87%"); at zero the sentry switches off (light out, fog sphere shrinks, no scanning, "OFF"). Recharge like a normal sentry: pick it up, use a tool refill, place it again. Option Battery to turn it off.
 
