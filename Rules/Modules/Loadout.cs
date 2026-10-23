@@ -20,7 +20,7 @@ namespace GtfoPunk.Rules.Modules;
 /// The three booster slots in the lobby become a loadout:
 ///   1st slot (Muted)      — resource PACK: ammo / medi / tool / disinfection (one full pack = 5 charges);
 ///   2nd slot (Bold)       — extra ITEM for the consumable slot: grenade, C-foam grenade, mines, fog repeller…;
-///   3rd slot (Aggressive) — PERK: a built-in bio-tracker pulse.
+///   3rd slot (Aggressive) — GADGET: thermal goggles or a bio-tracker pulse, used with the gadget key (N).
 /// Click a slot to cycle the choice. Choices are stored in the config and sent to everyone;
 /// at drop-in the host hands every player their pack and item (spawned in the level and picked up for them,
 /// so they behave like normal pickups). Stock boosters can't be selected while this is on (nothing is consumed);
@@ -29,7 +29,7 @@ namespace GtfoPunk.Rules.Modules;
 public partial class Loadout : ModuleBase
 {
     public override string Id => "Loadout";
-    public override string Description => "Booster slots in the lobby become a loadout: resource pack, extra item, perk. The host hands them out at drop-in. Everyone needs it.";
+    public override string Description => "Booster slots in the lobby become a loadout: resource pack, extra item, gadget (thermal / bio-tracker). The host hands them out at drop-in. Everyone needs it.";
     public override ModuleSide Side => ModuleSide.Everyone;
 
     // ---------- choices ----------
@@ -50,14 +50,17 @@ public partial class Loadout : ModuleBase
     private static BepInEx.Configuration.ConfigEntry<string> _pack, _perk, _itemChoices, _botPack;
     private static BepInEx.Configuration.ConfigEntry<uint> _item, _botItem;
     private static BepInEx.Configuration.ConfigEntry<int> _packCharges, _itemAmount;
-    private static BepInEx.Configuration.ConfigEntry<bool> _blockBoosters, _perkWalls, _perkSound;
+    private static BepInEx.Configuration.ConfigEntry<bool> _blockBoosters, _perkWalls, _perkSound, _bioAuto;
+    private static BepInEx.Configuration.ConfigEntry<string> _gadgetKey;
     private static BepInEx.Configuration.ConfigEntry<float> _giveDelay, _perkInterval, _perkRange;
 
     protected override void OnBindConfig()
     {
         _pack = Bind("Pack", "Ammo", "Your resource pack (also set by clicking the 1st booster slot in the lobby): None, Ammo, Medi, Tool, Disinfection.");
         _item = Bind("Item", 136u, "Your extra item, an item ID (also set by clicking the 2nd booster slot). 0 — none.");
-        _perk = Bind("Perk", "BioTracker", "Your perk (also set by clicking the 3rd booster slot): None, BioTracker, Thermal.");
+        _perk = Bind("Perk", "BioTracker", "Your gadget (also set by clicking the 3rd booster slot): BioTracker, Thermal.");
+        _gadgetKey = Bind("GadgetKey", "N", "Key that uses the gadget: thermal goggles on/off, or a bio-tracker pulse (Unity KeyCode name).");
+        _bioAuto = Bind("BioTrackerAuto", false, "Bio-tracker gadget pulses by itself every PerkScanInterval seconds. false — only when you press the gadget key (with that cooldown).");
         _itemChoices = Bind("ItemChoices", "136,115,139,144,117,114,116,140",
             "Items the 2nd slot cycles through (item IDs): 136 grenade, 115 C-foam grenade, 139 explosive trip mine, 144 C-foam trip mine, 117 fog repeller, 114 glow sticks, 116 lock melter, 140 I2-LP syringe.");
         _packCharges = Bind("PackCharges", 5, "Charges in the pack you get (a full pack is 5).");
@@ -66,11 +69,12 @@ public partial class Loadout : ModuleBase
         _botItem = Bind("BotItem", 0u, "Extra item the host gives each bot (item ID, 0 — none).");
         _giveDelay = Bind("GiveDelay", 3f, "Seconds after drop-in before the host hands out the loadout.");
         _blockBoosters = Bind("BlockStockBoosters", true, "Stock boosters can't be selected (already selected ones are unselected, not used up).");
-        _perkInterval = Bind("PerkScanInterval", 8f, "Bio-tracker perk: seconds between pulses.");
-        _perkRange = Bind("PerkScanRange", 15f, "Bio-tracker perk: pulse radius (m).");
-        _perkWalls = Bind("PerkThroughWalls", true, "Bio-tracker perk sees through walls.");
-        _perkSound = Bind("PerkSound", true, "Bio-tracker perk beeps when it finds enemies.");
+        _perkInterval = Bind("PerkScanInterval", 8f, "Bio-tracker gadget: cooldown between pulses (s).");
+        _perkRange = Bind("PerkScanRange", 15f, "Bio-tracker gadget: pulse radius (m).");
+        _perkWalls = Bind("PerkThroughWalls", true, "Bio-tracker gadget sees through walls.");
+        _perkSound = Bind("PerkSound", true, "Bio-tracker gadget beeps when it finds enemies.");
         BindThermal();
+        BindIcons();
     }
 
     protected override void OnEnable()
@@ -80,12 +84,15 @@ public partial class Loadout : ModuleBase
         FrameTicker.OnUpdate += Tick;
     }
 
-    private static Choice Local() => new()
+    /// <summary>Your choice. Nothing is ever left empty: unknown / "None" values fall back to the first option.</summary>
+    private static Choice Local()
     {
-        Pack = Enum.TryParse<PackKind>(_pack.Value, true, out var p) ? p : PackKind.None,
-        Item = _item.Value,
-        Perk = Enum.TryParse<PerkKind>(_perk.Value, true, out var k) ? k : PerkKind.None,
-    };
+        var pack = Enum.TryParse<PackKind>(_pack.Value, true, out var p) && p != PackKind.None ? p : PackKind.Ammo;
+        var items = ItemChoices();
+        uint item = items.Contains(_item.Value) ? _item.Value : items.Count > 0 ? items[0] : 0;
+        var perk = Enum.TryParse<PerkKind>(_perk.Value, true, out var k) && k != PerkKind.None ? k : PerkKind.BioTracker;
+        return new Choice { Pack = pack, Item = item, Perk = perk };
+    }
 
     private static Choice Bot() => new()
     {
@@ -95,7 +102,7 @@ public partial class Loadout : ModuleBase
 
     private static List<uint> ItemChoices()
     {
-        var list = new List<uint> { 0 };
+        var list = new List<uint>();
         foreach (var s in _itemChoices.Value.Split(',', ';', ' '))
             if (uint.TryParse(s.Trim(), out var id) && id != 0 && GameDataBlockBase<ItemDataBlock>.HasBlock(id) && !list.Contains(id)) list.Add(id);
         return list;
@@ -148,22 +155,23 @@ public partial class Loadout : ModuleBase
         {
             case BoosterImplantCategory.Muted:
             {
-                var cur = Local().Pack;
-                var next = (PackKind)(((int)cur + 1) % Enum.GetValues(typeof(PackKind)).Length);
+                int n = Enum.GetValues(typeof(PackKind)).Length; // 0 = None is skipped
+                var next = (PackKind)((int)Local().Pack % (n - 1) + 1);
                 _pack.Value = next.ToString();
                 break;
             }
             case BoosterImplantCategory.Bold:
             {
                 var list = ItemChoices();
-                int i = list.IndexOf(_item.Value);
+                if (list.Count == 0) break;
+                int i = list.IndexOf(Local().Item);
                 _item.Value = list[(i + 1) % list.Count];
                 break;
             }
             case BoosterImplantCategory.Aggressive:
             {
-                var cur = Local().Perk;
-                var next = (PerkKind)(((int)cur + 1) % Enum.GetValues(typeof(PerkKind)).Length);
+                int n = Enum.GetValues(typeof(PerkKind)).Length; // 0 = None is skipped
+                var next = (PerkKind)((int)Local().Perk % (n - 1) + 1);
                 _perk.Value = next.ToString();
                 break;
             }
@@ -237,7 +245,7 @@ public partial class Loadout : ModuleBase
                 if (c != null) iconItem = c.Item;
                 break;
             default:
-                title = Lang.T("PERK", "ПЕРК");
+                title = Lang.T("GADGET", "ГАДЖЕТ");
                 value = c == null ? "?" : PerkName(c.Perk);
                 break;
         }
@@ -252,7 +260,7 @@ public partial class Loadout : ModuleBase
         if (empty != null)
         {
             if (!_origEmptyIcon.ContainsKey(slot.Pointer)) _origEmptyIcon[slot.Pointer] = empty.sprite;
-            var icon = iconItem != 0 ? Icon(iconItem) : null;
+            var icon = iconItem != 0 ? Photo(iconItem, _origEmptyIcon[slot.Pointer]) ?? Icon(iconItem) : null;
             empty.sprite = icon ?? _origEmptyIcon[slot.Pointer];
             empty.gameObject.SetActive(true);
         }
@@ -291,7 +299,7 @@ public partial class Loadout : ModuleBase
     private static string PerkName(PerkKind k) => k switch
     {
         PerkKind.BioTracker => Lang.T("Bio-tracker", "Биотрекер"),
-        PerkKind.Thermal => Lang.T("Thermal vision", "Тепловизор"),
+        PerkKind.Thermal => Lang.T("Thermal goggles", "Тепловизор"),
         _ => "—",
     };
 
@@ -364,6 +372,7 @@ public partial class Loadout : ModuleBase
         {
             _nextLobbyCheck = Time.time + 1f;
             ClearStockBoosters();
+            try { PhotoTick(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] photos: {e.Message}"); }
             RepaintAll();
         }
 
@@ -377,10 +386,17 @@ public partial class Loadout : ModuleBase
 
         try { ThermalTick(state == eGameStateName.InLevel, Local().Perk == PerkKind.Thermal); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] thermal: {e.Message}"); }
 
-        if (state == eGameStateName.InLevel && Time.time >= _nextScan)
+        // Bio-tracker gadget: a pulse on the gadget key (or by itself with BioTrackerAuto), with a cooldown.
+        if (state == eGameStateName.InLevel && Local().Perk == PerkKind.BioTracker)
         {
-            _nextScan = Time.time + Math.Max(1f, _perkInterval.Value);
-            if (Local().Perk == PerkKind.BioTracker) try { PerkScan(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] perk: {e.Message}"); }
+            bool want = _bioAuto.Value || (GadgetKeyDown() && !ChatOpen());
+            if (want && Time.time >= _nextScan)
+            {
+                _nextScan = Time.time + Math.Max(1f, _perkInterval.Value);
+                try { PerkScan(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] bio-tracker: {e.Message}"); }
+            }
+            else if (want && !_bioAuto.Value && _cooldownLogs++ < 3)
+                ModInfo.Log.LogInfo($"[Loadout] bio-tracker gadget recharging: {(_nextScan - Time.time):0.#} s");
         }
     }
 
@@ -524,7 +540,17 @@ public partial class Loadout : ModuleBase
         return true;
     }
 
-    // ---------- perk: bio-tracker pulse ----------
+    private static int _cooldownLogs;
+
+    internal static bool GadgetKeyDown() => Enum.TryParse<KeyCode>(_gadgetKey.Value, true, out var key) && Input.GetKeyDown(key);
+
+    /// <summary>Don't react to keys while the player types in chat.</summary>
+    internal static bool ChatOpen()
+    {
+        try { return PlayerChatManager.InChatMode; } catch { return false; }
+    }
+
+    // ---------- gadget: bio-tracker pulse ----------
 
     private static int _perkLogs;
 
@@ -546,6 +572,6 @@ public partial class Loadout : ModuleBase
             tagged++;
         }
         if (count > 0 && _perkSound.Value) CellSound.Post(AK.EVENTS.BIOTRACKER_TAG, origin);
-        if (count > 0 && _perkLogs++ < 10) ModInfo.Log.LogInfo($"[Loadout] bio-tracker perk: {count} enemies within {_perkRange.Value:0} m, newly tagged {tagged}");
+        if (count > 0 && _perkLogs++ < 10) ModInfo.Log.LogInfo($"[Loadout] bio-tracker gadget: {count} enemies within {_perkRange.Value:0} m, newly tagged {tagged}");
     }
 }

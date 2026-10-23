@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.0
+- Loadout: the 3rd slot is now the **GADGET**, used with **N** (GadgetKey):
+  - **Thermal goggles** — N on/off, **Z** steps the zoom (ThermalZoomLevels "0,0.5,0.75");
+  - **Bio-tracker** — N sends a pulse (tags enemies within 15 m, beep), 8 s cooldown; BioTrackerAuto for the old automatic pulse.
+  Keys are ignored while typing in chat.
+- Loadout: no empty choices any more — pack, item and gadget always have something (old "None" values fall back to the first option).
+- Loadout: lobby slots show rendered pictures of the items (made by the game's weapon icon renderer; ItemPhotos, ItemPhotoSize).
+- Sentry GL5 renamed **DRED GARAGE GLF-3**: bursts of 3 grenades (GrenadeMagazine2), 2.5 s reload (GrenadeReload2); the screen shows grenades left.
+- CF4 foam reworked: enemies are **slowed** instead of frozen (FoamMaxGlue 0.75 of "stuck"), foam is **acidic** (FoamAcidDps 3), and hits **stagger** enemies, interrupting attacks (FoamStagger, FoamStaggerInterval 2 s). CF4 screen keeps the tank % left.
+
 ## 0.7.2
 - Loadout: given packs and items arrived empty (0%) — the ammo is now put on the item before it's picked up, and the owner's ammo storage is topped up afterwards (for other players via a network message).
 - Loadout: lobby slot repaint error fixed (it spammed the log every second).

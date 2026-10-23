@@ -16,23 +16,24 @@ namespace GtfoPunk.Rules.Modules;
 /// </summary>
 public partial class Loadout
 {
-    private static BepInEx.Configuration.ConfigEntry<string> _thermalKey, _thermalMaterial, _thermalSearch;
+    private static BepInEx.Configuration.ConfigEntry<string> _thermalZoomKey, _thermalZoomLevels, _thermalMaterial, _thermalSearch;
     private static BepInEx.Configuration.ConfigEntry<float> _thermalDistance;
     private static BepInEx.Configuration.ConfigEntry<bool> _thermalItemCamera, _thermalDump, _thermalReticle;
     private static BepInEx.Configuration.ConfigEntry<float> _thermalZoom, _thermalNoise;
 
     private void BindThermal()
     {
-        _thermalKey = Bind("ThermalKey", "N", "Thermal perk: key that switches thermal vision on/off (Unity KeyCode name).");
-        _thermalMaterial = Bind("ThermalMaterial", "", "Thermal perk: exact material name to use (see GtfoPunk.ThermalDump.txt). Empty — pick automatically.");
+        _thermalZoomKey = Bind("ThermalZoomKey", "Z", "Thermal goggles: key that steps through the zoom levels (Unity KeyCode name).");
+        _thermalZoomLevels = Bind("ThermalZoomLevels", "0,0.5,0.75", "Thermal goggles: zoom levels the zoom key steps through (0 — no zoom, 0.75 — like the thermal sight).");
+        _thermalMaterial = Bind("ThermalMaterial", "", "Thermal goggles: exact material name to use (see GtfoPunk.ThermalDump.txt). Empty — pick automatically.");
         _thermalSearch = Bind("ThermalSearch", "thermal,_t_,sight_10_t,sight_19_t,heat,infrared",
-            "Thermal perk: words to look for in material / shader / object names when picking and dumping (comma-separated).");
-        _thermalDistance = Bind("ThermalDistance", 0.12f, "Thermal perk: how far in front of the camera the thermal screen sits (m).");
-        _thermalZoom = Bind("ThermalZoom", 0f, "Thermal perk: magnification of the thermal image (the sight uses 0.75 = strongly zoomed). 0 — like your eyes. Applied live.");
-        _thermalNoise = Bind("ThermalNoise", 1f, "Thermal perk: amount of scanline / signal distortion (1 — like the sight, 2–3 — predator-style noise, 0 — clean). Applied live.");
-        _thermalReticle = Bind("ThermalReticle", false, "Thermal perk: keep the sight's reticle drawn over the whole view.");
+            "Thermal goggles: words to look for in material / shader / object names when picking and dumping (comma-separated).");
+        _thermalDistance = Bind("ThermalDistance", 0.12f, "Thermal goggles: how far in front of the camera the thermal screen sits (m).");
+        _thermalZoom = Bind("ThermalZoom", 0f, "Thermal goggles: zoom when switched on (the sight uses 0.75 = strongly zoomed). 0 — like your eyes.");
+        _thermalNoise = Bind("ThermalNoise", 1f, "Thermal goggles: amount of scanline / signal distortion (1 — like the sight, 2–3 — predator-style noise, 0 — clean). Applied live.");
+        _thermalReticle = Bind("ThermalReticle", false, "Thermal goggles: keep the sight's reticle drawn over the whole view.");
         _thermalDump = Bind("ThermalDiagnostics", false, "Write GtfoPunk.ThermalDump.txt (thermal materials and shader settings) in the first level. Causes a hitch.");
-        _thermalItemCamera = Bind("ThermalOnItemCamera", true, "Thermal perk: put the screen on the camera that draws the weapon (like the sight lens). false — on the world camera.");
+        _thermalItemCamera = Bind("ThermalOnItemCamera", true, "Thermal goggles: put the screen on the camera that draws the weapon (like the sight lens). false — on the world camera.");
     }
 
     private static GameObject _thermalQuad;
@@ -57,8 +58,20 @@ public partial class Loadout
             return;
         }
 
-        if (Enum.TryParse<KeyCode>(_thermalKey.Value, true, out var key) && Input.GetKeyDown(key))
-            SetThermal(!_thermalOn);
+        if (ChatOpen()) return;
+        if (GadgetKeyDown()) { _zoom = Mathf.Clamp(_thermalZoom.Value, 0f, 0.99f); SetThermal(!_thermalOn); }
+        if (_thermalOn && Enum.TryParse<KeyCode>(_thermalZoomKey.Value, true, out var zk) && Input.GetKeyDown(zk))
+        {
+            var levels = new List<float>();
+            foreach (var part in _thermalZoomLevels.Value.Split(','))
+                if (float.TryParse(part.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var z)) levels.Add(Mathf.Clamp(z, 0f, 0.99f));
+            if (levels.Count == 0) levels.Add(0f);
+            int i = levels.FindIndex(z => Math.Abs(z - _zoom) < 0.01f);
+            _zoom = levels[(i + 1) % levels.Count];
+            _nextTune = 0f; // apply now
+            try { CellSound.Post(AK.EVENTS.BIOTRACKER_TAG, GameUtil.LocalAgent.Position); } catch { }
+            ModInfo.Log.LogInfo($"[Thermal] zoom {_zoom:0.##}");
+        }
 
         if (_thermalOn)
         {
@@ -67,7 +80,7 @@ public partial class Loadout
         }
     }
 
-    private static float _nextTune;
+    private static float _nextTune, _zoom;
     private static float _baseDistMin = -1f, _baseDistMax, _baseDistShadowMin, _baseDistShadowMax;
 
     /// <summary>Turn the sight lens material into a full-view filter: no magnification, no reticle, no round border.</summary>
@@ -76,7 +89,7 @@ public partial class Loadout
         if (m == null) return;
         try
         {
-            m.SetFloat("_Zoom", Mathf.Clamp(_thermalZoom.Value, 0f, 0.99f));
+            m.SetFloat("_Zoom", _zoom);
             if (!_thermalReticle.Value)
             {
                 foreach (var n in new[] { "_ReticuleA", "_ReticuleB", "_ReticuleC" }) m.SetTexture(n, Texture2D.blackTexture);

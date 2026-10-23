@@ -28,7 +28,7 @@ namespace GtfoPunk.Rules.Modules;
 public class TurretVariants : ModuleBase
 {
     public override string Id => "TurretVariants";
-    public override string Description => "New tools: DRED GARAGE FT1 (anti-fog), LT2 (searchlight), BT3 (bio-tracker), CF4 (foam), GL5 (grenades). Everyone needs it.";
+    public override string Description => "New tools: DRED GARAGE FT1 (anti-fog), LT2 (searchlight), BT3 (bio-tracker), CF4 (foam), GLF-3 (grenades). Everyone needs it.";
     public override ModuleSide Side => ModuleSide.Everyone;
 
     private static BepInEx.Configuration.ConfigEntry<bool> _fog, _light;
@@ -59,6 +59,7 @@ public class TurretVariants : ModuleBase
     private static BepInEx.Configuration.ConfigEntry<bool> _tracker, _trackerWalls, _foam, _foamSkipGlued, _trackerSound;
     private static BepInEx.Configuration.ConfigEntry<float> _trackerRange, _trackerAngle, _trackerInterval;
     private static BepInEx.Configuration.ConfigEntry<float> _foamInterval, _foamSpeed, _foamGravity, _foamAmmo, _foamExpand, _foamRange;
+    private static BepInEx.Configuration.ConfigEntry<float> _foamMaxGlue, _foamAcid, _foamStagger, _foamStaggerInterval;
 
     protected override void OnBindConfig()
     {
@@ -116,27 +117,31 @@ public class TurretVariants : ModuleBase
         _trackerPartsRotation = Bind("TrackerPartsRotation", "0,0,0", "Rotation of the bio-tracker parts (degrees).");
         _trackerPartsScale = Bind("TrackerPartsScale", 1f, "Scale of the bio-tracker parts.");
         _hideSensor = Bind("HideSensor", false, "Hide the targeting sensor part on sentries with a hidden barrel — it floats in the air. The scan beam itself stays.");
-        _gl = Bind("GrenadeTurret", true, "Add the grenade launcher sentry DRED GARAGE GL5 (fires grenades that explode on contact; needs the Grenades module).");
+        _gl = Bind("GrenadeTurret", true, "Add the grenade launcher sentry DRED GARAGE GLF-3 (fires grenades that explode on contact; needs the Grenades module).");
         _glInterval = Bind("GrenadeInterval", 2.5f, "Unused since 0.5.3 (see GrenadeMagazine / GrenadeShotDelay / GrenadeReload).");
         _battery = Bind("Battery", true, "Non-shooting sentries (LT2, FT1, FT1-T, BT3) run on their ammo as a battery: it drains while they work, at zero they switch off. Recharge like a normal sentry: pick it up, use a tool refill, place it again.");
         _batteryLight = Bind("BatterySecondsLT2", 300f, "How long a full battery lasts on LT2 (s).");
         _batteryFog = Bind("BatterySecondsFT1", 300f, "How long a full battery lasts on FT1 / FT1-T (s).");
         _batteryTracker = Bind("BatterySecondsBT3", 300f, "How long a full battery lasts on BT3 (s).");
-        _glMag = Bind("GrenadeMagazine", 6, "Revolver-style drum: grenades fired in quick succession before a reload.");
+        _glMag = Bind("GrenadeMagazine2", 3, "Grenades per burst, fired in quick succession before a reload.");
         _glShotDelay = Bind("GrenadeShotDelay", 0.35f, "Pause between grenades within the drum (s).");
-        _glReload = Bind("GrenadeReload", 4f, "Drum reload time (s). A partly used drum also reloads after this long without a target.");
+        _glReload = Bind("GrenadeReload2", 2.5f, "Reload time after a burst (s). A partly used burst also reloads after this long without a target.");
         _glSpeed = Bind("GrenadeSpeed", 16f, "Grenade launch speed (m/s).");
         _glRange = Bind("GrenadeRange", 25f, "Doesn't fire beyond this distance (m).");
         _glMinRange = Bind("GrenadeMinRange", 4f, "Doesn't fire closer than this (m) — so it doesn't blow itself up.");
         _glSafe = Bind("GrenadePlayerSafe", 4f, "Don't fire if a player stands within this many meters of the impact point.");
         _glAmmo = Bind("GrenadeAmmoPerShot", 12f, "How many sentry 'bullets' one grenade costs.");
-        _glParts = Bind("GrenadeParts", "33=2,37=1", "Mine deployer parts in GL5's cradle (33 — Delivery_Mine_Deployer, 37 — Payload_Mine_1). Empty — autocannon barrel.");
+        _glParts = Bind("GrenadeParts", "33=2,37=1", "Mine deployer parts in GLF-3's cradle (33 — Delivery_Mine_Deployer, 37 — Payload_Mine_1). Empty — autocannon barrel.");
         _glPartsOffset = Bind("GrenadePartsOffset", "0,0,0", "Offset of the mine deployer parts in the cradle (m).");
         _glPartsRotation = Bind("GrenadePartsRotation", "0,0,0", "Rotation of the mine deployer parts (degrees).");
         _glPartsScale = Bind("GrenadePartsScale2", 0.8f, "Scale of the mine deployer parts.");
         _fogDump = Bind("FogDiagnostics", false, "Write fog repeller measurements to GtfoPunk.FogRepellers.txt a few seconds into each level (diagnostics; causes a hitch).");
         _foamExpand = Bind("FoamExpand", -1f, "Glob expansion volume (-1 — the foam launcher's default).");
         _foamRange = Bind("FoamRange", 20f, "The foam sentry doesn't fire beyond this distance (m).");
+        _foamMaxGlue = Bind("FoamMaxGlue", 0.75f, "CF4 foam slows enemies instead of freezing them: glue is kept below this share of 'stuck' (1 — freeze like the C-foam launcher). Applies near a CF4.");
+        _foamAcid = Bind("FoamAcidDps", 3f, "CF4 foam is acidic: damage per second to enemies with foam on them (0 — off).");
+        _foamStagger = Bind("FoamStagger", 20f, "CF4 hits stagger enemies (interrupting attacks): stagger multiplier of the hit (0 — off).");
+        _foamStaggerInterval = Bind("FoamStaggerInterval", 2f, "How often one enemy can be staggered by CF4 foam (s).");
         _foamSkipGlued = Bind("FoamSkipGlued", true, "Don't waste foam on an enemy that is already glued and immobilized.");
     }
 
@@ -185,7 +190,7 @@ public class TurretVariants : ModuleBase
     protected override void OnEnable()
     {
         FrameTicker.OnUpdate += Tick;
-        FrameTicker.OnLevelExit += () => { _turrets.Clear(); _fogDumpAt = -1f; _fogDumped = false; };
+        FrameTicker.OnLevelExit += () => { _turrets.Clear(); _nextStagger.Clear(); _fogDumpAt = -1f; _fogDumped = false; };
         GearFactory.OnInject += Inject;
     }
 
@@ -214,9 +219,9 @@ public class TurretVariants : ModuleBase
         if (_foam.Value) AddVariant(baseGear, Mode.Foam, "GtfoPunk_FoamTurret", "DRED GARAGE CF4",
             Lang.T("C-foam sentry. Lobs foam globs at enemies instead of bullets, gluing them in place. Uses sentry ammo.",
                    "Пенострел. Вместо пуль закидывает врагов сгустками пены и приклеивает их. Тратит патроны турели."));
-        if (_gl.Value) AddVariant(baseGear, Mode.Grenade, "GtfoPunk_GrenadeTurret", "DRED GARAGE GL5",
-            Lang.T("Grenade launcher sentry. Lobs grenades that explode on contact (smaller blast than a mine). Won't fire close to itself or near players. Uses sentry ammo.",
-                   "Гранатомётная турель. Закидывает врагов гранатами со взрывом на контакт (слабее мины). Не стреляет вплотную и рядом с игроками. Тратит патроны турели."));
+        if (_gl.Value) AddVariant(baseGear, Mode.Grenade, "GtfoPunk_GrenadeTurret", "DRED GARAGE GLF-3",
+            Lang.T("Grenade launcher sentry. Fires bursts of 3 grenades that explode on contact (smaller blast than a mine). Won't fire close to itself or near players. Uses sentry ammo.",
+                   "Гранатомётная турель. Очередями по 3 гранаты со взрывом на контакт (слабее мины). Не стреляет вплотную и рядом с игроками. Тратит патроны турели."));
     }
 
     private static void AddVariant(PlayerOfflineGearDataBlock baseGear, Mode mode, string key, string title, string desc, int variant = 0)
@@ -370,6 +375,7 @@ public class TurretVariants : ModuleBase
         }
         CheckReload();
         if (_turrets.Count == 0) return;
+        try { FoamEffects(); } catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] foam effects: {e.Message}"); }
         _dead.Clear();
         foreach (var kv in _turrets)
         {
@@ -834,11 +840,17 @@ public class TurretVariants : ModuleBase
             Mode.FogTurbine => "FT1-T",
             Mode.Tracker => t.Tagged > 0 ? $"BT3 [{t.Tagged}]" : "BT3",
             Mode.Foam => "CF4",
-            Mode.Grenade => "GL5",
+            Mode.Grenade => "GLF-3",
             _ => "FT1",
         };
-        if (t.Mode == Mode.Foam || t.Mode == Mode.Grenade)
-            text = t.Inst.AmmoMaxCap > 0f ? $"{text} {Mathf.CeilToInt(100f * t.Inst.m_ammo / t.Inst.AmmoMaxCap)}%" : text; // ammo, not the raw bullet count
+        if (t.Mode == Mode.Grenade)
+        {
+            // A counted weapon: grenades left.
+            float cost = t.Inst.CostOfBullet * _glAmmo.Value;
+            text = cost > 0f ? $"{text} {Mathf.FloorToInt(t.Inst.m_ammo / cost + 0.001f)}" : text;
+        }
+        else if (t.Mode == Mode.Foam)
+            text = t.Inst.AmmoMaxCap > 0f ? $"{text} {Mathf.CeilToInt(100f * t.Inst.m_ammo / t.Inst.AmmoMaxCap)}%" : text; // a tank: % left
         else if (_battery.Value && t.Inst.AmmoMaxCap > 0f)
             text = t.Flat ? text + " OFF" : $"{text} {Mathf.CeilToInt(100f * t.Inst.m_ammo / t.Inst.AmmoMaxCap)}%";
         if (t.Screen.text != text) t.Screen.text = text;
@@ -943,13 +955,13 @@ public class TurretVariants : ModuleBase
         return target;
     }
 
-    // ---------- GL5: grenade launcher ----------
+    // ---------- GLF-3: grenade launcher (was GL5) ----------
 
     private static bool SetupGrenade(Turret t)
     {
         var head = MakeHead(t, out _, out _);
         if (head == null) return Time.time - t.SpawnedAt > 4f;
-        AttachParts(t, head.transform, _glParts, _glPartsOffset, _glPartsRotation, _glPartsScale, "GL5");
+        AttachParts(t, head.transform, _glParts, _glPartsOffset, _glPartsRotation, _glPartsScale, "GLF-3");
         return true;
     }
 
@@ -988,7 +1000,7 @@ public class TurretVariants : ModuleBase
         var node = owner.CourseNode ?? t.Inst.CourseNode;
         if (!Grenades.Throw(owner, from, Ballistic(from, target, speed, g), node))
         {
-            if (!_glLogged) { _glLogged = true; ModInfo.Log.LogWarning("[TurretVariants] GL5: no grenade model (item 136) — sentry won't fire"); }
+            if (!_glLogged) { _glLogged = true; ModInfo.Log.LogWarning("[TurretVariants] GLF-3: no grenade model (item 136) — sentry won't fire"); }
             t.NextShot = Time.time + 5f;
             return;
         }
@@ -1061,7 +1073,85 @@ public class TurretVariants : ModuleBase
         return true;
     }
 
-    private static bool Glued(EnemyAgent e) => e.Damage != null && e.Damage.IsStuckInGlue;
+    /// <summary>Glued enough: stuck, or (with the slowing foam) at the glue cap already — no point adding more.</summary>
+    private static bool Glued(EnemyAgent e)
+    {
+        var d = e.Damage;
+        if (d == null) return false;
+        if (d.IsStuckInGlue) return true;
+        float cap = _foamMaxGlue.Value;
+        return cap < 1f && d.AttachedGlueRel >= cap * 0.9f;
+    }
+
+    // ---------- CF4: what the foam does (slow + acid + stagger) ----------
+
+    private static float _nextFoamFx;
+    private static readonly Dictionary<IntPtr, float> _nextStagger = new();
+    private static int _foamFxLogs;
+
+    /// <summary>
+    /// Around every CF4: enemies with foam on them
+    ///  - are kept below "stuck" (FoamMaxGlue) — slowed down, not frozen (every machine, glue is simulated locally);
+    ///  - take acid damage while foamed (FoamAcidDps, host);
+    ///  - get staggered now and then, which interrupts attacks (FoamStagger, host).
+    /// </summary>
+    private static void FoamEffects()
+    {
+        if (Time.time < _nextFoamFx) return;
+        const float dt = 0.1f;
+        _nextFoamFx = Time.time + dt;
+        bool master = SNetwork.SNet.IsMaster;
+        bool acidTick = master && Time.time >= _nextAcid;
+        if (acidTick) _nextAcid = Time.time + 0.5f;
+        var seen = new HashSet<IntPtr>();
+        foreach (var t in _turrets.Values)
+        {
+            if (t.Mode != Mode.Foam || !t.Ready || t.Inst == null) continue;
+            foreach (var col in Physics.OverlapSphere(t.Inst.transform.position, _foamRange.Value + 5f, LayerManager.MASK_ENEMY_DAMAGABLE))
+            {
+                var e = col == null ? null : col.GetComponent<Dam_EnemyDamageLimb>()?.GlueTargetEnemyAgent;
+                if (e == null || !e.Alive || !seen.Add(e.Pointer)) continue;
+                var d = e.Damage;
+                if (d == null) continue;
+                float rel = d.AttachedGlueRel;
+                if (rel <= 0.02f) continue;
+
+                float cap = _foamMaxGlue.Value;
+                if (cap < 1f && rel > cap)
+                {
+                    float vol = d.AttachedGlueVolume;
+                    float excess = vol * (rel - cap) / rel;
+                    try { d.RemoveGlueVolume(excess, 0f); } catch { }
+                    if (_foamFxLogs++ < 6) ModInfo.Log.LogInfo($"[TurretVariants] CF4 foam: glue {rel:0.##} → cap {cap:0.##} (stuck {d.IsStuckInGlue}, speed ×{d.GlueMoveSpeedMulti:0.##})");
+                }
+                if (!master) continue;
+                var owner = t.Inst.Owner;
+                int limb = BodyLimb(d); // a plain body limb, so weak spots don't multiply the acid
+                if (acidTick && _foamAcid.Value > 0f)
+                    try { d.BulletDamage(_foamAcid.Value * 0.5f, owner, e.EyePosition, Vector3.down, Vector3.up, false, limb, 0f, 1f, 0u); } catch { }
+                if (_foamStagger.Value > 0f && (!_nextStagger.TryGetValue(e.Pointer, out var at) || Time.time >= at))
+                {
+                    _nextStagger[e.Pointer] = Time.time + Math.Max(0.5f, _foamStaggerInterval.Value);
+                    try { d.BulletDamage(0.01f, owner, e.EyePosition, t.Inst.transform.forward, -t.Inst.transform.forward, false, limb, _foamStagger.Value, 1f, 0u); } catch { }
+                }
+            }
+        }
+    }
+
+    private static float _nextAcid;
+
+    private static int BodyLimb(Dam_EnemyDamageBase d)
+    {
+        try
+        {
+            var limbs = d.DamageLimbs;
+            if (limbs != null)
+                foreach (var l in limbs)
+                    if (l != null && l.m_type == eLimbDamageType.Normal && !l.IsDestroyed) return l.m_limbID;
+        }
+        catch { }
+        return 0;
+    }
 
     private static EnemyAgent NearestUnglued(Vector3 from, Vector3 fwd)
     {
