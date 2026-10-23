@@ -28,6 +28,10 @@ public class Grenades : ModuleBase
     public override ModuleSide Side => ModuleSide.Everyone;
 
     public const uint GrenadeItemId = 136;
+    /// <summary>Clone of item 136 thrown only by the GL5 sentry — the item ID itself tells every client it's a sentry grenade.</summary>
+    public const uint TurretGrenadeItemId = 4250;
+    /// <summary>Item whose look the grenade borrows (C-Foam Grenade).</summary>
+    private const uint LookItemId = 115;
     /// <summary>Mark in the item data: this grenade was thrown by a sentry (visible to all players).</summary>
     private const float TurretMark = -77f;
 
@@ -72,6 +76,21 @@ public class Grenades : ModuleBase
         try { item.terminalItemShortName = "GRENADE"; item.terminalItemLongName = GearFactory.Text(name); } catch { }
 
         _named = name;
+
+        // Sentry grenade: same item under its own fixed ID (prefabs load for it like for any item).
+        if (!GameDataBlockBase<ItemDataBlock>.HasBlock(TurretGrenadeItemId))
+        {
+            var tg = GearFactory.CloneBlock(item);
+            tg.persistentID = TurretGrenadeItemId;
+            tg.name = "GtfoPunk_TurretGrenade";
+            tg.publicName = Lang.T("Sentry Grenade", "Граната турели");
+            try { tg.LocalizedName = GearFactory.Text(tg.publicName); } catch { }
+            tg.registerInTerminalSystem = false;
+            GameDataBlockBase<ItemDataBlock>.AddBlock(tg);
+        }
+        // Inventory icon of the C-Foam Grenade.
+        var look = GameDataBlockBase<ItemDataBlock>.GetBlock(LookItemId);
+        if (look != null && !string.IsNullOrEmpty(look.HUDIcon)) item.HUDIcon = look.HUDIcon;
     }
 
     private static string _named;
@@ -82,7 +101,40 @@ public class Grenades : ModuleBase
     [HarmonyPatch(typeof(ItemSpawnManager), nameof(ItemSpawnManager.SetupItemPrefabs))]
     private static class Patch_Prefabs
     {
-        private static void Postfix() { try { Distribute(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] distribution: {e.Message}"); } }
+        private static void Postfix()
+        {
+            try { Distribute(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] distribution: {e.Message}"); }
+            try { Reskin(GrenadeItemId); Reskin(TurretGrenadeItemId); } catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] look: {e.Message}"); }
+        }
+    }
+
+    /// <summary>
+    /// Item 136 ships with glow stick models. In every view (hand, third person, pickup, thrown) hide the glow stick
+    /// meshes and put a copy of the C-Foam Grenade model in their place. Prefabs are changed once, so every spawned copy gets it.
+    /// </summary>
+    private static void Reskin(uint id)
+    {
+        var perMode = ItemSpawnManager.m_loadedPrefabsPerItemMode;
+        if (perMode == null) return;
+        int done = 0;
+        for (int m = 0; m < perMode.Length; m++)
+        {
+            var dict = perMode[m];
+            if (dict == null || !dict.ContainsKey(id) || !dict.ContainsKey(LookItemId)) continue;
+            GameObject src = null;
+            foreach (var cand in dict[LookItemId])
+                if (cand != null && cand.GetComponentsInChildren<Renderer>(true).Length > 0) { src = cand; break; }
+            if (src == null) continue;
+            foreach (var dst in dict[id])
+            {
+                if (dst == null || dst.transform.Find("GtfoPunk_Look") != null) continue;
+                var rs = dst.GetComponentsInChildren<Renderer>(true);
+                if (rs.Length == 0) continue;
+                foreach (var r in rs) { r.enabled = false; r.forceRenderingOff = true; }
+                if (TurretVariants.CopyModel(src, dst.transform, "GtfoPunk_Look") != null) done++;
+            }
+        }
+        if (done > 0) ModInfo.Log.LogInfo($"[Grenades] item {id}: C-Foam Grenade look applied to {done} models");
     }
 
     private static void Distribute()
@@ -115,8 +167,9 @@ public class Grenades : ModuleBase
     /// <summary>Throws a grenade synced for everyone (call on the host). Returns false if the item isn't available.</summary>
     public static bool Throw(PlayerAgent owner, Vector3 from, Vector3 velocity, AIG_CourseNode node)
     {
-        if (!ItemSpawnManager.ItemHasMode(GrenadeItemId, ItemMode.Instance)) return false;
-        var data = new pItemData { itemID_gearCRC = GrenadeItemId };
+        uint id = ItemSpawnManager.ItemHasMode(TurretGrenadeItemId, ItemMode.Instance) ? TurretGrenadeItemId : GrenadeItemId;
+        if (!ItemSpawnManager.ItemHasMode(id, ItemMode.Instance)) return false;
+        var data = new pItemData { itemID_gearCRC = id };
         data.custom = new pItemData_Custom { ammo = TurretMark };
         var rot = velocity.sqrMagnitude > 0.01f ? Quaternion.LookRotation(velocity) : Quaternion.identity;
         ItemReplicationManager.ThrowItem(data, null, ItemMode.Instance, from, rot, velocity * _forceFactor, from, node, owner);
@@ -152,7 +205,8 @@ public class Grenades : ModuleBase
     private static void Configure(GrenadeBase g)
     {
         bool turret = false;
-        try { turret = Math.Abs(g.Get_pItemData().custom.ammo - TurretMark) < 0.01f; } catch { }
+        try { turret = g.ItemDataBlock != null && g.ItemDataBlock.persistentID == TurretGrenadeItemId; } catch { }
+        if (!turret) try { turret = Math.Abs(g.Get_pItemData().custom.ammo - TurretMark) < 0.01f; } catch { }
         if (turret)
         {
             g.m_grenadeExplosionRadius = _turretRadius.Value;
@@ -186,6 +240,7 @@ public class Grenades : ModuleBase
 
     private static void Dump()
     {
+        ModInfo.Log.LogInfo($"[Grenades] sentry grenade item {TurretGrenadeItemId}: thrown model loaded = {ItemSpawnManager.ItemHasMode(TurretGrenadeItemId, ItemMode.Instance)}");
         var perMode = ItemSpawnManager.m_loadedPrefabsPerItemMode;
         if (perMode == null) return;
         for (int m = 0; m < perMode.Length; m++)

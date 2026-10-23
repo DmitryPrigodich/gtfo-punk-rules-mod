@@ -45,6 +45,10 @@ public class TurretVariants : ModuleBase
     private static BepInEx.Configuration.ConfigEntry<string> _foamParts, _foamPartsOffset, _foamPartsRotation, _trackerParts, _trackerPartsOffset, _trackerPartsRotation;
     private static BepInEx.Configuration.ConfigEntry<float> _foamPartsScale, _trackerPartsScale;
     private static BepInEx.Configuration.ConfigEntry<bool> _gl, _hideSensor;
+    private static BepInEx.Configuration.ConfigEntry<bool> _battery;
+    private static BepInEx.Configuration.ConfigEntry<float> _batteryLight, _batteryFog, _batteryTracker;
+    private static BepInEx.Configuration.ConfigEntry<int> _glMag;
+    private static BepInEx.Configuration.ConfigEntry<float> _glShotDelay, _glReload;
     private static BepInEx.Configuration.ConfigEntry<float> _glInterval, _glSpeed, _glRange, _glMinRange, _glAmmo, _glSafe, _glPartsScale;
     private static BepInEx.Configuration.ConfigEntry<string> _glParts, _glPartsOffset, _glPartsRotation;
     private static BepInEx.Configuration.ConfigEntry<int> _foamBurst;
@@ -113,7 +117,14 @@ public class TurretVariants : ModuleBase
         _trackerPartsScale = Bind("TrackerPartsScale", 1f, "Scale of the bio-tracker parts.");
         _hideSensor = Bind("HideSensor", false, "Hide the targeting sensor part on sentries with a hidden barrel — it floats in the air. The scan beam itself stays.");
         _gl = Bind("GrenadeTurret", true, "Add the grenade launcher sentry DRED GARAGE GL5 (fires grenades that explode on contact; needs the Grenades module).");
-        _glInterval = Bind("GrenadeInterval", 2.5f, "Pause between grenade shots (s).");
+        _glInterval = Bind("GrenadeInterval", 2.5f, "Unused since 0.5.3 (see GrenadeMagazine / GrenadeShotDelay / GrenadeReload).");
+        _battery = Bind("Battery", true, "Non-shooting sentries (LT2, FT1, FT1-T, BT3) run on their ammo as a battery: it drains while they work, at zero they switch off. Recharge like a normal sentry: pick it up, use a tool refill, place it again.");
+        _batteryLight = Bind("BatterySecondsLT2", 300f, "How long a full battery lasts on LT2 (s).");
+        _batteryFog = Bind("BatterySecondsFT1", 300f, "How long a full battery lasts on FT1 / FT1-T (s).");
+        _batteryTracker = Bind("BatterySecondsBT3", 300f, "How long a full battery lasts on BT3 (s).");
+        _glMag = Bind("GrenadeMagazine", 6, "Revolver-style drum: grenades fired in quick succession before a reload.");
+        _glShotDelay = Bind("GrenadeShotDelay", 0.35f, "Pause between grenades within the drum (s).");
+        _glReload = Bind("GrenadeReload", 4f, "Drum reload time (s). A partly used drum also reloads after this long without a target.");
         _glSpeed = Bind("GrenadeSpeed", 16f, "Grenade launch speed (m/s).");
         _glRange = Bind("GrenadeRange", 25f, "Doesn't fire beyond this distance (m).");
         _glMinRange = Bind("GrenadeMinRange", 4f, "Doesn't fire closer than this (m) — so it doesn't blow itself up.");
@@ -151,13 +162,16 @@ public class TurretVariants : ModuleBase
         public bool Ready;
         public float GiveUpAt;
         public GameObject Extra;
-        public Light Light;
+        public Light Light, Glow, FogBulb;
+        public bool Flat;          // battery empty: the sentry is switched off
         public FogRepeller_Sphere Sphere;
         public float NextDisturb, SpawnedAt, NextHide;
         public TMPro.TextMeshPro Screen;
         public float NextScan, NextShot, NextBurst;
         public int Tagged, Variant, BurstLeft;
         public bool PartsAttached;
+        public int MagLeft = -1;
+        public float LastShotAt;
         public Vector3 LastAim, AimVel;
         public float LastAimTime;
         public bool HasLastAim;
@@ -270,7 +284,7 @@ public class TurretVariants : ModuleBase
     {
         private static bool Prefix(SentryGunInstance __instance, ref bool __result)
         {
-            if (_turrets.TryGetValue(__instance.Pointer, out var t) && !Tracks(t.Mode)) { __result = false; return false; }
+            if (_turrets.TryGetValue(__instance.Pointer, out var t) && (!Tracks(t.Mode) || t.Flat)) { __result = false; return false; }
             return true;
         }
     }
@@ -369,17 +383,18 @@ public class TurretVariants : ModuleBase
                 }
                 else
                 {
+                    Battery(t);
                     UpdateScreen(t);
                     // Sentry parts may be created later — keep "hiding the barrel" for a few seconds.
                     if (HidesGun(t) && Time.time - t.SpawnedAt < 8f && Time.time >= t.NextHide) { t.NextHide = Time.time + 0.5f; HideGun(t.Inst); }
-                    if (t.Mode == Mode.Tracker && Time.time >= t.NextScan)
+                    if (t.Mode == Mode.Tracker && !t.Flat && Time.time >= t.NextScan)
                     {
                         t.NextScan = Time.time + Math.Max(0.5f, _trackerInterval.Value);
                         TrackerScan(t);
                     }
                     if (t.Mode == Mode.Foam && SNetwork.SNet.IsMaster) FoamTick(t);
                     if (t.Mode == Mode.Grenade && SNetwork.SNet.IsMaster) GrenadeTick(t);
-                    if (t.Mode == Mode.Light && t.Light != null)
+                    if (t.Mode == Mode.Light && t.Light != null && !t.Flat)
                     {
                         bool target = t.Inst.m_detection != null && t.Inst.m_detection.HasTarget;
                         t.Light.intensity = _lightIntensity.Value * (target ? 1.6f : 1f);
@@ -423,6 +438,7 @@ public class TurretVariants : ModuleBase
             glow = new GameObject("GtfoPunk_LampGlow");
             glow.transform.SetParent(head.transform, false);
             var gl = glow.AddComponent<Light>();
+            t.Glow = gl;
             gl.type = LightType.Point;
             gl.range = 0.5f;
             gl.intensity = _lampGlow.Value;
@@ -724,6 +740,7 @@ public class TurretVariants : ModuleBase
                 lgo.transform.SetParent(anchor.transform, false);
                 lgo.transform.localPosition = Vec(_fogModelOffset.Value, Vector3.zero) + Vector3.up * 0.15f;
                 var l = lgo.AddComponent<Light>();
+                t.FogBulb = l;
                 l.type = LightType.Point;
                 l.range = 5f;
                 l.intensity = _fogLamp.Value;
@@ -754,6 +771,43 @@ public class TurretVariants : ModuleBase
 
     // ---------- screen, light disturbance, lamp model ----------
 
+    // ---------- battery (non-shooting sentries) ----------
+
+    private static bool UsesBattery(Mode m) => m == Mode.Light || m == Mode.Fog || m == Mode.FogTurbine || m == Mode.Tracker;
+
+    /// <summary>Drains the sentry ammo as a battery (same rate on every machine; the host's value is synced anyway) and switches the sentry off/on.</summary>
+    private static void Battery(Turret t)
+    {
+        if (!_battery.Value || !UsesBattery(t.Mode)) { if (t.Flat) PowerOn(t); return; }
+        float seconds = t.Mode switch { Mode.Light => _batteryLight.Value, Mode.Tracker => _batteryTracker.Value, _ => _batteryFog.Value };
+        float cap = t.Inst.AmmoMaxCap;
+        if (seconds > 0f && cap > 0f && t.Inst.m_ammo > 0f)
+            t.Inst.m_ammo = Math.Max(0f, t.Inst.m_ammo - cap / seconds * Time.deltaTime);
+        bool empty = t.Inst.m_ammo <= 0.0001f;
+        if (empty && !t.Flat) PowerOff(t);
+        else if (!empty && t.Flat) PowerOn(t);
+    }
+
+    private static void PowerOff(Turret t)
+    {
+        t.Flat = true;
+        if (t.Light != null) t.Light.enabled = false;
+        if (t.Glow != null) t.Glow.enabled = false;
+        if (t.FogBulb != null) t.FogBulb.enabled = false;
+        try { t.Sphere?.StopRepelling(); } catch { }
+        try { CellSound.Post(AK.EVENTS.BIOTRACKER_TOOL_LOOP_STOP, t.Inst.transform.position); } catch { }
+        ModInfo.Log.LogInfo($"[TurretVariants] {t.Mode}: battery empty — switched off");
+    }
+
+    private static void PowerOn(Turret t)
+    {
+        t.Flat = false;
+        if (t.Light != null) t.Light.enabled = true;
+        if (t.Glow != null) t.Glow.enabled = true;
+        if (t.FogBulb != null) t.FogBulb.enabled = true;
+        try { if (t.Sphere != null) { t.Sphere.InfiniteDuration = true; t.Sphere.StartRepelling(); } } catch { }
+    }
+
     private static void UpdateScreen(Turret t)
     {
         if (t.Screen == null)
@@ -763,7 +817,9 @@ public class TurretVariants : ModuleBase
             if (t.Screen == null) return;
         }
         if (t.Mode == Mode.Foam || t.Mode == Mode.Grenade) return; // shooting sentries keep the regular ammo counter
-        string text = t.Mode switch { Mode.Light => t.Variant == 0 ? "LT2" : "LT2-" + (char)('A' + t.Variant - 1), Mode.FogTurbine => "FT1-T", Mode.Tracker => t.Tagged > 0 ? $"BT3 {t.Tagged}" : "BT3", _ => "FT1" };
+        string text = t.Mode switch { Mode.Light => t.Variant == 0 ? "LT2" : "LT2-" + (char)('A' + t.Variant - 1), Mode.FogTurbine => "FT1-T", Mode.Tracker => t.Tagged > 0 ? $"BT3 [{t.Tagged}]" : "BT3", _ => "FT1" };
+        if (_battery.Value && t.Inst.AmmoMaxCap > 0f)
+            text = t.Flat ? text + " OFF" : $"{text} {Mathf.CeilToInt(100f * t.Inst.m_ammo / t.Inst.AmmoMaxCap)}%";
         if (t.Screen.text != text) t.Screen.text = text;
     }
 
@@ -881,7 +937,12 @@ public class TurretVariants : ModuleBase
     private static void GrenadeTick(Turret t)
     {
         TrackAim(t);
+        int mag = Math.Max(1, _glMag.Value);
+        if (t.MagLeft < 0) t.MagLeft = mag;
+        // Idle with a partly used drum — top it up after the reload time.
+        if (t.MagLeft < mag && t.MagLeft > 0 && Time.time - t.LastShotAt > Math.Max(0.5f, _glReload.Value)) t.MagLeft = mag;
         if (Time.time < t.NextShot) return;
+        if (t.MagLeft == 0) t.MagLeft = mag; // reload finished (NextShot was pushed back by the reload time)
         var det = t.Inst.m_detection;
         if (det == null || !det.HasTarget || !t.Inst.TryGetTargetAimPos(out var aim)) return;
         var owner = t.Inst.Owner;
@@ -912,7 +973,10 @@ public class TurretVariants : ModuleBase
         }
         try { CellSound.Post(AK.EVENTS.GLUEGUNFIRE1SHOT, from); } catch { }
         t.Inst.m_ammo = Math.Max(0f, t.Inst.m_ammo - cost);
-        t.NextShot = Time.time + Math.Max(0.5f, _glInterval.Value);
+        t.MagLeft--;
+        t.LastShotAt = Time.time;
+        t.NextShot = Time.time + (t.MagLeft > 0 ? Math.Max(0.1f, _glShotDelay.Value) : Math.Max(0.5f, _glReload.Value));
+        if (t.MagLeft == 0) try { CellSound.Post(AK.EVENTS.GLUEGUNRECHARGE, t.Inst.transform.position); } catch { }
     }
 
     private static void FoamTick(Turret t)
@@ -1179,7 +1243,7 @@ public class TurretVariants : ModuleBase
     }
 
     /// <summary>Model copy: meshes only, no scripts, physics or colliders.</summary>
-    private static GameObject CopyModel(GameObject prefab, Transform parent, string name)
+    internal static GameObject CopyModel(GameObject prefab, Transform parent, string name)
     {
         var holder = new GameObject(name);
         holder.SetActive(false); // inactive for now — the copy's scripts won't start

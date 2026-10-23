@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.4
+- **Battery** for the non-shooting sentries (LT2, FT1, FT1-T, BT3): their ammo now works as a battery that drains while they run — a full one lasts 300 s (BatterySecondsLT2 / FT1 / BT3). The screen shows the charge ("LT2 87%"); at zero the sentry switches off (light out, fog sphere shrinks, no scanning, "OFF"). Recharge like a normal sentry: pick it up, use a tool refill, place it again. Option Battery to turn it off.
+
+## 0.5.3
+- Grenade looks like a C-Foam Grenade (in hand, third person, on the floor, in flight) instead of a red glow stick; inventory icon from the C-Foam Grenade too.
+- DRED GARAGE GL5 is now a revolver-style launcher: a drum of 6 grenades fired quickly (0.35 s apart), then a 4 s reload; a partly used drum tops up after 4 s without a target (GrenadeMagazine, GrenadeShotDelay, GrenadeReload).
+- Fix: GL5 grenades exploded like hand grenades (2 s fuse, 5 m). The sentry now throws its own item (ID 4250, a clone of the grenade), so every player recognizes it: contact fuse, 3.5 m, 40 damage; throw force calibration works.
+
 ## 0.5.2
 - Fix: a bot whose saved favorite tool was a removed test sentry (LT2-B TEST) couldn't spawn — "missing Category data block" — so the third bot couldn't be picked and the mission couldn't start.
   - Gear and category IDs are now fixed per item (4200 GP6-S, 4201 FT1, 4202 LT2, 4203 FT1-T, 4204 BT3, 4205 CF4, 4206 GL5); removing an item no longer shifts the others.
