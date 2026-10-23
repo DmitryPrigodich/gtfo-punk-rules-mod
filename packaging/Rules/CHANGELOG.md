@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1
+- Loadout: new perk **Thermal vision** (EXPERIMENT): the lens material of the game's thermal sights stretched over the whole view, toggled with ThermalKey (N). Options ThermalMaterial / ThermalSearch / ThermalDistance / ThermalOnItemCamera.
+- Diagnostic: a few seconds into the first level the mod writes BepInEx/config/GtfoPunk.ThermalDump.txt (thermal sight parts, their materials, shader properties, all shader names).
+
 ## 0.7.0
 - New module **Loadout**: the three booster slots in the lobby become a loadout. Click a slot to cycle:
   - 1st slot — **pack**: ammo / medi / tool / disinfection (5 charges, PackCharges);

@@ -26,7 +26,7 @@ namespace GtfoPunk.Rules.Modules;
 /// so they behave like normal pickups). Stock boosters can't be selected while this is on (nothing is consumed);
 /// their effects live on as booster syringes (module Syringes).
 /// </summary>
-public class Loadout : ModuleBase
+public partial class Loadout : ModuleBase
 {
     public override string Id => "Loadout";
     public override string Description => "Booster slots in the lobby become a loadout: resource pack, extra item, perk. The host hands them out at drop-in. Everyone needs it.";
@@ -35,7 +35,7 @@ public class Loadout : ModuleBase
     // ---------- choices ----------
 
     private enum PackKind : byte { None, Ammo, Medi, Tool, Disinfection }
-    private enum PerkKind : byte { None, BioTracker }
+    private enum PerkKind : byte { None, BioTracker, Thermal }
 
     private static readonly uint[] PackItemIds = { 0, 101, 102, 127, 132 };
 
@@ -57,7 +57,7 @@ public class Loadout : ModuleBase
     {
         _pack = Bind("Pack", "Ammo", "Your resource pack (also set by clicking the 1st booster slot in the lobby): None, Ammo, Medi, Tool, Disinfection.");
         _item = Bind("Item", 136u, "Your extra item, an item ID (also set by clicking the 2nd booster slot). 0 — none.");
-        _perk = Bind("Perk", "BioTracker", "Your perk (also set by clicking the 3rd booster slot): None, BioTracker.");
+        _perk = Bind("Perk", "BioTracker", "Your perk (also set by clicking the 3rd booster slot): None, BioTracker, Thermal.");
         _itemChoices = Bind("ItemChoices", "136,115,139,144,117,114,116,140",
             "Items the 2nd slot cycles through (item IDs): 136 grenade, 115 C-foam grenade, 139 explosive trip mine, 144 C-foam trip mine, 117 fog repeller, 114 glow sticks, 116 lock melter, 140 I2-LP syringe.");
         _packCharges = Bind("PackCharges", 5, "Charges in the pack you get (a full pack is 5).");
@@ -70,6 +70,7 @@ public class Loadout : ModuleBase
         _perkRange = Bind("PerkScanRange", 15f, "Bio-tracker perk: pulse radius (m).");
         _perkWalls = Bind("PerkThroughWalls", true, "Bio-tracker perk sees through walls.");
         _perkSound = Bind("PerkSound", true, "Bio-tracker perk beeps when it finds enemies.");
+        BindThermal();
     }
 
     protected override void OnEnable()
@@ -289,6 +290,7 @@ public class Loadout : ModuleBase
     private static string PerkName(PerkKind k) => k switch
     {
         PerkKind.BioTracker => Lang.T("Bio-tracker", "Биотрекер"),
+        PerkKind.Thermal => Lang.T("Thermal vision", "Тепловизор"),
         _ => "—",
     };
 
@@ -369,6 +371,8 @@ public class Loadout : ModuleBase
             _giveAt = -1f;
             try { GiveAll(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] give: {e}"); }
         }
+
+        try { ThermalTick(state == eGameStateName.InLevel, Local().Perk == PerkKind.Thermal); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] thermal: {e.Message}"); }
 
         if (state == eGameStateName.InLevel && Time.time >= _nextScan)
         {
