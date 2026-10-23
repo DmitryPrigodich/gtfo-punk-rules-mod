@@ -76,6 +76,7 @@ public partial class Loadout : ModuleBase
     protected override void OnEnable()
     {
         Net.On(Net.LoadoutChoice, OnChoiceReceived);
+        Net.On(Net.AmmoFix, OnAmmoFixReceived);
         FrameTicker.OnUpdate += Tick;
     }
 
@@ -270,9 +271,9 @@ public partial class Loadout : ModuleBase
                 if (bar == null) continue;
                 if (bar.m_boosterImplantsHeaderText != null) bar.m_boosterImplantsHeaderText.SetText(Lang.T("LOADOUT", "СНАРЯЖЕНИЕ"));
                 var holder = bar.m_boosterImplantSlotHolder;
-                if (holder == null || holder.m_categorySlots == null) continue;
-                foreach (var cat in new[] { BoosterImplantCategory.Muted, BoosterImplantCategory.Bold, BoosterImplantCategory.Aggressive })
-                    if (holder.m_categorySlots.TryGetValue(cat, out var slot)) Paint(slot);
+                if (holder == null) continue;
+                // (Il2Cpp Dictionary<enum, …>.TryGetValue throws "__Canon" here — walk the slot components instead.)
+                foreach (var slot in holder.GetComponentsInChildren<CM_BoosterImplantSlot>(true)) Paint(slot);
             }
         }
         catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] repaint: {e.Message}"); }
@@ -366,6 +367,8 @@ public partial class Loadout : ModuleBase
             RepaintAll();
         }
 
+        if (_ammoJobs.Count > 0) AmmoFixTick();
+
         if (_giveAt > 0f && Time.time >= _giveAt)
         {
             _giveAt = -1f;
@@ -452,10 +455,73 @@ public partial class Loadout : ModuleBase
             if (inLevel == null) { ModInfo.Log.LogWarning($"[Loadout] spawned item {itemId} is not a level item — left on the floor"); return; }
             var sync = inLevel.GetSyncComponent();
             if (sync == null) { ModInfo.Log.LogWarning($"[Loadout] item {itemId} has no sync — left on the floor"); return; }
+            // The spawn doesn't carry our ammo: put it on the level item first, then pick it up with it.
+            try { inLevel.SetCustomData(custom, true); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] set item data: {e.Message}"); }
             sync.AttemptPickupInteraction(ePickupItemInteractionType.Pickup, player, custom);
-            ModInfo.Log.LogInfo($"[Loadout] item {itemId} picked up for {player.NickName}");
+            ModInfo.Log.LogInfo($"[Loadout] item {itemId} picked up for {player.NickName} (item ammo now {SafeAmmo(inLevel)})");
+            // The pack / consumable ammo lives in the owner's ammo storage — make sure it's filled (owner-side).
+            var slot = GameDataBlockBase<ItemDataBlock>.GetBlock(itemId)?.inventorySlot ?? InventorySlot.None;
+            if (player.IsLocal || player.IsBot) QueueAmmoFix(player, slot, custom.ammo, itemId);
+            else
+            {
+                var b = new byte[9];
+                b[0] = (byte)slot;
+                BitConverter.GetBytes(custom.ammo).CopyTo(b, 1);
+                BitConverter.GetBytes(itemId).CopyTo(b, 5);
+                Net.SendTo(player, Net.AmmoFix, b);
+            }
         }
         catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] pick up for {player?.NickName}: {e.Message} — the item stays on the floor next to them"); }
+    }
+
+    private static string SafeAmmo(ItemInLevel i) { try { return i.GetCustomData().ammo.ToString("0.##"); } catch { return "?"; } }
+
+    // ---------- ammo of given packs / consumables (fixed by whoever owns the ammo storage) ----------
+
+    private class AmmoFixJob { public SNet_Player Player; public InventorySlot Slot; public float Ammo; public uint Item; public float At, GiveUpAt; }
+    private static readonly List<AmmoFixJob> _ammoJobs = new();
+
+    private static void QueueAmmoFix(SNet_Player p, InventorySlot slot, float ammo, uint item) =>
+        _ammoJobs.Add(new AmmoFixJob { Player = p, Slot = slot, Ammo = ammo, Item = item, At = Time.time + 0.7f, GiveUpAt = Time.time + 8f });
+
+    private static void OnAmmoFixReceived(ulong sender, byte[] b)
+    {
+        if (b.Length < 9 || !SNet.HasLocalPlayer) return;
+        QueueAmmoFix(SNet.LocalPlayer, (InventorySlot)b[0], BitConverter.ToSingle(b, 1), BitConverter.ToUInt32(b, 5));
+    }
+
+    private static void AmmoFixTick()
+    {
+        for (int i = _ammoJobs.Count - 1; i >= 0; i--)
+        {
+            var j = _ammoJobs[i];
+            if (Time.time < j.At) continue;
+            bool done = false;
+            try { done = TryFixAmmo(j); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] ammo fix: {e.Message}"); done = true; }
+            if (done || Time.time > j.GiveUpAt)
+            {
+                if (!done) ModInfo.Log.LogWarning($"[Loadout] ammo fix for item {j.Item}: the item never showed up in {j.Slot}");
+                _ammoJobs.RemoveAt(i);
+            }
+            else j.At = Time.time + 0.5f;
+        }
+    }
+
+    private static bool TryFixAmmo(AmmoFixJob j)
+    {
+        if (!PlayerBackpackManager.TryGetBackpack(j.Player, out var bp) || bp == null || bp.AmmoStorage == null) return false;
+        if (!PlayerBackpackManager.TryGetItem(j.Player, j.Slot, out var bpItem) || bpItem == null) return false; // not in the backpack yet
+        var st = bp.AmmoStorage;
+        var type = PlayerAmmoStorage.GetAmmoTypeFromSlot(j.Slot);
+        float before = st.GetAmmoInPack(type);
+        if (before + 0.01f < j.Ammo)
+        {
+            st.SetAmmo(type, j.Ammo);
+            st.UpdateAllAmmoUI();
+            if (j.Player.IsLocal) PlayerBackpackManager.ForceLocalAmmoStorageUpdate();
+        }
+        ModInfo.Log.LogInfo($"[Loadout] {j.Player.NickName}: {j.Slot} ({type}) ammo {before:0.##} → {st.GetAmmoInPack(type):0.##}, bullets {st.GetBulletsInPack(type)}, cap {st.GetBulletMaxCap(type)}");
+        return true;
     }
 
     // ---------- perk: bio-tracker pulse ----------

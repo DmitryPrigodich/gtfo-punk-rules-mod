@@ -35,7 +35,8 @@ public class Grenades : ModuleBase
     /// <summary>Mark in the item data: this grenade was thrown by a sentry (visible to all players).</summary>
     private const float TurretMark = -77f;
 
-    private static BepInEx.Configuration.ConfigEntry<bool> _inLevels;
+    private static BepInEx.Configuration.ConfigEntry<bool> _inLevels, _diag, _hitEnemies;
+    private static BepInEx.Configuration.ConfigEntry<float> _proximity;
     private static BepInEx.Configuration.ConfigEntry<float> _weight, _turretRadius, _turretDamage, _turretFuse, _handRadius, _handDamage, _handDelay;
     private static BepInEx.Configuration.ConfigEntry<string> _nameEn, _nameRu;
 
@@ -51,13 +52,16 @@ public class Grenades : ModuleBase
         _turretRadius = Bind("TurretRadius", 3.5f, "Blast radius of the grenade launcher sentry's grenades (m; a mine's is bigger).");
         _turretDamage = Bind("TurretDamage", 40f, "Sentry grenade damage at the blast center.");
         _turretFuse = Bind("TurretFuse", 0f, "Sentry grenade fuse after impact (s). 0 — on contact.");
+        _proximity = Bind("TurretProximity", 0.8f, "Sentry grenades explode when they fly within this distance of an enemy (m). 0 — off.");
+        _hitEnemies = Bind("BounceOffEnemies", true, "Grenades hit enemies instead of flying through them.");
+        _diag = Bind("DiagnosticDump", false, "Write grenade model details to the log at the first drop-in (diagnostics; may cause a short hitch).");
     }
 
     protected override void OnEnable()
     {
         GearFactory.OnInject += Inject;
         FrameTicker.OnUpdate += Tick;
-        FrameTicker.OnLevelExit += () => { _pending.Clear(); _calib.Clear(); _dumped = false; };
+        FrameTicker.OnLevelExit += () => { _pending.Clear(); _calib.Clear(); _armed.Clear(); _dumped = false; };
     }
 
     // ---------- data: name and distribution ----------
@@ -191,7 +195,8 @@ public class Grenades : ModuleBase
 
     private static void Tick()
     {
-        if (!_dumped && GameUtil.InLevel) { _dumped = true; try { Dump(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] {e.Message}"); } }
+        if (_diag.Value && !_dumped && GameUtil.InLevel) { _dumped = true; try { Dump(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] {e.Message}"); } }
+        if (_armed.Count > 0) ProximityTick();
         if (_pending.Count == 0) return;
         for (int i = _pending.Count - 1; i >= 0; i--)
         {
@@ -207,8 +212,17 @@ public class Grenades : ModuleBase
         bool turret = false;
         try { turret = g.ItemDataBlock != null && g.ItemDataBlock.persistentID == TurretGrenadeItemId; } catch { }
         if (!turret) try { turret = Math.Abs(g.Get_pItemData().custom.ammo - TurretMark) < 0.01f; } catch { }
+        // Item 136 was never released: check its collision / explosion layers and fill in what's missing.
+        int coll = g.m_projCollideMask, target = g.m_explosionTargetMask, block = g.m_explosionBlockMask;
+        if (g.m_explosionTargetMask == 0) g.m_explosionTargetMask = LayerManager.MASK_EXPLOSION_TARGETS;
+        if (g.m_explosionBlockMask == 0) g.m_explosionBlockMask = LayerManager.MASK_EXPLOSION_BLOCKERS;
+        if (g.m_projCollideMask == 0) g.m_projCollideMask = LayerManager.MASK_WORLD;
+        if (_hitEnemies.Value) g.m_projCollideMask |= LayerManager.MASK_ENEMY_DAMAGABLE;
+        if (_maskLogs++ < 4)
+            ModInfo.Log.LogInfo($"[Grenades] layers: collide {coll:X} → {g.m_projCollideMask:X}, targets {target:X} → {g.m_explosionTargetMask:X}, blockers {block:X} → {g.m_explosionBlockMask:X} (explosion targets {LayerManager.MASK_EXPLOSION_TARGETS:X}, enemies {LayerManager.MASK_ENEMY_DAMAGABLE:X})");
         if (turret)
         {
+            if (_proximity.Value > 0f) _armed.Add((g, Time.time + 0.15f));
             g.m_grenadeExplosionRadius = _turretRadius.Value;
             g.m_grenadeMaxDamage = (int)_turretDamage.Value;
             g.m_grenadeExplosionDelay = Math.Max(0f, _turretFuse.Value);
@@ -221,6 +235,26 @@ public class Grenades : ModuleBase
             if (_handDelay.Value >= 0f) g.m_grenadeExplosionDelay = _handDelay.Value;
         }
         ModInfo.Log.LogInfo($"[Grenades] {(turret ? "sentry grenade" : "grenade")}: radius {g.m_grenadeExplosionRadius:0.#} m, damage {g.m_grenadeMaxDamage}, fuse {g.m_grenadeExplosionDelay:0.##} s");
+    }
+
+    private static int _maskLogs;
+    private static readonly List<(GrenadeBase g, float armAt)> _armed = new();
+
+    /// <summary>Proximity fuse for sentry grenades: physics may not let them touch enemies, so check distance ourselves.</summary>
+    private static void ProximityTick()
+    {
+        for (int i = _armed.Count - 1; i >= 0; i--)
+        {
+            var (g, armAt) = _armed[i];
+            if (g == null || g.gameObject == null || !g.gameObject.activeInHierarchy) { _armed.RemoveAt(i); continue; }
+            if (Time.time < armAt) continue;
+            if (Physics.CheckSphere(g.transform.position, _proximity.Value, LayerManager.MASK_ENEMY_DAMAGABLE))
+            {
+                _armed.RemoveAt(i);
+                try { g.GrenadeDelay(); ModInfo.Log.LogInfo("[Grenades] sentry grenade: proximity fuse"); }
+                catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] proximity fuse: {e.Message}"); }
+            }
+        }
     }
 
     /// <summary>Throw force tuning: compare the velocity we wanted with what we got (on the host).</summary>

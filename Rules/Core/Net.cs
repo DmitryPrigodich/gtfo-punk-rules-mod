@@ -25,6 +25,7 @@ public static class Net
 
     /// <summary>Message types (one byte). Keep values stable.</summary>
     public const byte LoadoutChoice = 1;
+    public const byte AmmoFix = 2;
 
     public static void On(byte type, Action<ulong, byte[]> handler)
     {
@@ -60,6 +61,22 @@ public static class Net
             if (_logSent++ < 5) ModInfo.Log.LogInfo($"[Net] sent type {type}, {payload.Length} bytes");
         }
         catch (Exception e) { ModInfo.Log.LogWarning($"[Net] send failed: {e.Message}"); }
+    }
+
+    /// <summary>Send to one player.</summary>
+    public static void SendTo(SNet_Player to, byte type, byte[] payload)
+    {
+        if (SNet.Core == null || to == null) return;
+        var bytes = new byte[Header + payload.Length];
+        Array.Copy(Magic, bytes, Magic.Length);
+        bytes[Magic.Length] = type;
+        Array.Copy(payload, 0, bytes, Header, payload.Length);
+        try
+        {
+            SNet.Core.SendBytes(new Il2CppStructArray<byte>(bytes), SNet_SendQuality.Reliable, (int)SNet_ChannelType.GameOrderCritical, to);
+            if (_logSent++ < 20) ModInfo.Log.LogInfo($"[Net] sent type {type} to {to.NickName}, {payload.Length} bytes");
+        }
+        catch (Exception e) { ModInfo.Log.LogWarning($"[Net] send to {to.NickName} failed: {e.Message}"); }
     }
 
     private static bool ReceivePrefix(Il2CppStructArray<byte> bytes, uint size, ulong messagerID)

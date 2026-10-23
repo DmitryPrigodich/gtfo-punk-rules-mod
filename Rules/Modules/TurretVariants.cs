@@ -85,7 +85,7 @@ public class TurretVariants : ModuleBase
         _fogModelScale = Bind("FogModelScale", 1f, "Repeller model scale on FT1.");
         _turbine = Bind("FogTurbineTurret", true, "Test sentry DRED GARAGE FT1-T: scaled-down big fog repeller turbine.");
         _turbineScale = Bind("TurbineScale", 0.3f, "Turbine model scale on FT1-T.");
-        _turbineOffset = Bind("TurbineSeat2", "0,-0.2,-0.05", "Where the turbine sits on FT1-T: the bottom of the model goes into the barrel cradle, plus this offset (x — sideways, y — up, z — forward, m).");
+        _turbineOffset = Bind("TurbineSeat3", "0.15,-0.6,-0.05", "Where the turbine sits on FT1-T: the bottom of the model goes into the barrel cradle, plus this offset (x — sideways, y — up, z — forward, m).");
         _turbineKeywords = Bind("TurbineModelSearch2", "defoggerbig", "If item 133 has no model — search loaded meshes whose name contains one of these words.");
         _turbineRange = Bind("TurbineRange2", 10f, "Radius of FT1-T's fog-free sphere (m). 10 — like the turbine (measured in 0.3.1).");
         _fogLamp = Bind("FogLamp", 0.5f, "Brightness of the dim bulb on FT1 (like a glow stick). 0 — no bulb.");
@@ -108,7 +108,7 @@ public class TurretVariants : ModuleBase
         _foamModelRotation = Bind("FoamModelRotation", "90,0,0", "Canister rotation (degrees x,y,z).");
         _foamModelScale = Bind("FoamModelScale", 1f, "Canister scale.");
         _foamParts = Bind("FoamGunParts2", "33=4/4", "C-foam launcher parts mounted in CF4's cradle instead of the barrel (type=ID/subtype from GearList: 33 — Delivery, subtype from 32; 37 — Payload, subtype from 36). Empty — keep the autocannon barrel.");
-        _foamPartsOffset = Bind("FoamGunOffset", "0,0,0", "Offset of the foam launcher parts in the cradle (x — sideways, y — up, z — forward, m).");
+        _foamPartsOffset = Bind("FoamGunOffset2", "0,0,0.1", "Offset of the foam launcher parts in the cradle (x — sideways, y — up, z — forward, m).");
         _foamPartsRotation = Bind("FoamGunRotation", "0,0,0", "Rotation of the foam launcher parts (degrees x,y,z).");
         _foamPartsScale = Bind("FoamGunScale", 1f, "Scale of the foam launcher parts.");
         _trackerParts = Bind("TrackerParts", "33=3", "Bio-tracker parts in BT3's cradle (33 — Delivery_Bio_Tracker; 42=3 — screen can be added). Empty — keep the barrel.");
@@ -133,7 +133,8 @@ public class TurretVariants : ModuleBase
         _glParts = Bind("GrenadeParts", "33=2,37=1", "Mine deployer parts in GL5's cradle (33 — Delivery_Mine_Deployer, 37 — Payload_Mine_1). Empty — autocannon barrel.");
         _glPartsOffset = Bind("GrenadePartsOffset", "0,0,0", "Offset of the mine deployer parts in the cradle (m).");
         _glPartsRotation = Bind("GrenadePartsRotation", "0,0,0", "Rotation of the mine deployer parts (degrees).");
-        _glPartsScale = Bind("GrenadePartsScale", 1f, "Scale of the mine deployer parts.");
+        _glPartsScale = Bind("GrenadePartsScale2", 0.8f, "Scale of the mine deployer parts.");
+        _fogDump = Bind("FogDiagnostics", false, "Write fog repeller measurements to GtfoPunk.FogRepellers.txt a few seconds into each level (diagnostics; causes a hitch).");
         _foamExpand = Bind("FoamExpand", -1f, "Glob expansion volume (-1 — the foam launcher's default).");
         _foamRange = Bind("FoamRange", 20f, "The foam sentry doesn't fire beyond this distance (m).");
         _foamSkipGlued = Bind("FoamSkipGlued", true, "Don't waste foam on an enemy that is already glued and immobilized.");
@@ -319,6 +320,7 @@ public class TurretVariants : ModuleBase
 
     private static readonly List<IntPtr> _dead = new();
 
+    private static BepInEx.Configuration.ConfigEntry<bool> _fogDump;
     private static float _fogDumpAt = -1f;
     private static bool _fogDumped;
 
@@ -361,7 +363,7 @@ public class TurretVariants : ModuleBase
     private static void Tick()
     {
         // Once per level, 5 s after drop-in: real fog repeller parameters — to the log and a file.
-        if (!_fogDumped && GameUtil.InLevel)
+        if (_fogDump.Value && !_fogDumped && GameUtil.InLevel)
         {
             if (_fogDumpAt < 0f) _fogDumpAt = Time.time + 5f;
             else if (Time.time >= _fogDumpAt) { _fogDumped = true; try { DumpFogRepellers(); } catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] fog measurement: {e.Message}"); } }
@@ -815,10 +817,29 @@ public class TurretVariants : ModuleBase
             var scr = t.Inst.m_screen == null ? null : ((Il2CppObjectBase)t.Inst.m_screen).TryCast<SentryGunScreen>();
             t.Screen = scr?.m_ammoText;
             if (t.Screen == null) return;
+            // One line, shrink to fit (long labels like "FT1-T 84%" used to wrap and push the text up).
+            try
+            {
+                float size = t.Screen.fontSize;
+                t.Screen.enableWordWrapping = false;
+                t.Screen.enableAutoSizing = true;
+                t.Screen.fontSizeMax = size;
+                t.Screen.fontSizeMin = size * 0.3f;
+            }
+            catch { }
         }
-        if (t.Mode == Mode.Foam || t.Mode == Mode.Grenade) return; // shooting sentries keep the regular ammo counter
-        string text = t.Mode switch { Mode.Light => t.Variant == 0 ? "LT2" : "LT2-" + (char)('A' + t.Variant - 1), Mode.FogTurbine => "FT1-T", Mode.Tracker => t.Tagged > 0 ? $"BT3 [{t.Tagged}]" : "BT3", _ => "FT1" };
-        if (_battery.Value && t.Inst.AmmoMaxCap > 0f)
+        string text = t.Mode switch
+        {
+            Mode.Light => t.Variant == 0 ? "LT2" : "LT2-" + (char)('A' + t.Variant - 1),
+            Mode.FogTurbine => "FT1-T",
+            Mode.Tracker => t.Tagged > 0 ? $"BT3 [{t.Tagged}]" : "BT3",
+            Mode.Foam => "CF4",
+            Mode.Grenade => "GL5",
+            _ => "FT1",
+        };
+        if (t.Mode == Mode.Foam || t.Mode == Mode.Grenade)
+            text = t.Inst.AmmoMaxCap > 0f ? $"{text} {Mathf.CeilToInt(100f * t.Inst.m_ammo / t.Inst.AmmoMaxCap)}%" : text; // ammo, not the raw bullet count
+        else if (_battery.Value && t.Inst.AmmoMaxCap > 0f)
             text = t.Flat ? text + " OFF" : $"{text} {Mathf.CeilToInt(100f * t.Inst.m_ammo / t.Inst.AmmoMaxCap)}%";
         if (t.Screen.text != text) t.Screen.text = text;
     }

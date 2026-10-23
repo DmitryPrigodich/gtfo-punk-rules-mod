@@ -92,14 +92,20 @@ public class Syringes : ModuleBase
 
     private static float _suppressMeleeUntil;
 
-    [HarmonyPatch(typeof(SyringeFirstPerson), nameof(SyringeFirstPerson.ApplySyringe))]
+    // ApplySyringe() is inlined into Update() by IL2CPP, so a patch on it never fires.
+    // Its coroutine body (MoveNext of the generated iterator) is a real virtual call — hook its first step.
+    [HarmonyPatch(typeof(SyringeFirstPerson._ApplySyringe_d__18), nameof(SyringeFirstPerson._ApplySyringe_d__18.MoveNext))]
     private static class Patch_Apply
     {
-        private static void Prefix(SyringeFirstPerson __instance)
+        private static void Prefix(SyringeFirstPerson._ApplySyringe_d__18 __instance)
         {
             try
             {
-                if (__instance?.ItemDataBlock == null || __instance.ItemDataBlock.persistentID != SyringeItemId) return;
+                if (__instance == null || __instance.__1__state != 0) return; // only the first step of each injection
+                var syringe = __instance.__4__this;
+                uint id = syringe?.ItemDataBlock?.persistentID ?? 0;
+                ModInfo.Log.LogInfo($"[Syringes] syringe used: item {id}, type {syringe?.m_type}");
+                if (id != SyringeItemId) return;
                 // The copied IIx would also give its melee buff — block it for the next few seconds and roll our own effects.
                 _suppressMeleeUntil = Time.time + 6f;
                 _pendingApplyAt = Time.time + 1.2f; // roughly when the needle goes in

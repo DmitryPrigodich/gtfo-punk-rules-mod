@@ -18,7 +18,8 @@ public partial class Loadout
 {
     private static BepInEx.Configuration.ConfigEntry<string> _thermalKey, _thermalMaterial, _thermalSearch;
     private static BepInEx.Configuration.ConfigEntry<float> _thermalDistance;
-    private static BepInEx.Configuration.ConfigEntry<bool> _thermalItemCamera;
+    private static BepInEx.Configuration.ConfigEntry<bool> _thermalItemCamera, _thermalDump, _thermalReticle;
+    private static BepInEx.Configuration.ConfigEntry<float> _thermalZoom, _thermalNoise;
 
     private void BindThermal()
     {
@@ -27,6 +28,10 @@ public partial class Loadout
         _thermalSearch = Bind("ThermalSearch", "thermal,_t_,sight_10_t,sight_19_t,heat,infrared",
             "Thermal perk: words to look for in material / shader / object names when picking and dumping (comma-separated).");
         _thermalDistance = Bind("ThermalDistance", 0.12f, "Thermal perk: how far in front of the camera the thermal screen sits (m).");
+        _thermalZoom = Bind("ThermalZoom", 0f, "Thermal perk: magnification of the thermal image (the sight uses 0.75 = strongly zoomed). 0 — like your eyes. Applied live.");
+        _thermalNoise = Bind("ThermalNoise", 1f, "Thermal perk: amount of scanline / signal distortion (1 — like the sight, 2–3 — predator-style noise, 0 — clean). Applied live.");
+        _thermalReticle = Bind("ThermalReticle", false, "Thermal perk: keep the sight's reticle drawn over the whole view.");
+        _thermalDump = Bind("ThermalDiagnostics", false, "Write GtfoPunk.ThermalDump.txt (thermal materials and shader settings) in the first level. Causes a hitch.");
         _thermalItemCamera = Bind("ThermalOnItemCamera", true, "Thermal perk: put the screen on the camera that draws the weapon (like the sight lens). false — on the world camera.");
     }
 
@@ -41,7 +46,7 @@ public partial class Loadout
     {
         if (!inLevel) _dumpAt = -1f;
         // One-time diagnostic dump a few seconds into the first level (whatever the perk).
-        if (inLevel && !_thermalDumped)
+        if (inLevel && !_thermalDumped && _thermalDump.Value)
         {
             if (_dumpAt < 0f) _dumpAt = Time.time + 5f;
             else if (Time.time >= _dumpAt) { _thermalDumped = true; try { DumpThermal(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Thermal] dump: {e.Message}"); } }
@@ -55,7 +60,43 @@ public partial class Loadout
         if (Enum.TryParse<KeyCode>(_thermalKey.Value, true, out var key) && Input.GetKeyDown(key))
             SetThermal(!_thermalOn);
 
-        if (_thermalOn) Fit();
+        if (_thermalOn)
+        {
+            Fit();
+            if (Time.time >= _nextTune) { _nextTune = Time.time + 0.5f; Tune(_thermalMat); }
+        }
+    }
+
+    private static float _nextTune;
+    private static float _baseDistMin = -1f, _baseDistMax, _baseDistShadowMin, _baseDistShadowMax;
+
+    /// <summary>Turn the sight lens material into a full-view filter: no magnification, no reticle, no round border.</summary>
+    private static void Tune(Material m)
+    {
+        if (m == null) return;
+        try
+        {
+            m.SetFloat("_Zoom", Mathf.Clamp(_thermalZoom.Value, 0f, 0.99f));
+            if (!_thermalReticle.Value)
+            {
+                foreach (var n in new[] { "_ReticuleA", "_ReticuleB", "_ReticuleC" }) m.SetTexture(n, Texture2D.blackTexture);
+                foreach (var n in new[] { "_ReticuleColorA", "_ReticuleColorB", "_ReticuleColorC" }) m.SetColor(n, Color.clear);
+            }
+            m.SetFloat("_ClipBorders", 0f);
+            m.DisableKeyword("_CLIPBORDERS_ON");
+            m.SetFloat("_SightDirt", 0f);
+            if (_baseDistMin < 0f)
+            {
+                _baseDistMin = m.GetFloat("_DistortionMin"); _baseDistMax = m.GetFloat("_DistortionMax");
+                _baseDistShadowMin = m.GetFloat("_DistortionMinShadowEnemies"); _baseDistShadowMax = m.GetFloat("_DistortionMaxShadowEnemies");
+            }
+            float k = Math.Max(0f, _thermalNoise.Value);
+            m.SetFloat("_DistortionMin", Mathf.Clamp01(_baseDistMin * k));
+            m.SetFloat("_DistortionMax", Mathf.Clamp01(_baseDistMax * k));
+            m.SetFloat("_DistortionMinShadowEnemies", Mathf.Clamp01(_baseDistShadowMin * k));
+            m.SetFloat("_DistortionMaxShadowEnemies", Mathf.Clamp01(_baseDistShadowMax * k));
+        }
+        catch (Exception e) { ModInfo.Log.LogWarning($"[Thermal] tune: {e.Message}"); }
     }
 
     private static void SetThermal(bool on)
@@ -90,6 +131,7 @@ public partial class Loadout
         r.receiveShadows = false;
         _thermalQuad = quad; _thermalCam = cam; _thermalOn = true;
         Fit();
+        Tune(mat);
         ModInfo.Log.LogInfo($"[Thermal] on: material '{mat.name}' (shader '{mat.shader?.name}'), camera '{cam.name}' (fov {cam.fieldOfView:0}, near {cam.nearClipPlane:0.###}), layer {layer} '{LayerMask.LayerToName(layer)}'");
     }
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.2
+- Loadout: given packs and items arrived empty (0%) — the ammo is now put on the item before it's picked up, and the owner's ammo storage is topped up afterwards (for other players via a network message).
+- Loadout: lobby slot repaint error fixed (it spammed the log every second).
+- Thermal perk: no magnification (ThermalZoom, default 0), no sight reticle / round border, adjustable noise (ThermalNoise, 2–3 = predator-style). All applied live. Dump file only with ThermalDiagnostics.
+- Syringes: the injection hook never fired (the game inlines ApplySyringe) — now hooks the injection coroutine itself; every syringe use is logged.
+- Grenades: missing collision / explosion layers of the unreleased grenade are filled in (logged), grenades hit enemies (BounceOffEnemies), sentry grenades get a proximity fuse (TurretProximity 0.8 m).
+- Sentries: the screen text no longer wraps (FT1-T label was pushed up); CF4 and GL5 show ammo in % instead of the raw bullet count (256).
+- Model positions: CF4 foam gun moved forward (FoamGunOffset2), FT1-T turbine lower and towards the sentry (TurbineSeat3), GL5 launcher parts smaller (GrenadePartsScale2 0.8).
+- Hitches: fog repeller and grenade diagnostics no longer run on every level (FogDiagnostics, DiagnosticDump — off by default).
+
 ## 0.7.1
 - Loadout: new perk **Thermal vision** (EXPERIMENT): the lens material of the game's thermal sights stretched over the whole view, toggled with ThermalKey (N). Options ThermalMaterial / ThermalSearch / ThermalDistance / ThermalOnItemCamera.
 - Diagnostic: a few seconds into the first level the mod writes BepInEx/config/GtfoPunk.ThermalDump.txt (thermal sight parts, their materials, shader properties, all shader names).
