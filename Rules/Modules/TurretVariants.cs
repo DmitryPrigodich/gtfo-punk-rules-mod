@@ -60,6 +60,9 @@ public class TurretVariants : ModuleBase
     private static BepInEx.Configuration.ConfigEntry<float> _trackerRange, _trackerAngle, _trackerInterval;
     private static BepInEx.Configuration.ConfigEntry<float> _foamInterval, _foamSpeed, _foamGravity, _foamAmmo, _foamExpand, _foamRange;
     private static BepInEx.Configuration.ConfigEntry<float> _foamMaxGlue, _foamAcid, _foamStagger, _foamStaggerInterval;
+    private static BepInEx.Configuration.ConfigEntry<string> _humNoise;
+    private static BepInEx.Configuration.ConfigEntry<float> _humRadius, _humInterval, _humWakeAfter, _tagDamage, _tagTurn, _tagDelay;
+    private static BepInEx.Configuration.ConfigEntry<bool> _tagPrio;
 
     protected override void OnBindConfig()
     {
@@ -72,6 +75,14 @@ public class TurretVariants : ModuleBase
         _disturb = Bind("LightDisturbs2", "Detectable", "How the light affects enemies in the beam: Detectable — disturbs (may wake them, like footsteps nearby), PulseOnly — pulse only, Off — nothing.");
         _disturbInterval = Bind("LightDisturbInterval", 1.5f, "How often (s) the light disturbs enemies in the beam.");
         _lightWakeAfter = Bind("LightWakeAfter", 3f, "A sleeping enemy that stays in the beam this many seconds in a row wakes up. 0 — never wake.");
+        _humNoise = Bind("FogHum", "Detectable", "FT1 / FT1-T hum heard by enemies nearby (through walls): Detectable — disturbs, PulseOnly — pulse only, Off — silent.");
+        _humRadius = Bind("FogHumRadius", 6f, "How far the FT1 / FT1-T hum is heard (m).");
+        _humInterval = Bind("FogHumInterval", 2f, "How often the hum disturbs enemies (s).");
+        _humWakeAfter = Bind("FogHumWakeAfter", 8f, "A sleeper that hears the hum this many seconds in a row wakes up. 0 — never wake.");
+        _tagDamage = Bind("TaggedDamageBonus", 1.3f, "Combat sentries vs tagged enemies (BT3, bio-tracker): damage and stagger multiplier on top of the game's own.");
+        _tagTurn = Bind("TaggedTurnBonus", 1.5f, "Combat sentries vs tagged enemies: rotation speed multiplier (they lock on faster).");
+        _tagDelay = Bind("TaggedStartDelay", 0.5f, "Combat sentries vs tagged enemies: multiplier of the delay before opening fire (less = quicker).");
+        _tagPrio = Bind("TaggedPriority", true, "Combat sentries prefer tagged enemies.");
         _lampItem = Bind("LampModel", "Long Range Flashlight", "Item whose model is mounted on the searchlight sentry (name or part of it; empty — no model).");
         _lampOffset = Bind("LampOffset3", "0,-0.02,0.04", "Lamp model offset from the barrel root (x — sideways, y — up, z — forward, m).");
         _lampGlow = Bind("LampGlow", 1.5f, "Lamp lens glow (small light right in front of the glass), 0 — none.");
@@ -198,6 +209,7 @@ public class TurretVariants : ModuleBase
 
     private static void Inject()
     {
+        try { ApplyTagBonus(); } catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] tagged-target bonus: {e.Message}"); }
         var baseGear = GearFactory.FindByCategory(SentryCategoryId, b => GearFactory.NameOf(b).IndexOf("Burst", StringComparison.OrdinalIgnoreCase) >= 0);
         if (baseGear == null) { ModInfo.Log.LogWarning("[TurretVariants] stock sentry not found in game data — new sentries not added"); return; }
         if (_fog.Value) AddVariant(baseGear, Mode.Fog, "GtfoPunk_FogTurret", "DRED GARAGE FT1",
@@ -402,6 +414,11 @@ public class TurretVariants : ModuleBase
                     }
                     if (t.Mode == Mode.Foam && SNetwork.SNet.IsMaster) FoamTick(t);
                     if (t.Mode == Mode.Grenade && SNetwork.SNet.IsMaster) GrenadeTick(t);
+                    if ((t.Mode == Mode.Fog || t.Mode == Mode.FogTurbine) && !t.Flat && SNetwork.SNet.IsMaster && Time.time >= t.NextDisturb)
+                    {
+                        t.NextDisturb = Time.time + Math.Max(0.3f, _humInterval.Value);
+                        Hum(t);
+                    }
                     if (t.Mode == Mode.Light && t.Light != null && !t.Flat)
                     {
                         bool target = t.Inst.m_detection != null && t.Inst.m_detection.HasTarget;
@@ -877,21 +894,83 @@ public class TurretVariants : ModuleBase
             if (node == null) continue;
             if (!t.LitSince.TryGetValue(enemy.Pointer, out var since)) t.LitSince[enemy.Pointer] = since = Time.time;
             bool wake = _lightWakeAfter.Value > 0f && Time.time - since >= _lightWakeAfter.Value;
-            NoiseManager.MakeNoise(new NM_NoiseData
-            {
-                noiseMaker = maker,
-                position = enemy.Position,
-                node = node,
-                radiusMin = 0.01f,
-                radiusMax = 1f,
-                yScale = 1f,
-                type = wake ? NM_NoiseType.InstaDetect : type,
-                includeToNeightbourAreas = false,
-                raycastFirstNode = false,
-            });
+            MakeNoiseAt(maker, enemy, wake ? NM_NoiseType.InstaDetect : type);
         }
         // Whoever left the beam — reset their timer.
         foreach (var k in t.LitSince.Keys.Where(k => !seen.Contains(k)).ToList()) t.LitSince.Remove(k);
+    }
+
+    // ---------- FT1 / FT1-T: the hum of the repeller wakes sleepers nearby ----------
+
+    private static int _humLogs;
+
+    /// <summary>
+    /// Sleeping enemies within HumRadius hear the fog repeller (through walls, it's a machine hum):
+    /// a disturbance every HumInterval, and an enemy that keeps hearing it for HumWakeAfter seconds wakes up.
+    /// </summary>
+    private static void Hum(Turret t)
+    {
+        if (!Enum.TryParse<NM_NoiseType>(_humNoise.Value, true, out var type) || _humRadius.Value <= 0f) return; // Off
+        INM_NoiseMaker maker = null;
+        try { var owner = t.Inst.Owner; if (owner != null) maker = ((Il2CppObjectBase)owner).Cast<INM_NoiseMaker>(); } catch { }
+        if (maker == null) return;
+        var pos = t.Inst.transform.position + Vector3.up * 0.5f;
+        var seen = new HashSet<IntPtr>();
+        int woke = 0;
+        foreach (var col in Physics.OverlapSphere(pos, _humRadius.Value, LayerManager.MASK_ENEMY_DAMAGABLE))
+        {
+            var enemy = col == null ? null : col.GetComponent<Dam_EnemyDamageLimb>()?.GlueTargetEnemyAgent;
+            if (enemy == null || !enemy.Alive || !seen.Add(enemy.Pointer) || enemy.CourseNode == null) continue;
+            if (!t.LitSince.TryGetValue(enemy.Pointer, out var since)) t.LitSince[enemy.Pointer] = since = Time.time;
+            bool wake = _humWakeAfter.Value > 0f && Time.time - since >= _humWakeAfter.Value;
+            if (wake) woke++;
+            MakeNoiseAt(maker, enemy, wake ? NM_NoiseType.InstaDetect : type);
+        }
+        foreach (var k in t.LitSince.Keys.Where(k => !seen.Contains(k)).ToList()) t.LitSince.Remove(k);
+        if (seen.Count > 0 && _humLogs++ < 5) ModInfo.Log.LogInfo($"[TurretVariants] {t.Mode} hum: {seen.Count} enemies within {_humRadius.Value:0} m, woken {woke}");
+    }
+
+    private static void MakeNoiseAt(INM_NoiseMaker maker, EnemyAgent enemy, NM_NoiseType type) =>
+        NoiseManager.MakeNoise(new NM_NoiseData
+        {
+            noiseMaker = maker,
+            position = enemy.Position,
+            node = enemy.CourseNode,
+            radiusMin = 0.01f,
+            radiusMax = 1f,
+            yScale = 1f,
+            type = type,
+            includeToNeightbourAreas = false,
+            raycastFirstNode = false,
+        });
+
+    // ---------- tagged targets: combat sentries get better against what BT3 (or any bio-tracker) tagged ----------
+
+    private static bool _tagBonusApplied;
+
+    /// <summary>
+    /// The game already has "tagged target" multipliers in every sentry archetype (damage, stagger, rotation speed,
+    /// start-fire delay, tag priority) — mostly left at 1. Scale them up so tagging pays off for the sentries.
+    /// </summary>
+    private static void ApplyTagBonus()
+    {
+        if (_tagBonusApplied) return;
+        _tagBonusApplied = true;
+        var done = new HashSet<uint>();
+        foreach (eWeaponFireMode mode in Enum.GetValues(typeof(eWeaponFireMode)))
+        {
+            if (!mode.ToString().StartsWith("Sentry")) continue;
+            ArchetypeDataBlock a = null;
+            try { a = SentryGunInstance_Firing_Bullets.GetArchetypeDataForFireMode(mode); } catch { }
+            if (a == null || !done.Add(a.persistentID)) continue;
+            string before = $"dmg ×{a.Sentry_DamageTagMulti:0.##}, stagger ×{a.Sentry_StaggerDamageTagMulti:0.##}, turn ×{a.Sentry_RotationSpeedTagMulti:0.##}, start delay ×{a.Sentry_StartFireDelayTagMulti:0.##}, prio {a.Sentry_PrioTag}";
+            a.Sentry_DamageTagMulti *= Math.Max(0.1f, _tagDamage.Value);
+            a.Sentry_StaggerDamageTagMulti *= Math.Max(0.1f, _tagDamage.Value);
+            a.Sentry_RotationSpeedTagMulti *= Math.Max(0.1f, _tagTurn.Value);
+            a.Sentry_StartFireDelayTagMulti *= Mathf.Clamp(_tagDelay.Value, 0.05f, 10f);
+            if (_tagPrio.Value) a.Sentry_PrioTag = true;
+            ModInfo.Log.LogInfo($"[TurretVariants] tagged-target bonus for {a.name} ({mode}): {before} → dmg ×{a.Sentry_DamageTagMulti:0.##}, turn ×{a.Sentry_RotationSpeedTagMulti:0.##}, start delay ×{a.Sentry_StartFireDelayTagMulti:0.##}, prio {a.Sentry_PrioTag}");
+        }
     }
 
     // ---------- BT3: sector scan ----------

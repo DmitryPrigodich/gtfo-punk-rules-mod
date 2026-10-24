@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.1
+- New module **DoorAlarms**: alarm doors ask for at most **MaxAlarmClass** scans (2 by default — "Class V Alarm" becomes "Class II Alarm"). 0 — as in the game. Everyone needs the same setting.
+- FT1 / FT1-T **hum**: sleepers within 6 m hear it through walls (FogHum, FogHumRadius, FogHumInterval); one that hears it for 8 s in a row wakes up (FogHumWakeAfter). The LT2 beam keeps waking sleepers that stay in it for 3 s (LightWakeAfter).
+- **Tagged targets**: combat sentries are better against enemies tagged by BT3 or a bio-tracker — ×1.3 damage and stagger, ×1.5 turning speed, half the delay before opening fire, and they pick tagged enemies first (TaggedDamageBonus, TaggedTurnBonus, TaggedStartDelay, TaggedPriority). Uses the game's own tagged-target multipliers of the sentry archetypes.
+
 ## 0.8.0
 - Loadout: the 3rd slot is now the **GADGET**, used with **N** (GadgetKey):
   - **Thermal goggles** — N on/off, **Z** steps the zoom (ThermalZoomLevels "0,0.5,0.75");
