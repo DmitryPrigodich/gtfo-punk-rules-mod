@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using BepInEx.Configuration;
 using HarmonyLib;
-using SNetwork;
 
 namespace GtfoPunk.Core;
 
@@ -74,12 +73,6 @@ public abstract class ModuleBase
 
     /// <summary>Extra initialization after patches are applied.</summary>
     protected virtual void OnEnable() { }
-
-    /// <summary>
-    /// Runtime check for Host modules: true if we are the host right now.
-    /// Client/Everyone modules always return true.
-    /// </summary>
-    public bool ShouldRunNow => Side != ModuleSide.Host || (SNet.HasMaster && SNet.IsMaster);
 }
 
 public enum ModuleState

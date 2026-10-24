@@ -88,16 +88,9 @@ internal static class ModuleManager
                 _ => "[ ?? ]",
             };
             var reason = string.IsNullOrEmpty(m.StateReason) ? "" : $" — {m.StateReason}";
-            string line = $"{mark} {m.Id,-24} ({m.Side}){reason}";
+            string line = $"{mark} {m.Id,-24} ({m.Side}){reason}"; // (BepInEx's interpolated log handler has no alignment support)
             ModInfo.Log.LogMessage(line);
         }
     }
 
-    public static string ShortStatus()
-    {
-        int on = Modules.Count(m => m.State == ModuleState.Active);
-        int skip = Modules.Count(m => m.State == ModuleState.ReplacedByOtherMod);
-        int fail = Modules.Count(m => m.State == ModuleState.Failed);
-        return $"{on}/{Modules.Count} on, {skip} replaced by other mods, {fail} failed";
-    }
 }

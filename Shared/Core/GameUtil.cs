@@ -1,6 +1,7 @@
 using Il2CppInterop.Runtime.InteropTypes;
 using Player;
 using SNetwork;
+using UnityEngine;
 
 namespace GtfoPunk.Core;
 
@@ -26,4 +27,17 @@ public static class GameUtil
     }
 
     public static bool IsLocal(SNet_Player player) => player != null && player.IsLocal;
+
+    /// <summary>All hits along a ray, nearest first (Physics.RaycastAll returns them in no particular order).</summary>
+    public static RaycastHit[] RaycastAllSorted(Vector3 origin, Vector3 direction, float distance, int mask,
+        QueryTriggerInteraction triggers = QueryTriggerInteraction.Ignore)
+    {
+        var raw = Physics.RaycastAll(origin, direction, distance, mask, triggers);
+        var hits = new RaycastHit[raw.Length];
+        for (int i = 0; i < raw.Length; i++) hits[i] = raw[i]; // copy out of the Il2Cpp array to sort it
+        System.Array.Sort(hits, ByDistance);
+        return hits;
+    }
+
+    private static readonly System.Comparison<RaycastHit> ByDistance = (a, b) => a.distance.CompareTo(b.distance);
 }
