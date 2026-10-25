@@ -24,8 +24,8 @@ public class DoorAlarms : ModuleBase
     protected override void OnEnable()
     {
         GearFactory.OnInject += Snapshot;
-        PartyRules.Register("DoorAlarms.MaxAlarmClass", () => Lang.T("Door alarms", "Тревога дверей"),
-            v => v <= 0 ? Lang.T("as in the game", "как в игре") : Lang.T("max ", "макс. ") + Roman(v), 0, 5, _maxClass, Apply);
+        PartyRules.Register("DoorAlarms.MaxAlarmClass", () => Lang.T("Alarm", "Тревога"),
+            v => v <= 0 ? Lang.T("default", "как в игре") : Lang.T("level ", "уровень ") + Roman(v), 0, 5, _maxClass, Apply);
     }
 
     private static readonly Regex ClassName = new(@"Class\s+([IVX]+)", RegexOptions.IgnoreCase);

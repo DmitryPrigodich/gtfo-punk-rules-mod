@@ -13,7 +13,7 @@ public class Plugin : BasePlugin
 {
     public const string GUID = "AmDDRed.GtfoPunk.Rules";
     public const string NAME = "GtfoPunk My Game My Rules";
-    public const string VERSION = "0.9.4";
+    public const string VERSION = "0.9.5";
 
     public override void Load()
     {

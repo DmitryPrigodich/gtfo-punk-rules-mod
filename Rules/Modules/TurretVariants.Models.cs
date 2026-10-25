@@ -265,6 +265,15 @@ public partial class TurretVariants
     }
 
     /// <summary>Hides the autocannon barrel and receiver (rendering only — attachment points stay).</summary>
+    /// <summary>Sentries that don't track enemies have no use for the scan beam (the faint laser fan) and its light.</summary>
+    private static void HideScanner(SentryGunInstance inst)
+    {
+        var v = inst.m_visuals == null ? null : ((Il2CppInterop.Runtime.InteropTypes.Il2CppObjectBase)inst.m_visuals).TryCast<SentryGunInstance_ScannerVisuals_Plane>();
+        if (v == null) return;
+        if (v.m_scannerPlane != null && v.m_scannerPlane.gameObject.activeSelf) v.m_scannerPlane.gameObject.SetActive(false);
+        if (v.m_spotLight != null && v.m_spotLight.enabled) { v.m_spotLight.enabled = false; try { v.DisableLight(); } catch { } }
+    }
+
     private static void HideGun(SentryGunInstance inst)
     {
         if (!_hideGun.Value) return;

@@ -1,3 +1,4 @@
+using Il2CppInterop.Runtime;
 using SNetwork;
 using UnityEngine;
 
@@ -5,8 +6,8 @@ namespace GtfoPunk.Rules.Modules;
 
 /// <summary>
 /// "Rules of the party": settings everyone must share (door alarm cap, …), chosen by the host right in the lobby
-/// instead of the config. Framed lines in the lobby's own font at the top of the lobby screen; the host clicks a rule to step through its
-/// values (left click — next, right click — previous), the others see the host's choice. The host's choice is saved
+/// instead of the config. Buttons like the lobby's own, to the right of READY FOR CAGE DROP; the host clicks a rule to step through its
+/// values, the others see the host's choice. The host's choice is saved
 /// to the host's config; the others get it over the network and their own config is left alone.
 /// Other modules add their rules with <see cref="Register"/>.
 /// </summary>
@@ -30,8 +31,6 @@ public class PartyRules : ModuleBase
 
     private static readonly List<Rule> _rules = new();
     private static ConfigEntry<bool> _panel;
-    private static ConfigEntry<string> _pos;
-    private static ConfigEntry<float> _size;
 
     /// <summary>Adds a rule (call from a module's OnEnable). Its current value is applied right away.</summary>
     public static Rule Register(string key, Func<string> title, Func<int, string> format, int min, int max, ConfigEntry<int> config, Action<int> apply)
@@ -45,8 +44,6 @@ public class PartyRules : ModuleBase
     protected override void OnBindConfig()
     {
         _panel = Bind("LobbyPanel", true, "Show the rules panel in the lobby (the host changes the rules there).");
-        _pos = Bind("PanelPlace", "0.5,0.12", "Where the panel sits on the lobby screen (x,y as fractions of the screen; 0,0 — top left).");
-        _size = Bind("PanelTextSize", 0.022f, "Panel text size (0.022 — like the lobby headers).");
         ConfigMigration.DropOrphans(Config, Id); // PanelPosition (0.9.2) had a broken default
     }
 
@@ -101,20 +98,12 @@ public class PartyRules : ModuleBase
         }
     }
 
-    // ---------- lobby panel: framed text in the game's own font, on the lobby page ----------
+    // ---------- lobby buttons: copies of the lobby's own button, to the right of READY FOR CAGE DROP ----------
 
-    private class View
-    {
-        public GameObject Root;
-        public TMPro.TextMeshPro Text;
-        public SpriteRenderer Frame, Fill;
-        public Rect Screen;
-    }
+    private class View { public GameObject Go; public CellMenu.CM_Item Item; }
 
     private static readonly List<View> _views = new();
     private static CellMenu.CM_PageLoadout _viewPage;
-    private static Camera _uiCam;
-    private static Sprite _frameSprite, _fillSprite;
     private static float _nextViewTry;
 
     private static bool Visible()
@@ -133,145 +122,88 @@ public class PartyRules : ModuleBase
             foreach (var r in _rules) Set(r, r.Config.Value, "config");
         if (SNet.IsMaster && preGame && Time.time >= _nextBroadcast && SNet.HasMaster) Broadcast();
 
-        bool visible = Visible();
-        if (!visible) { foreach (var v in _views) if (v.Root != null && v.Root.activeSelf) v.Root.SetActive(false); return; }
-        if (!EnsureViews()) return;
-        bool host = SNet.IsMaster || !SNet.HasMaster;
-        var m = Input.mousePosition;
-        Layout(host, new Vector2(m.x, m.y));
-
-        if (!host) return; // only the host clicks
-        bool left = Input.GetMouseButtonDown(0), right = Input.GetMouseButtonDown(1);
-        if (!left && !right) return;
+        if (!Visible() || !EnsureViews()) return;
         for (int i = 0; i < _views.Count && i < _rules.Count; i++)
         {
-            if (!_views[i].Screen.Contains(new Vector2(m.x, m.y))) continue;
             var r = _rules[i];
-            int next = r.Value + (left ? 1 : -1);
-            if (next > r.Max) next = r.Min;
-            if (next < r.Min) next = r.Max;
-            r.Config.Value = next;
-            Set(r, next, "host clicked");
-            try { CellSound.Post(AK.EVENTS.MENU_INJECT_PRESS_AND_HOLD_CANCEL, Vector3.zero); } catch { }
-            if (SNet.IsMaster) Broadcast();
+            string text = $"{r.Title()}\n{r.Format(r.Value)}".ToUpperInvariant();
+            var tmp = _views[i].Item.m_texts != null && _views[i].Item.m_texts.Length > 0 ? _views[i].Item.m_texts[0] : null;
+            if (tmp != null && tmp.text != text) tmp.SetText(text);
         }
     }
 
-    /// <summary>One framed line per rule, made from a copy of the lobby's own header text (same font and look).</summary>
+    private static void Clicked(int index)
+    {
+        if (index < 0 || index >= _rules.Count) return;
+        if (!(SNet.IsMaster || !SNet.HasMaster)) { ModInfo.Log.LogInfo("[PartyRules] only the host changes the rules"); return; }
+        var r = _rules[index];
+        int next = r.Value + 1;
+        if (next > r.Max) next = r.Min;
+        r.Config.Value = next;
+        Set(r, next, "host clicked");
+        if (SNet.IsMaster) Broadcast();
+    }
+
+    /// <summary>Copies the lobby's small button (the look, the hover and the click come from the game) once per lobby page.</summary>
     private static bool EnsureViews()
     {
         var page = CellMenu.CM_PageLoadout.Current;
-        if (_viewPage == page && _views.Count == _rules.Count && _views.All(v => v.Root != null) && _uiCam != null) return true;
+        if (_viewPage == page && _views.Count == _rules.Count && _views.All(v => v.Go != null)) return true;
         if (Time.time < _nextViewTry) return false;
         _nextViewTry = Time.time + 2f;
-        foreach (var v in _views) if (v.Root != null) UnityEngine.Object.Destroy(v.Root);
+        foreach (var v in _views) if (v.Go != null) UnityEngine.Object.Destroy(v.Go);
         _views.Clear();
 
-        TMPro.TextMeshPro src = null;
-        var bars = CellMenu.CM_PlayerLobbyBar.instances;
-        if (bars != null) foreach (var bar in bars) if (bar != null && bar.m_boosterImplantsHeaderText != null) { src = bar.m_boosterImplantsHeaderText; break; }
-        if (src == null) { ModInfo.Log.LogWarning("[PartyRules] no lobby text to copy the look from"); return false; }
-        int layer = src.gameObject.layer;
-        _uiCam = UiCamera.For(layer);
-        if (_uiCam == null) return false;
-        MakeSprites();
+        var src = page.m_changeLoadoutButton ?? page.m_copyLobbyIdButton;
+        var ready = page.m_readyButton;
+        if (src == null || ready == null) { ModInfo.Log.LogWarning("[PartyRules] lobby buttons not found"); return false; }
+        var parent = src.transform.parent;
+        var readyBox = LocalBox(ready.gameObject, parent);
+        if (readyBox.size == Vector3.zero) return false;
 
-        var srcRenderer = src.GetComponent<MeshRenderer>();
-        foreach (var r in _rules)
+        float x = readyBox.max.x;
+        for (int i = 0; i < _rules.Count; i++)
         {
-            var root = new GameObject("GtfoPunk_PartyRule");
-            root.layer = layer;
-            root.transform.SetParent(page.transform, false);
-            var textGo = UnityEngine.Object.Instantiate(src.gameObject, root.transform, false);
-            textGo.name = "Text";
-            textGo.transform.localPosition = Vector3.zero;
-            var tmp = textGo.GetComponent<TMPro.TextMeshPro>();
-            tmp.enableWordWrapping = false;
-            tmp.alignment = TMPro.TextAlignmentOptions.Center;
-            tmp.fontSize = src.fontSize * Math.Max(0.3f, _size.Value / 0.022f);
-            var v = new View { Root = root, Text = tmp };
-            v.Fill = Box(textGo.transform, "Fill", _fillSprite, srcRenderer, -2);
-            v.Frame = Box(textGo.transform, "Frame", _frameSprite, srcRenderer, -1);
-            _views.Add(v);
+            var go = UnityEngine.Object.Instantiate(src.gameObject, parent, false);
+            go.name = "GtfoPunk_PartyRule_" + _rules[i].Key;
+            go.SetActive(true);
+            var item = go.GetComponent<CellMenu.CM_Item>();
+            if (item == null) { UnityEngine.Object.Destroy(go); return false; }
+            try { item.SetupCMItem(); } catch { }
+            int index = i;
+            item.SetOnBtnPressCallback(DelegateSupport.ConvertDelegate<Il2CppSystem.Action<int>>(new Action<int>(_ => Clicked(index))));
+            if (item.m_texts != null)
+                foreach (var t in item.m_texts) if (t != null) { t.enableWordWrapping = false; t.enableAutoSizing = true; t.fontSizeMin = t.fontSize * 0.4f; t.fontSizeMax = t.fontSize; }
+
+            // To the right of the ready button, vertically centred on it.
+            var box = LocalBox(go, parent);
+            float gap = readyBox.size.y * 0.25f;
+            var shift = new Vector3(x + gap - box.min.x, readyBox.center.y - box.center.y, 0f);
+            go.transform.localPosition += shift;
+            x += gap + box.size.x;
+            _views.Add(new View { Go = go, Item = item });
         }
         _viewPage = page;
-        ModInfo.Log.LogInfo($"[PartyRules] lobby panel made: {_views.Count} rules, font of '{src.name}', camera '{_uiCam.name}'");
+        ModInfo.Log.LogInfo($"[PartyRules] lobby buttons made: {_views.Count} (copy of {src.GetIl2CppType().Name} '{src.name}'), next to '{ready.name}'");
         return true;
     }
 
-    private static SpriteRenderer Box(Transform parent, string name, Sprite sprite, MeshRenderer like, int orderOffset)
+    /// <summary>Bounds of an object's visible parts in the parent's local space (x, y; z ignored).</summary>
+    private static Bounds LocalBox(GameObject go, Transform parent)
     {
-        var go = new GameObject(name);
-        go.layer = parent.gameObject.layer;
-        go.transform.SetParent(parent, false);
-        var sr = go.AddComponent<SpriteRenderer>();
-        sr.sprite = sprite;
-        sr.drawMode = SpriteDrawMode.Sliced;
-        if (like != null) { sr.sortingLayerID = like.sortingLayerID; sr.sortingOrder = like.sortingOrder + orderOffset; }
-        return sr;
-    }
-
-    private static void MakeSprites()
-    {
-        if (_frameSprite != null && _fillSprite != null) return;
-        const int N = 16;
-        var frame = new Texture2D(N, N, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, hideFlags = HideFlags.HideAndDontSave };
-        var fill = new Texture2D(N, N, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, hideFlags = HideFlags.HideAndDontSave };
-        for (int y = 0; y < N; y++)
-            for (int x = 0; x < N; x++)
-            {
-                bool edge = x < 1 || y < 1 || x >= N - 1 || y >= N - 1;
-                frame.SetPixel(x, y, edge ? Color.white : Color.clear);
-                fill.SetPixel(x, y, Color.white);
-            }
-        frame.Apply(); fill.Apply();
-        var border = new Vector4(4, 4, 4, 4);
-        _frameSprite = Sprite.Create(frame, new Rect(0, 0, N, N), new Vector2(0.5f, 0.5f), 1f, 0, SpriteMeshType.FullRect, border);
-        _fillSprite = Sprite.Create(fill, new Rect(0, 0, N, N), new Vector2(0.5f, 0.5f), 1f, 0, SpriteMeshType.FullRect, border);
-        _frameSprite.hideFlags = _fillSprite.hideFlags = HideFlags.HideAndDontSave;
-    }
-
-    /// <summary>Places the lines under each other at PanelPosition (screen fractions), sizes the frames, remembers their screen rects for clicks.</summary>
-    private static void Layout(bool host, Vector2 mouse)
-    {
-        var pos = TurretVariants.Vec(_pos.Value);
-        float sx = Screen.width * pos.x, sy = Screen.height * (1f - pos.y);
-        float depth = _uiCam.WorldToScreenPoint(_viewPage.transform.position).z;
-        for (int i = 0; i < _views.Count && i < _rules.Count; i++)
+        bool any = false;
+        var b = new Bounds();
+        foreach (var r in go.GetComponentsInChildren<Renderer>(false))
         {
-            var v = _views[i];
-            var r = _rules[i];
-            if (!v.Root.activeSelf) v.Root.SetActive(true);
-            string text = $"{r.Title()}: {r.Format(r.Value)}".ToUpperInvariant();
-            if (v.Text.text != text) v.Text.SetText(text);
-            v.Text.ForceMeshUpdate();
-            var b = v.Text.textBounds;
-            float pad = v.Text.fontSize * 0.45f;
-            float line = Math.Max(b.size.y, v.Text.fontSize) + pad * 2f;
-            var size = new Vector2(b.size.x + pad * 3f, line);
-            // Frame line ~1/12 of the text size thick: the sprite's 1 px border is scaled by its pixels-per-unit.
-            float px = Math.Max(0.5f, v.Text.fontSize / 12f);
-            foreach (var sr in new[] { v.Fill, v.Frame })
+            if (r == null || !r.enabled) continue;
+            foreach (var corner in new[] { r.bounds.min, r.bounds.max })
             {
-                sr.transform.localPosition = new Vector3(b.center.x, b.center.y, 0.01f);
-                sr.transform.localScale = new Vector3(px, px, 1f);
-                sr.size = size / px;
+                var p = parent.InverseTransformPoint(corner);
+                p.z = 0f;
+                if (!any) { b = new Bounds(p, Vector3.zero); any = true; }
+                else b.Encapsulate(p);
             }
-
-            var world = _uiCam.ScreenToWorldPoint(new Vector3(sx, sy, depth));
-            v.Root.transform.position = world;
-            // Screen rect of the frame (for hover and clicks), then step down by its height.
-            var bb = v.Frame.bounds;
-            var a = _uiCam.WorldToScreenPoint(bb.min);
-            var c = _uiCam.WorldToScreenPoint(bb.max);
-            v.Screen = Rect.MinMaxRect(Math.Min(a.x, c.x), Math.Min(a.y, c.y), Math.Max(a.x, c.x), Math.Max(a.y, c.y));
-            sy -= v.Screen.height * 1.25f;
-
-            bool hover = host && v.Screen.Contains(mouse);
-            var col = hover ? new Color(1f, 0.85f, 0.45f, 1f) : new Color(0.85f, 0.9f, 0.95f, host ? 1f : 0.7f);
-            v.Text.color = col;
-            v.Frame.color = new Color(col.r, col.g, col.b, hover ? 0.9f : 0.5f);
-            v.Fill.color = new Color(0f, 0f, 0f, hover ? 0.6f : 0.4f);
         }
+        return b;
     }
 }

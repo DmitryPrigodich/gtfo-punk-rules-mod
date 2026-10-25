@@ -209,7 +209,12 @@ public partial class TurretVariants : ModuleBase
                 Battery(t);
                 UpdateScreen(t);
                 // Sentry parts may be created a bit later — keep hiding the barrel for a few seconds.
-                if (HidesGun(t) && Time.time - t.SpawnedAt < 8f && Time.time >= t.NextHide) { t.NextHide = Time.time + 0.5f; HideGun(t.Inst); }
+                if (Time.time >= t.NextHide)
+                {
+                    t.NextHide = Time.time + 0.5f;
+                    if (HidesGun(t) && Time.time - t.SpawnedAt < 8f) HideGun(t.Inst);
+                    if (!Tracks(t.Mode)) HideScanner(t.Inst);
+                }
                 if (t.Flat) continue;
                 switch (t.Mode)
                 {
@@ -228,6 +233,7 @@ public partial class TurretVariants : ModuleBase
     /// <summary>Builds the sentry's look and behaviour once its parts exist (retried every frame for up to 10 s).</summary>
     private static void SetUp(Turret t)
     {
+        if (!Tracks(t.Mode)) try { HideScanner(t.Inst); } catch { }
         t.Ready = t.Mode switch
         {
             Mode.Light => SetupLight(t),

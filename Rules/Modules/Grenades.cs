@@ -141,7 +141,8 @@ public class Grenades : ModuleBase
             if (src == null) continue;
             foreach (var dst in dict[id])
             {
-                if (dst == null || dst.transform.Find("GtfoPunk_Look") != null) continue;
+                // Items 136 and 4250 share the same prefabs: skip a model already done (the look may sit deep inside).
+                if (dst == null || dst.GetComponentsInChildren<Transform>(true).Any(t => t.name == "GtfoPunk_Look")) continue;
                 var rs = dst.GetComponentsInChildren<Renderer>(true);
                 if (rs.Length == 0) continue;
                 foreach (var r in rs) { r.enabled = false; r.forceRenderingOff = true; }

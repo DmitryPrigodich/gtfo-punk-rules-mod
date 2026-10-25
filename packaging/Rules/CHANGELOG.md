@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.5
+- **Party rules**: now a button like the lobby's own, to the right of READY FOR CAGE DROP: "ALARM / LEVEL II"; a click steps LEVEL I → … → V → DEFAULT. Only the host changes it. (The framed panel never showed — the lobby camera couldn't be used for placing it.)
+- **Gadget panel** above the health bar, drawn in screen space (always the same size): name and key, ON/OFF, the **battery as a progress bar** with percent — for the thermal goggles too. GadgetPanelBottom, GadgetPanelScale, GadgetHudOpacity.
+- **Bio-tracker screen** redone after the tool's screen: dark glass in a frame, outer and middle range rings, spokes, the inner gauge arc, glowing white blips (sleeping — dimmer), range marks along the base, TARGETS count and the distance to the nearest one. It sits above the gadget line.
+- Hand grenade: the look disappeared in hand — items 136 and 4250 share the same models and the second pass hid the first one's look. Fixed.
+- TF I / TF II (and other non-tracking sentries): the faint scan-beam fan and its light are switched off.
+
 ## 0.9.4
 - Party rules panel didn't show up (the lobby camera isn't in the camera list) — fixed; the same camera search is used for the HUD.
 - **Gadget line** in the HUD font, sized to 2% of the screen height whatever the HUD scale (GadgetHudHeight), centered above the health readout; ON/OFF and the battery bar. The bio-tracker screen stands on it.
