@@ -65,7 +65,7 @@ public partial class TurretVariants : ModuleBase
     protected override void OnEnable()
     {
         FrameTicker.OnUpdate += Tick;
-        FrameTicker.OnLevelExit += () => { _turrets.Clear(); _nextStagger.Clear(); ResetDiagnostics(); };
+        FrameTicker.OnLevelExit += () => { _turrets.Clear(); _status.Clear(); _nextStagger.Clear(); ResetDiagnostics(); };
         GearFactory.OnInject += Inject;
     }
 
@@ -117,6 +117,7 @@ public partial class TurretVariants : ModuleBase
     {
         private static void Postfix(SentryGunInstance __instance, pGearSpawnData spawnData)
         {
+            try { AddStatusLight(__instance); } catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] status light: {e.Message}"); }
             try
             {
                 var gear = new GearIDRange(spawnData.gearIDRange);
@@ -134,6 +135,7 @@ public partial class TurretVariants : ModuleBase
     {
         private static void Prefix(SentryGunInstance __instance)
         {
+            RemoveStatusLight(__instance);
             if (!_turrets.TryGetValue(__instance.Pointer, out var t)) return;
             try { t.Sphere?.KillRepellerInstantly(); } catch { }
             if (t.Extra != null) UnityEngine.Object.Destroy(t.Extra);
@@ -192,6 +194,7 @@ public partial class TurretVariants : ModuleBase
         DiagnosticsTick();
         PrewarmTick();
         CheckReload();
+        StatusTick();
         if (_turrets.Count == 0) return;
         try { FoamEffects(); } catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] foam effects: {e.Message}"); }
 

@@ -84,6 +84,7 @@ public partial class TurretVariants
         _tagTurn = Bind("TaggedTurnBonus", 1.5f, "Combat sentries vs tagged enemies: turning speed multiplier (they lock on faster).");
         _tagDelay = Bind("TaggedStartDelay", 0.5f, "Combat sentries vs tagged enemies: multiplier of the delay before opening fire (less — quicker).");
         _tagPrio = Bind("TaggedPriority", true, "Combat sentries prefer tagged enemies.");
+        BindStatus();
         BindDiagnostics();
 
         // ----- TL1 searchlight -----

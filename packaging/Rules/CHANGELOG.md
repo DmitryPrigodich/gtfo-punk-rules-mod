@@ -3,6 +3,7 @@
 ## 0.9.0
 - **Config: every sentry has its own section** — `[TurretVariants.Searchlight]`, `[TurretVariants.FogRepeller]`, `[TurretVariants.FogTurbine]`, `[TurretVariants.BioTracker]`, `[TurretVariants.Foam]`, `[TurretVariants.Grenade]` — with the same keys for each: Enabled, Name, Label, ModelOffset, ModelRotation, ModelScale (+ BatterySeconds, Hum…, Parts, kind-specific settings). Old values are moved over automatically, old keys removed. `[TurretVariants]` keeps only the shared settings.
 - Sentries renamed: **DRED GARAGE TL1** (searchlight), **TF I** (fog repeller), **TF II** (fog turbine), **TB1** (bio-tracker), **TCF3** (foam), **TGL3** (grenade launcher). Names and screen labels are in the config.
+- **Sentry status light** on every sentry (ours and the stock ones): green — fresh, yellow — half used, orange — low, pulsing red — not working (empty / switched off) (StatusLight, StatusLightStockSentries, StatusLightOffset/Range/Intensity in [TurretVariants]).
 - Sentry part models are kept from the lobby (no hitch / missing models on later levels).
 - TL1 beam wakes sleepers after 2 s (WakeAfter). Tagged targets: no extra damage / stagger any more (TaggedDamageBonus2 = 1); faster turning, shorter start delay and priority stay.
 - **Grenades go off properly**: mine explosion effect, sound and camera shake (BlastEffect, BlastShake); bigger blast — 8 m, 120 damage (HandBlastRadius, HandBlastDamage); the bang wakes and alerts everything within 30 m (BlastNoiseRadius). Sentry grenades — half the shake and noise.
