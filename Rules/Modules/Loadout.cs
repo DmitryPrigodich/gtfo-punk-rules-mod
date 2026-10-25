@@ -255,9 +255,11 @@ public partial class Loadout : ModuleBase
         if (empty != null)
         {
             if (!_origEmptyIcon.ContainsKey(slot.Pointer)) _origEmptyIcon[slot.Pointer] = empty.sprite;
-            var icon = _photos.Value && iconItem != 0 ? Photo(iconItem, _origEmptyIcon[slot.Pointer]) ?? (iconItem < BioIconId ? Icon(iconItem) : null) : null;
+            var reference = _origEmptyIcon[slot.Pointer];
+            var icon = iconItem == 0 ? null
+                : IconFile(iconItem, reference) ?? (_photos.Value ? Photo(iconItem, reference) ?? (iconItem < BioIconId ? Icon(iconItem) : null) : null);
             empty.sprite = icon ?? _origEmptyIcon[slot.Pointer];
-            empty.gameObject.SetActive(icon != null || c == null); // text only when pictures are off
+            empty.gameObject.SetActive(icon != null || c == null); // text only when there's no picture
         }
         if (_paintLogs++ < 6)
             ModInfo.Log.LogInfo($"[Loadout] slot {slot.m_category} of {(p == null ? "nobody" : p.NickName)}: {title} = {value}");

@@ -7,6 +7,7 @@
   - DEFAULT (As the Warden intended) — the game's alarms and ammo, no loadout or gadgets, infection as in the game, artifacts stay. New gear stays available.
   Item counts are rounded (0.4 → none, 0.8 → one). Replaces DoorAlarms.MaxAlarmClass and the ALARM button.
 - New gadget **Hacking tool**: only who picked it can use the hacking tool (N takes it out); the others can't (it's put away, with a note) — break the lock. In DEFAULT everyone has it.
+- **Lobby icons**: the loadout slots show drawn icons (packs, items, gadgets) from the mod's `icons` folder (`icons/<name>.png`, 256×256, white on transparent; replace a file to change an icon). ItemIcons.
 - New module **ScoutKill**: a scout's scream charges up longer (2 s) and meanwhile the scout takes ×3 damage — kill it then and there's no scream and no wave.
 
 ## 0.9.6

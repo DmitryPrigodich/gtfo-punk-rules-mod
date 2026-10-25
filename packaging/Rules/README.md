@@ -4,6 +4,7 @@ Gameplay changes for GTFO. **This changes the game:** play only with friends, an
 
 - Does not require GTFO-API.
 - Every feature has its own toggle in `BepInEx/config/AmDDRed.GtfoPunk.Rules.cfg`.
+- Lobby loadout icons are PNG files in the mod's `icons` folder — replace one to change it.
 - In-game text language: `[General] TextLanguage = auto` — as the game's language (or `en` / `ru`).
 - Meant to be played together with **GtfoPunk QoL** (client-side quality of life, separate package).
 

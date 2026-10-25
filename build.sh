@@ -20,6 +20,7 @@ for t in $targets; do
   cp packaging/$t/manifest.json packaging/$t/README.md packaging/$t/icon.png "$stage"/
   [ -f packaging/$t/CHANGELOG.md ] && cp packaging/$t/CHANGELOG.md "$stage"/
   cp "$dll" "$stage"/
+  if [ -d packaging/$t/icons ]; then cp -r packaging/$t/icons "$stage"/; fi
   rm -f "dist/$name-$ver.zip"
   (cd "$stage" && zip -q -r "$OLDPWD/dist/$name-$ver.zip" .)
   rm -rf "$stage"
