@@ -1,10 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using GameData;
 using Gear;
-using GtfoPunk.Core;
 using Il2CppInterop.Runtime.InteropTypes;
 using UnityEngine;
 
@@ -22,11 +18,11 @@ public class FireModes : ModuleBase
     public override ModuleSide Side => ModuleSide.Client;
     public override IReadOnlyList<string> ReplacedBy => new[] { "Dinorush.ExtraWeaponCustomization", "ExtraWeaponCustomization" };
 
-    private static BepInEx.Configuration.ConfigEntry<KeyCode> _key;
-    private static BepInEx.Configuration.ConfigEntry<string> _modes;
-    private static BepInEx.Configuration.ConfigEntry<int> _burstCount;
-    private static BepInEx.Configuration.ConfigEntry<float> _burstDelay;
-    private static BepInEx.Configuration.ConfigEntry<bool> _burstForAll;
+    private static ConfigEntry<KeyCode> _key;
+    private static ConfigEntry<string> _modes;
+    private static ConfigEntry<int> _burstCount;
+    private static ConfigEntry<float> _burstDelay;
+    private static ConfigEntry<bool> _burstForAll;
 
     protected override void OnBindConfig()
     {

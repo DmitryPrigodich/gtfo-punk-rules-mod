@@ -1,10 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using GameData;
-using GtfoPunk.Core;
-using GtfoPunk.Rules.Core;
-using HarmonyLib;
 using Il2CppInterop.Runtime.InteropTypes;
 using AIGraph;
 using LevelGeneration;
@@ -28,17 +22,18 @@ public class Grenades : ModuleBase
     public override ModuleSide Side => ModuleSide.Everyone;
 
     public const uint GrenadeItemId = 136;
-    /// <summary>Clone of item 136 thrown only by the GL5 sentry — the item ID itself tells every client it's a sentry grenade.</summary>
+    /// <summary>Clone of item 136 thrown only by the TGL3 sentry — the item ID itself tells every client it's a sentry grenade.</summary>
     public const uint TurretGrenadeItemId = 4250;
     /// <summary>Item whose look the grenade borrows (C-Foam Grenade).</summary>
     private const uint LookItemId = 115;
     /// <summary>Mark in the item data: this grenade was thrown by a sentry (visible to all players).</summary>
     private const float TurretMark = -77f;
 
-    private static BepInEx.Configuration.ConfigEntry<bool> _inLevels, _diag, _hitEnemies;
-    private static BepInEx.Configuration.ConfigEntry<float> _proximity;
-    private static BepInEx.Configuration.ConfigEntry<float> _weight, _turretRadius, _turretDamage, _turretFuse, _handRadius, _handDamage, _handDelay;
-    private static BepInEx.Configuration.ConfigEntry<string> _nameEn, _nameRu;
+    private static ConfigEntry<bool> _inLevels, _diag, _hitEnemies, _blastFx;
+    private static ConfigEntry<float> _proximity, _noiseRadius, _shake;
+    private static ConfigEntry<int> _stack;
+    private static ConfigEntry<float> _weight, _turretRadius, _turretDamage, _turretFuse, _handRadius, _handDamage, _handDelay;
+    private static ConfigEntry<string> _nameEn, _nameRu;
 
     protected override void OnBindConfig()
     {
@@ -46,8 +41,12 @@ public class Grenades : ModuleBase
         _weight = Bind("SpawnWeight", 0.6f, "How often a grenade shows up: fraction of the average consumable weight in the level distribution (1 — like a regular consumable).");
         _nameEn = Bind("NameEn", "Frag Grenade", "Grenade name (English).");
         _nameRu = Bind("NameRu", "Граната", "Grenade name (Russian).");
-        _handRadius = Bind("HandRadius", 0f, "Hand grenade blast radius (m). 0 — as designed in the game.");
-        _handDamage = Bind("HandDamage", 0f, "Hand grenade damage at the center. 0 — as designed in the game.");
+        _stack = Bind("Stack", 2, "How many hand grenades (and C-Foam Grenades) a player can carry. Level pickups hold 1. 0 — as in the game.");
+        _handRadius = BindMigrated(Id, "HandBlastRadius", 8f, "Hand grenade blast radius (m). 0 — as designed in the game.", (Id, "HandRadius", "0"));
+        _handDamage = BindMigrated(Id, "HandBlastDamage", 120f, "Hand grenade damage at the center. 0 — as designed in the game.", (Id, "HandDamage", "0"));
+        _blastFx = Bind("BlastEffect", true, "Explosions look and sound like a mine going off (fire, smoke, light, sound), not a silent pop.");
+        _shake = Bind("BlastShake", 1f, "Camera shake from a hand grenade explosion (0 — none; sentry grenades shake half as much).");
+        _noiseRadius = Bind("BlastNoiseRadius", 30f, "A hand grenade explosion wakes and alerts enemies within this radius (m; sentry grenades — half). 0 — no extra noise.");
         _handDelay = Bind("HandDelay", -1f, "Hand grenade fuse after impact (s). -1 — as designed in the game.");
         _turretRadius = Bind("TurretRadius", 3.5f, "Blast radius of the grenade launcher sentry's grenades (m; a mine's is bigger).");
         _turretDamage = Bind("TurretDamage", 40f, "Sentry grenade damage at the blast center.");
@@ -55,13 +54,14 @@ public class Grenades : ModuleBase
         _proximity = Bind("TurretProximity", 0.8f, "Sentry grenades explode when they fly within this distance of an enemy (m). 0 — off.");
         _hitEnemies = Bind("BounceOffEnemies", true, "Grenades hit enemies instead of flying through them.");
         _diag = Bind("DiagnosticDump", false, "Write grenade model details to the log at the first drop-in (diagnostics; may cause a short hitch).");
+        ConfigMigration.DropOrphans(Config, Id);
     }
 
     protected override void OnEnable()
     {
         GearFactory.OnInject += Inject;
         FrameTicker.OnUpdate += Tick;
-        FrameTicker.OnLevelExit += () => { _pending.Clear(); _calib.Clear(); _armed.Clear(); _dumped = false; };
+        FrameTicker.OnLevelExit += () => { _pending.Clear(); _calib.Clear(); _armed.Clear(); _turretGrenades.Clear(); _exploded.Clear(); _dumped = false; };
     }
 
     // ---------- data: name and distribution ----------
@@ -95,6 +95,16 @@ public class Grenades : ModuleBase
         // Inventory icon of the C-Foam Grenade.
         var look = GameDataBlockBase<ItemDataBlock>.GetBlock(LookItemId);
         if (look != null && !string.IsNullOrEmpty(look.HUDIcon)) item.HUDIcon = look.HUDIcon;
+
+        // Carried like C-Foam Grenades (one per pickup, a few in the pocket), not like a pack of glow sticks.
+        if (_stack.Value > 0)
+            foreach (var b in new[] { item, look })
+            {
+                if (b == null) continue;
+                b.ConsumableAmmoMin = 1;
+                b.ConsumableAmmoMax = _stack.Value;
+                ModInfo.Log.LogInfo($"[Grenades] {b.publicName} ({b.persistentID}): carry up to {_stack.Value}");
+            }
     }
 
     private static string _named;
@@ -222,6 +232,7 @@ public class Grenades : ModuleBase
             ModInfo.Log.LogInfo($"[Grenades] layers: collide {coll:X} → {g.m_projCollideMask:X}, targets {target:X} → {g.m_explosionTargetMask:X}, blockers {block:X} → {g.m_explosionBlockMask:X} (explosion targets {LayerManager.MASK_EXPLOSION_TARGETS:X}, enemies {LayerManager.MASK_ENEMY_DAMAGABLE:X})");
         if (turret)
         {
+            _turretGrenades.Add(g.Pointer);
             if (_proximity.Value > 0f) _armed.Add((g, Time.time + 0.15f));
             g.m_grenadeExplosionRadius = _turretRadius.Value;
             g.m_grenadeMaxDamage = (int)_turretDamage.Value;
@@ -255,6 +266,127 @@ public class Grenades : ModuleBase
                 catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] proximity fuse: {e.Message}"); }
             }
         }
+    }
+
+    // ---------- the bang ----------
+
+    private static readonly HashSet<IntPtr> _turretGrenades = new(), _exploded = new();
+    private static bool _fxLogged;
+
+    /// <summary>GrenadeBase.GrenadeDelay is the explosion itself (OnCollisionEnter schedules it after the fuse).</summary>
+    [HarmonyPatch(typeof(GrenadeBase), nameof(GrenadeBase.GrenadeDelay))]
+    private static class Patch_Explode
+    {
+        private static void Prefix(GrenadeBase __instance)
+        {
+            if (__instance == null || !_exploded.Add(__instance.Pointer)) return;
+            try { Bang(__instance); } catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] explosion effect: {e.Message}"); }
+        }
+    }
+
+    private static void Bang(GrenadeBase g)
+    {
+        var pos = g.transform.position;
+        bool turret = _turretGrenades.Contains(g.Pointer);
+        float scale = turret ? 0.5f : 1f;
+        ModInfo.Log.LogInfo($"[Grenades] {(turret ? "sentry grenade" : "grenade")} exploded at {pos}, radius {g.m_grenadeExplosionRadius:0.#} m, damage {g.m_grenadeMaxDamage}");
+        if (_blastFx.Value)
+        {
+            try { CellSound.Post(AK.EVENTS.STICKYMINEEXPLODE, pos); } catch { }
+            bool fx = PlayMineEffect(pos);
+            if (!fx) Flash(pos, g.m_grenadeExplosionRadius);
+        }
+        if (_shake.Value > 0f) Shake(pos, g.m_grenadeExplosionRadius, _shake.Value * scale);
+        if (_noiseRadius.Value > 0f && SNetwork.SNet.IsMaster) Noise(g, pos, _noiseRadius.Value * scale);
+    }
+
+    /// <summary>The tripmine's explosion (fire, smoke, light) from its effect pool.</summary>
+    private static bool PlayMineEffect(Vector3 pos)
+    {
+        FX_EffectSystem.FX_Pool pool = null;
+        try { pool = MineDeployerInstance_Detonate_Explosive.s_explosionPool; } catch { }
+        if (pool == null) pool = FindExplosionPool();
+        if (pool == null) return false;
+        var fx = pool.AquireEffect();
+        if (fx == null) return false;
+        fx.Play(null, pos, Quaternion.LookRotation(Vector3.up));
+        if (!_fxLogged)
+        {
+            _fxLogged = true;
+            var comps = fx.GetComponentsInChildren<Component>(true).Select(c => c == null ? "null" : c.GetIl2CppType().Name).GroupBy(n => n).Select(x => $"{x.Key}x{x.Count()}");
+            ModInfo.Log.LogInfo($"[Grenades] explosion effect '{fx.gameObject.name}' from pool '{pool.gameObject.name}': {string.Join(", ", comps)}");
+        }
+        return true;
+    }
+
+    private static bool _poolsLogged;
+
+    /// <summary>No tripmine was placed yet — look for an explosion among the effect pools (names go to the log once).</summary>
+    private static FX_EffectSystem.FX_Pool FindExplosionPool()
+    {
+        var mgr = FX_EffectSystem.FX_Manager.Current;
+        if (mgr?.m_pools == null) return null;
+        FX_EffectSystem.FX_Pool best = null;
+        var names = new List<string>();
+        foreach (var p in mgr.m_pools)
+        {
+            if (p == null) continue;
+            string n = p.m_prefab != null ? p.m_prefab.name : p.gameObject.name;
+            names.Add(n);
+            if (best == null && n.IndexOf("xplo", StringComparison.OrdinalIgnoreCase) >= 0 && n.IndexOf("glue", StringComparison.OrdinalIgnoreCase) < 0) best = p;
+        }
+        if (!_poolsLogged) { _poolsLogged = true; ModInfo.Log.LogInfo($"[Grenades] mine explosion pool not ready; effect pools: {string.Join(", ", names)} → {(best == null ? "none" : best.gameObject.name)}"); }
+        return best;
+    }
+
+    /// <summary>Fallback when no explosion effect is found: a short bright flash.</summary>
+    private static void Flash(Vector3 pos, float radius)
+    {
+        var go = new GameObject("GtfoPunk_GrenadeFlash");
+        go.transform.position = pos + Vector3.up * 0.3f;
+        var l = go.AddComponent<Light>();
+        l.type = LightType.Point;
+        l.color = new Color(1f, 0.7f, 0.35f);
+        l.range = Math.Max(4f, radius * 2.5f);
+        l.intensity = 8f;
+        UnityEngine.Object.Destroy(go, 0.25f);
+    }
+
+    private static void Shake(Vector3 pos, float radius, float amount)
+    {
+        var go = new GameObject("GtfoPunk_GrenadeShake");
+        go.transform.position = pos;
+        var s = go.AddComponent<CameraShakeEffect>();
+        s.Radius = Math.Max(6f, radius * 3f);
+        s.Duration = 0.8f;
+        s.Amplitude = amount;
+        s.Frequency = 25f;
+        s.directional = false;
+        s.Play();
+        UnityEngine.Object.Destroy(go, 2f);
+    }
+
+    /// <summary>"Good morning, Vietnam": everything within the radius wakes up and comes to look.</summary>
+    private static void Noise(GrenadeBase g, Vector3 pos, float radius)
+    {
+        PlayerAgent owner = null;
+        try { owner = g.Owner; } catch { }
+        owner ??= PlayerManager.GetLocalPlayerAgent();
+        if (owner == null) return;
+        if (!AIG_CourseNode.TryGetCourseNode(owner.DimensionIndex, pos, 3f, out var node)) node = owner.CourseNode;
+        if (node == null) return;
+        NoiseManager.MakeNoise(new NM_NoiseData
+        {
+            noiseMaker = ((Il2CppObjectBase)owner).Cast<INM_NoiseMaker>(),
+            position = pos,
+            node = node,
+            radiusMin = radius * 0.5f,
+            radiusMax = radius,
+            yScale = 1f,
+            type = NM_NoiseType.InstaDetect,
+            includeToNeightbourAreas = true,
+            raycastFirstNode = false,
+        });
     }
 
     /// <summary>Throw force tuning: compare the velocity we wanted with what we got (on the host).</summary>

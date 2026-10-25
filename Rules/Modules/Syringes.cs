@@ -1,11 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Agents;
 using GameData;
-using GtfoPunk.Core;
-using GtfoPunk.Rules.Core;
-using HarmonyLib;
 using Il2CppInterop.Runtime.InteropTypes;
 using LevelGeneration;
 using Player;
@@ -32,22 +26,24 @@ public class Syringes : ModuleBase
     public const uint SyringeItemId = 4251;
     private const uint BaseSyringeId = 142; // IIx Syringe (melee buff)
 
-    private static BepInEx.Configuration.ConfigEntry<bool> _replaceArtifacts;
-    private static BepInEx.Configuration.ConfigEntry<float> _minutes;
-    private static BepInEx.Configuration.ConfigEntry<bool> _downsides;
+    private static ConfigEntry<bool> _replaceArtifacts;
+    private static ConfigEntry<float> _minutes;
+    private static ConfigEntry<bool> _downsides, _onPickup, _onMap;
 
     protected override void OnBindConfig()
     {
         _replaceArtifacts = Bind("ReplaceArtifacts", true, "Put a booster syringe on every artifact spot instead of the artifact.");
         _minutes = Bind("SyringeMinutes", 5f, "How long the effects of one syringe last (minutes).");
         _downsides = Bind("KeepDownsides", true, "Keep the negative effects some boosters have (as in the game). false — only the positive ones.");
+        _onPickup = Bind("InjectOnPickup", true, "Picking up a booster syringe injects it at once — it doesn't take the consumable slot (and doesn't push out the grenade you carry).");
+        _onMap = Bind("ShowOnMap", true, "The map screen (Tab) lists your active syringe effects with time left, and your infection.");
     }
 
     protected override void OnEnable()
     {
         GearFactory.OnInject += Inject;
         FrameTicker.OnUpdate += Tick;
-        FrameTicker.OnLevelExit += () => { ClearAll(); _hud = null; };
+        FrameTicker.OnLevelExit += () => { ClearAll(); _hud = null; _map = null; };
     }
 
     // ---------- item ----------
@@ -89,6 +85,29 @@ public class Syringes : ModuleBase
     private static int _replaced;
 
     // ---------- injection ----------
+
+    /// <summary>Use on pickup: the effects right away, the syringe disappears instead of going to the consumable slot.</summary>
+    [HarmonyPatch(typeof(ConsumablePickup_Core), nameof(ConsumablePickup_Core.OnInteractionPickUp))]
+    private static class Patch_Pickup
+    {
+        private static bool Prefix(ConsumablePickup_Core __instance, PlayerAgent player)
+        {
+            try
+            {
+                if (!_onPickup.Value || __instance == null || player == null || !player.IsLocallyOwned || player.Owner == null || player.Owner.IsBot) return true;
+                if ((__instance.ItemDataBlock?.persistentID ?? 0) != SyringeItemId) return true;
+                var sync = __instance.GetSyncComponent();
+                if (sync == null) return true;
+                if (SNet.IsMaster) ItemReplicationManager.DeSpawn(sync.GetReplicator());
+                else sync.AttemptPickupInteraction(ePickupItemInteractionType.Place, player.Owner, sync.GetCustomData(), new Vector3(0f, -5000f, 0f), Quaternion.identity);
+                try { CellSound.Post(AK.EVENTS.SYRINGE_USE, player.Position); } catch { }
+                ModInfo.Log.LogInfo($"[Syringes] syringe injected on pickup ({(SNet.IsMaster ? "despawned" : "moved out of the level")})");
+                ApplyRandomBooster();
+                return false;
+            }
+            catch (Exception e) { ModInfo.Log.LogWarning($"[Syringes] inject on pickup: {e.Message}"); return true; }
+        }
+    }
 
     private static float _suppressMeleeUntil;
 
@@ -207,6 +226,7 @@ public class Syringes : ModuleBase
     // ---------- tick + HUD ----------
 
     private static TMPro.TextMeshPro _hud;
+    private static float _nextHudFind;
 
     private static void Tick()
     {
@@ -218,6 +238,42 @@ public class Syringes : ModuleBase
         for (int i = _active.Count - 1; i >= 0; i--)
             if (Time.time >= _active[i].Until) { Expire(_active[i]); _active.RemoveAt(i); }
         UpdateHud();
+        if (_onMap.Value) UpdateMap();
+    }
+
+    private static TMPro.TextMeshPro _map;
+
+    /// <summary>A copy of the map's expedition time text, under it: active syringe effects and infection.</summary>
+    private static void UpdateMap()
+    {
+        var page = CellMenu.CM_PageMap.Current;
+        if (page == null || !page.m_isActive) return;
+        if (_map == null)
+        {
+            var src = page.m_expeditionTime;
+            if (src == null) return;
+            var go = UnityEngine.Object.Instantiate(src.gameObject, src.transform.parent, false);
+            go.name = "GtfoPunk_MapEffects";
+            go.transform.localPosition = src.transform.localPosition + new Vector3(0f, -45f, 0f);
+            _map = go.GetComponent<TMPro.TextMeshPro>();
+            if (_map == null) { UnityEngine.Object.Destroy(go); return; }
+            var a = src.alignment.ToString();
+            _map.alignment = a.Contains("Left") ? TMPro.TextAlignmentOptions.TopLeft : a.Contains("Right") ? TMPro.TextAlignmentOptions.TopRight : TMPro.TextAlignmentOptions.Top;
+            _map.enableWordWrapping = false;
+            _map.fontSize = src.fontSize * 0.8f;
+            ModInfo.Log.LogInfo($"[Syringes] map effects text added (alignment {a})");
+        }
+        var sb = new System.Text.StringBuilder();
+        foreach (var b in _active)
+        {
+            int left = Mathf.CeilToInt(b.Until - Time.time);
+            sb.Append($"<color=#ffd34f>{b.Name} {left / 60}:{left % 60:00}</color>  ").Append(string.Join("  ", b.Lines)).Append('\n');
+        }
+        float infection = 0f;
+        try { infection = PlayerManager.GetLocalPlayerAgent()?.Damage?.Infection ?? 0f; } catch { }
+        if (infection > 0.005f) sb.Append($"<color=#9fe07a>{Lang.T("Infection", "Инфекция")} {infection * 100f:0}%</color>");
+        string text = sb.ToString().TrimEnd('\n');
+        if (_map.text != text) _map.SetText(text);
     }
 
     /// <summary>A copy of the watermark text, a bit higher, listing the active syringe effects and time left.</summary>
@@ -225,7 +281,8 @@ public class Syringes : ModuleBase
     {
         if (_hud == null)
         {
-            if (_active.Count == 0) return;
+            if (_active.Count == 0 || Time.time < _nextHudFind) return;
+            _nextHudFind = Time.time + 2f;
             var wm = UnityEngine.Object.FindObjectOfType<PUI_Watermark>();
             var src = wm?.m_watermarkText;
             if (src == null) return;

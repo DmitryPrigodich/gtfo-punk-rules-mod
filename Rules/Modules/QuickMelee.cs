@@ -1,6 +1,4 @@
 using Gear;
-using GtfoPunk.Core;
-using HarmonyLib;
 using Il2CppInterop.Runtime.InteropTypes;
 using Player;
 using UnityEngine;
@@ -19,7 +17,7 @@ public class QuickMelee : ModuleBase
     public override string Description => "Quick melee on a key (V by default): tap — shove, hold — charged hit; then your gun comes back.";
     public override ModuleSide Side => ModuleSide.Client;
 
-    private static BepInEx.Configuration.ConfigEntry<KeyCode> _key;
+    private static ConfigEntry<KeyCode> _key;
 
     protected override void OnBindConfig()
     {

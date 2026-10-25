@@ -1,7 +1,4 @@
-using System;
 using GameData;
-using GtfoPunk.Core;
-using HarmonyLib;
 using Player;
 using SNetwork;
 using UnityEngine;
@@ -21,7 +18,7 @@ public class FullAmmoOnStart : ModuleBase
     public override string Description => "Everyone drops in with full ammo (main, special, tool).";
     public override ModuleSide Side => ModuleSide.Everyone;
 
-    private static BepInEx.Configuration.ConfigEntry<bool> _tool;
+    private static ConfigEntry<bool> _tool;
     private static float _giveAt = -1f;
     private static bool _given, _patchedData;
 

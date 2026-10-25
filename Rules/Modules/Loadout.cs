@@ -1,13 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using BoosterImplants;
 using CellMenu;
 using Enemies;
 using GameData;
-using GtfoPunk.Core;
-using GtfoPunk.Rules.Core;
-using HarmonyLib;
 using Il2CppInterop.Runtime;
 using LevelGeneration;
 using Player;
@@ -47,12 +41,12 @@ public partial class Loadout : ModuleBase
         public override string ToString() => $"pack {Pack}, item {Item}, perk {Perk}";
     }
 
-    private static BepInEx.Configuration.ConfigEntry<string> _pack, _perk, _itemChoices, _botPack;
-    private static BepInEx.Configuration.ConfigEntry<uint> _item, _botItem;
-    private static BepInEx.Configuration.ConfigEntry<int> _packCharges, _itemAmount;
-    private static BepInEx.Configuration.ConfigEntry<bool> _blockBoosters, _perkWalls, _perkSound, _bioAuto;
-    private static BepInEx.Configuration.ConfigEntry<string> _gadgetKey;
-    private static BepInEx.Configuration.ConfigEntry<float> _giveDelay, _perkInterval, _perkRange;
+    private static ConfigEntry<string> _pack, _perk, _itemChoices, _botPack;
+    private static ConfigEntry<uint> _item, _botItem;
+    private static ConfigEntry<int> _packCharges, _itemAmount;
+    private static ConfigEntry<bool> _blockBoosters, _perkWalls, _perkSound, _bioAuto;
+    private static ConfigEntry<string> _gadgetKey;
+    private static ConfigEntry<float> _giveDelay, _perkInterval, _perkRange;
 
     protected override void OnBindConfig()
     {
@@ -75,6 +69,7 @@ public partial class Loadout : ModuleBase
         _perkSound = Bind("PerkSound", true, "Bio-tracker gadget beeps when it finds enemies.");
         BindThermal();
         BindIcons();
+        BindGadgetHud();
     }
 
     protected override void OnEnable()
@@ -247,6 +242,7 @@ public partial class Loadout : ModuleBase
             default:
                 title = Lang.T("GADGET", "ГАДЖЕТ");
                 value = c == null ? "?" : PerkName(c.Perk);
+                if (c != null) iconItem = GadgetIconId(c.Perk);
                 break;
         }
 
@@ -260,7 +256,7 @@ public partial class Loadout : ModuleBase
         if (empty != null)
         {
             if (!_origEmptyIcon.ContainsKey(slot.Pointer)) _origEmptyIcon[slot.Pointer] = empty.sprite;
-            var icon = iconItem != 0 ? Photo(iconItem, _origEmptyIcon[slot.Pointer]) ?? Icon(iconItem) : null;
+            var icon = iconItem != 0 ? Photo(iconItem, _origEmptyIcon[slot.Pointer]) ?? (iconItem < BioIconId ? Icon(iconItem) : null) : null;
             empty.sprite = icon ?? _origEmptyIcon[slot.Pointer];
             empty.gameObject.SetActive(true);
         }
@@ -384,7 +380,10 @@ public partial class Loadout : ModuleBase
             try { GiveAll(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] give: {e}"); }
         }
 
+        // The thermal material search is a scene-wide scan: do it while the elevator drops, not at first use.
+        if (state == eGameStateName.StopElevatorRide && Local().Perk == PerkKind.Thermal) try { ThermalMaterial(); } catch { }
         try { ThermalTick(state == eGameStateName.InLevel, Local().Perk == PerkKind.Thermal); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] thermal: {e.Message}"); }
+        try { GadgetHudTick(state == eGameStateName.InLevel, Local().Perk); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] gadget line: {e.Message}"); }
 
         // Bio-tracker gadget: a pulse on the gadget key (or by itself with BioTrackerAuto), with a cooldown.
         if (state == eGameStateName.InLevel && Local().Perk == PerkKind.BioTracker)
@@ -571,6 +570,8 @@ public partial class Loadout : ModuleBase
             ToolSyncManager.WantToTagEnemy(enemy);
             tagged++;
         }
+        _lastFound = count;
+        _lastFoundAt = Time.time;
         if (count > 0 && _perkSound.Value) CellSound.Post(AK.EVENTS.BIOTRACKER_TAG, origin);
         if (count > 0 && _perkLogs++ < 10) ModInfo.Log.LogInfo($"[Loadout] bio-tracker gadget: {count} enemies within {_perkRange.Value:0} m, newly tagged {tagged}");
     }

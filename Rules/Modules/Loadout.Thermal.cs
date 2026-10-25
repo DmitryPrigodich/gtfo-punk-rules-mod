@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using GtfoPunk.Core;
 using Il2CppInterop.Runtime;
 using UnityEngine;
 
@@ -16,10 +12,10 @@ namespace GtfoPunk.Rules.Modules;
 /// </summary>
 public partial class Loadout
 {
-    private static BepInEx.Configuration.ConfigEntry<string> _thermalZoomKey, _thermalZoomLevels, _thermalMaterial, _thermalSearch;
-    private static BepInEx.Configuration.ConfigEntry<float> _thermalDistance;
-    private static BepInEx.Configuration.ConfigEntry<bool> _thermalItemCamera, _thermalDump, _thermalReticle;
-    private static BepInEx.Configuration.ConfigEntry<float> _thermalZoom, _thermalNoise;
+    private static ConfigEntry<string> _thermalZoomKey, _thermalZoomLevels, _thermalMaterial, _thermalSearch;
+    private static ConfigEntry<float> _thermalDistance;
+    private static ConfigEntry<bool> _thermalItemCamera, _thermalDump, _thermalReticle;
+    private static ConfigEntry<float> _thermalZoom, _thermalNoise;
 
     private void BindThermal()
     {
@@ -54,9 +50,13 @@ public partial class Loadout
         }
         if (!inLevel || !perk)
         {
-            if (_thermalOn) SetThermal(false);
+            if (_thermalQuad != null) SetThermal(false, instant: true);
+            _prewarmAt = -1f; _prewarmed = false;
             return;
         }
+        PrewarmThermal();
+        if (_thermalQuad != null) Fit();
+        if (_thermalPrewarming) return;
 
         if (ChatOpen()) return;
         if (GadgetKeyDown()) { _zoom = Mathf.Clamp(_thermalZoom.Value, 0f, 0.99f); SetThermal(!_thermalOn); }
@@ -73,11 +73,56 @@ public partial class Loadout
             ModInfo.Log.LogInfo($"[Thermal] zoom {_zoom:0.##}");
         }
 
-        if (_thermalOn)
+        if (_thermalOn && Time.time >= _nextTune) { _nextTune = Time.time + 0.5f; Tune(_thermalMat); }
+    }
+
+    // ---------- prewarm: find the material and draw it once, hidden, soon after the drop (no hitch on first use) ----------
+
+    private static float _prewarmAt = -1f, _prewarmEnd;
+    private static bool _prewarmed, _thermalPrewarming;
+
+    private static void PrewarmThermal()
+    {
+        if (_thermalPrewarming && Time.time >= _prewarmEnd) { Kill(); ModInfo.Log.LogInfo("[Thermal] prewarmed"); }
+        if (_prewarmed) return;
+        if (_prewarmAt < 0f) { _prewarmAt = Time.time + 1.5f; return; }
+        if (Time.time < _prewarmAt) return;
+        _prewarmed = true;
+        if (_thermalQuad != null) return; // already switched on by hand
+        _thermalPrewarming = true;
+        _prewarmEnd = Time.time + 0.3f;
+        SetThermal(true);
+        if (_thermalQuad == null) _thermalPrewarming = false;
+    }
+
+    // ---------- on/off animation: an old monitor — a line opens into the picture, the picture collapses into a line and a dot ----------
+
+    private static float _animAt;
+    private static bool _closing;
+    private const float OpenTime = 0.2f, CloseTime = 0.25f;
+
+    /// <summary>Picture scale (x, y) for the current moment of the animation; at the end of closing the screen is removed.</summary>
+    private static Vector2 AnimScale()
+    {
+        if (_thermalPrewarming) return new Vector2(0.001f, 0.001f);
+        float t = Time.time - _animAt;
+        if (!_closing)
         {
-            Fit();
-            if (Time.time >= _nextTune) { _nextTune = Time.time + 0.5f; Tune(_thermalMat); }
+            float k = Mathf.Clamp01(t / OpenTime);
+            float e = 1f - (1f - k) * (1f - k) * (1f - k); // ease out
+            return new Vector2(Mathf.Lerp(0.85f, 1f, e), Mathf.Lerp(0.01f, 1f, e));
         }
+        float c = Mathf.Clamp01(t / CloseTime);
+        if (c >= 1f) { Kill(); return Vector2.zero; }
+        return c < 0.6f
+            ? new Vector2(1f, Mathf.Lerp(1f, 0.01f, c / 0.6f))       // collapse to a line
+            : new Vector2(Mathf.Lerp(1f, 0.003f, (c - 0.6f) / 0.4f), 0.01f); // line shrinks to a dot
+    }
+
+    private static void Kill()
+    {
+        if (_thermalQuad != null) UnityEngine.Object.Destroy(_thermalQuad);
+        _thermalQuad = null; _thermalCam = null; _thermalOn = false; _closing = false; _thermalPrewarming = false;
     }
 
     private static float _nextTune, _zoom;
@@ -112,14 +157,20 @@ public partial class Loadout
         catch (Exception e) { ModInfo.Log.LogWarning($"[Thermal] tune: {e.Message}"); }
     }
 
-    private static void SetThermal(bool on)
+    private static void SetThermal(bool on, bool instant = false)
     {
         if (!on)
         {
-            if (_thermalQuad != null) UnityEngine.Object.Destroy(_thermalQuad);
-            _thermalQuad = null; _thermalCam = null; _thermalOn = false;
+            if (_thermalQuad == null || instant) { Kill(); return; }
+            _thermalOn = false; _closing = true; _animAt = Time.time;
+            try { CellSound.Post(AK.EVENTS.PRECISIONZOOMOUT, GameUtil.LocalAgent.Position); } catch { }
             ModInfo.Log.LogInfo("[Thermal] off");
             return;
+        }
+        if (_thermalQuad != null)
+        {
+            if (_thermalPrewarming) { _thermalPrewarming = false; Kill(); }
+            else { _closing = false; _thermalOn = true; _animAt = Time.time; return; } // switched back on while closing
         }
         var agent = GameUtil.LocalAgent;
         var fps = agent?.FPSCamera;
@@ -142,22 +193,26 @@ public partial class Loadout
         r.sharedMaterial = mat;
         r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         r.receiveShadows = false;
-        _thermalQuad = quad; _thermalCam = cam; _thermalOn = true;
+        _thermalQuad = quad; _thermalCam = cam; _thermalOn = !_thermalPrewarming; _closing = false; _animAt = Time.time;
         Fit();
         Tune(mat);
+        if (_thermalPrewarming) return;
+        try { CellSound.Post(AK.EVENTS.PRECISIONZOOMIN, agent.Position); } catch { }
         ModInfo.Log.LogInfo($"[Thermal] on: material '{mat.name}' (shader '{mat.shader?.name}'), camera '{cam.name}' (fov {cam.fieldOfView:0}, near {cam.nearClipPlane:0.###}), layer {layer} '{LayerMask.LayerToName(layer)}'");
     }
 
     /// <summary>Scale the quad to cover the camera's whole view (FOV changes when aiming).</summary>
     private static void Fit()
     {
-        if (_thermalQuad == null || _thermalCam == null) { _thermalOn = false; return; }
+        if (_thermalQuad == null || _thermalCam == null) { Kill(); return; }
         float d = Math.Max(_thermalCam.nearClipPlane + 0.01f, _thermalDistance.Value);
         float h = 2f * d * Mathf.Tan(_thermalCam.fieldOfView * 0.5f * Mathf.Deg2Rad) * 1.05f;
         float w = h * Math.Max(0.1f, _thermalCam.aspect);
         _thermalQuad.transform.localPosition = new Vector3(0f, 0f, d);
         _thermalQuad.transform.localRotation = Quaternion.identity;
-        _thermalQuad.transform.localScale = new Vector3(w, h, 1f);
+        var a = AnimScale();
+        if (_thermalQuad == null) return; // closed just now
+        _thermalQuad.transform.localScale = new Vector3(w * a.x, h * a.y, 1f);
     }
 
     private static int FirstLayerIn(int mask)
@@ -214,7 +269,7 @@ public partial class Loadout
             }
         if (pick != null)
         {
-            _thermalMat = new Material(pick) { name = pick.name + " (GtfoPunk thermal)" };
+            _thermalMat = new Material(pick) { name = pick.name + " (GtfoPunk thermal)", hideFlags = HideFlags.DontUnloadUnusedAsset };
             ModInfo.Log.LogInfo($"[Thermal] using material '{pick.name}', shader '{pick.shader?.name}', lens layer {_lensLayer}");
         }
         return _thermalMat;

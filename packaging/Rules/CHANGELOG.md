@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.0
+- **Config: every sentry has its own section** — `[TurretVariants.Searchlight]`, `[TurretVariants.FogRepeller]`, `[TurretVariants.FogTurbine]`, `[TurretVariants.BioTracker]`, `[TurretVariants.Foam]`, `[TurretVariants.Grenade]` — with the same keys for each: Enabled, Name, Label, ModelOffset, ModelRotation, ModelScale (+ BatterySeconds, Hum…, Parts, kind-specific settings). Old values are moved over automatically, old keys removed. `[TurretVariants]` keeps only the shared settings.
+- Sentries renamed: **DRED GARAGE TL1** (searchlight), **TF I** (fog repeller), **TF II** (fog turbine), **TB1** (bio-tracker), **TCF3** (foam), **TGL3** (grenade launcher). Names and screen labels are in the config.
+- Sentry part models are kept from the lobby (no hitch / missing models on later levels).
+- TL1 beam wakes sleepers after 2 s (WakeAfter). Tagged targets: no extra damage / stagger any more (TaggedDamageBonus2 = 1); faster turning, shorter start delay and priority stay.
+- **Grenades go off properly**: mine explosion effect, sound and camera shake (BlastEffect, BlastShake); bigger blast — 8 m, 120 damage (HandBlastRadius, HandBlastDamage); the bang wakes and alerts everything within 30 m (BlastNoiseRadius). Sentry grenades — half the shake and noise.
+- **Grenades and C-Foam Grenades are carried up to 2** (Stack), one per pickup — no more packs of 12 like glow sticks. The loadout gives 2.
+- **Booster syringe is injected on pickup** (InjectOnPickup) — it no longer takes the consumable slot and pushes out the grenade you carry. Active syringe effects (with time left) and infection are listed on the **map screen** (ShowOnMap).
+- **Lobby pictures** of packs, items and gadgets: white silhouettes of the models, upright and filling the slot (ItemPictureSize 3, ItemPictureTilt). Replaces the broken weapon-icon renderer approach.
+- **Gadget line above health**: "BIO-TRACKER [N] ready / 5 s / found 3", "THERMAL [N] on ×2 / off" (GadgetHud, GadgetHudOpacity, GadgetHudOffset).
+- **Thermal goggles**: no hitch on first use (material found during the elevator drop, drawn once hidden after landing); old-monitor on/off animation with a click.
+- Code: TurretVariants split into files per sentry; shared config migration helper.
+
 ## 0.8.1
 - New module **DoorAlarms**: alarm doors ask for at most **MaxAlarmClass** scans (2 by default — "Class V Alarm" becomes "Class II Alarm"). 0 — as in the game. Everyone needs the same setting.
 - FT1 / FT1-T **hum**: sleepers within 6 m hear it through walls (FogHum, FogHumRadius, FogHumInterval); one that hears it for 8 s in a row wakes up (FogHumWakeAfter). The LT2 beam keeps waking sleepers that stay in it for 3 s (LightWakeAfter).

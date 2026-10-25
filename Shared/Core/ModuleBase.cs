@@ -60,6 +60,17 @@ public abstract class ModuleBase
     protected ConfigEntry<T> Bind<T>(string key, T defaultValue, string description)
         => Config.Bind(Id, key, defaultValue, description);
 
+    /// <summary>A setting in a sub-section of the module ("[Id.sub]") — for modules with several similar parts.</summary>
+    protected ConfigEntry<T> BindIn<T>(string sub, string key, T defaultValue, string description)
+        => Config.Bind($"{Id}.{sub}", key, defaultValue, description);
+
+    /// <summary>
+    /// A setting that replaces older keys: on its first appearance it takes the player's value from the first old key
+    /// found in the file (unless that value is just the old default). Old keys are removed from the file.
+    /// </summary>
+    protected ConfigEntry<T> BindMigrated<T>(string section, string key, T defaultValue, string description, params (string Section, string Key, string OldDefault)[] old)
+        => ConfigMigration.Bind(Config, section, key, defaultValue, description, old);
+
     internal void Enable()
     {
         _harmony = new Harmony($"{ModInfo.Guid}.{Id}");

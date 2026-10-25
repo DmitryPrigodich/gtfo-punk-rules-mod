@@ -1,12 +1,7 @@
-using System;
-using System.Collections.Generic;
 using Agents;
 using Enemies;
 using Gear;
-using GtfoPunk.Core;
-using GtfoPunk.Rules.Core;
 using GameData;
-using HarmonyLib;
 using Il2CppInterop.Runtime.InteropTypes;
 using Player;
 using SNetwork;
@@ -27,9 +22,9 @@ public class SilencedGun : ModuleBase
     public override ModuleSide Side => ModuleSide.Everyone;
     public override IReadOnlyList<string> ReplacedBy => Array.Empty<string>();
 
-    private static BepInEx.Configuration.ConfigEntry<string> _stats, _sound, _guns, _pose;
-    private static BepInEx.Configuration.ConfigEntry<float> _hard, _soft;
-    private static BepInEx.Configuration.ConfigEntry<bool> _softPulse;
+    private static ConfigEntry<string> _stats, _sound, _guns, _pose;
+    private static ConfigEntry<float> _hard, _soft;
+    private static ConfigEntry<bool> _softPulse;
 
     protected override void OnBindConfig()
     {

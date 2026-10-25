@@ -1,8 +1,5 @@
-using System;
 using System.Text.RegularExpressions;
 using GameData;
-using GtfoPunk.Core;
-using GtfoPunk.Rules.Core;
 
 namespace GtfoPunk.Rules.Modules;
 
@@ -17,7 +14,7 @@ public class DoorAlarms : ModuleBase
     public override string Description => "Caps the alarm class of door scans (Class V → Class II by default). Everyone needs it, with the same setting.";
     public override ModuleSide Side => ModuleSide.Everyone;
 
-    private static BepInEx.Configuration.ConfigEntry<int> _maxClass;
+    private static ConfigEntry<int> _maxClass;
 
     protected override void OnBindConfig()
     {
