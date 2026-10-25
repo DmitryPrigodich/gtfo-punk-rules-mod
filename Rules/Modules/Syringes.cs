@@ -78,7 +78,7 @@ public class Syringes : ModuleBase
     {
         private static bool Prefix(LG_PickupItem __instance, int randomSeed)
         {
-            if (!_replaceArtifacts.Value || !GameDataBlockBase<ItemDataBlock>.HasBlock(SyringeItemId)) return true;
+            if (!_replaceArtifacts.Value || Difficulty.Vanilla || !GameDataBlockBase<ItemDataBlock>.HasBlock(SyringeItemId)) return true;
             try
             {
                 __instance.SetupAsConsumable(randomSeed, SyringeItemId);

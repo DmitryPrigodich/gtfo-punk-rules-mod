@@ -96,8 +96,13 @@ public partial class Loadout
         bool on = GadgetOn(_gadgetPerk);
         var pale = new Color(0.82f, 0.9f, 0.95f, a);
         Box(lineRect, new Color(0.02f, 0.05f, 0.08f, 0.55f * a), new Color(pale.r, pale.g, pale.b, 0.45f * a));
-        string name = _gadgetPerk == PerkKind.BioTracker ? Lang.T("BIO-TRACKER", "БИОТРЕКЕР") : Lang.T("THERMAL", "ТЕПЛОВИЗОР");
-        string state = on ? Lang.T("ON", "ВКЛ") : Lang.T("OFF", "ВЫКЛ");
+        string name = _gadgetPerk switch
+        {
+            PerkKind.BioTracker => Lang.T("BIO-TRACKER", "БИОТРЕКЕР"),
+            PerkKind.Hacker => Lang.T("HACKING TOOL", "ВЗЛОМ"),
+            _ => Lang.T("THERMAL", "ТЕПЛОВИЗОР"),
+        };
+        string state = _gadgetPerk == PerkKind.Hacker ? Lang.T("TAKE OUT", "ДОСТАТЬ") : on ? Lang.T("ON", "ВКЛ") : Lang.T("OFF", "ВЫКЛ");
         if (on && _gadgetPerk == PerkKind.Thermal && _zoom > 0.01f) state += $" ×{1f / (1f - _zoom):0.#}";
         GUI.color = pale;
         GUI.Label(new Rect(lineRect.x + lineH * 0.3f, lineRect.y, lineRect.width * 0.6f, lineH), $"{name} [{_gadgetKey.Value.ToUpperInvariant()}]", _gStyle);
@@ -105,7 +110,7 @@ public partial class Loadout
         float nameW = _gStyle.CalcSize(new GUIContent($"{name} [{_gadgetKey.Value.ToUpperInvariant()}]")).x;
         GUI.Label(new Rect(lineRect.x + lineH * 0.3f + nameW + lineH * 0.4f, lineRect.y, lineH * 4f, lineH), state, _gStyle);
 
-        if (_batterySeconds.Value > 0f)
+        if (_batterySeconds.Value > 0f && _gadgetPerk != PerkKind.Hacker)
         {
             // Battery: a framed progress bar on the right, percent next to it.
             float barW = width * 0.3f, barH = lineH * 0.36f;

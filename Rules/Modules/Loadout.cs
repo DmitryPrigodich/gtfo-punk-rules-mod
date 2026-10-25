@@ -29,7 +29,7 @@ public partial class Loadout : ModuleBase
     // ---------- choices ----------
 
     private enum PackKind : byte { None, Ammo, Medi, Tool, Disinfection }
-    private enum PerkKind : byte { None, BioTracker, Thermal }
+    private enum PerkKind : byte { None, BioTracker, Thermal, Hacker } // values travel over the network — never renumber
 
     private static readonly uint[] PackItemIds = { 0, 101, 102, 127, 132 };
 
@@ -243,6 +243,7 @@ public partial class Loadout : ModuleBase
                 if (c != null) iconItem = GadgetIconId(c.Perk);
                 break;
         }
+        if (Difficulty.Vanilla) value = Lang.T("off (default)", "выкл (по умолч.)");
 
         if (slot.m_categoryText != null) slot.m_categoryText.SetText(title);
         if (slot.m_statusText != null) { slot.m_statusText.gameObject.SetActive(true); slot.m_statusText.SetText(value); }
@@ -294,6 +295,7 @@ public partial class Loadout : ModuleBase
     {
         PerkKind.BioTracker => Lang.T("Bio-tracker", "Биотрекер"),
         PerkKind.Thermal => Lang.T("Thermal goggles", "Тепловизор"),
+        PerkKind.Hacker => Lang.T("Hacking tool", "Инструмент взлома"),
         _ => "—",
     };
 
@@ -379,13 +381,16 @@ public partial class Loadout : ModuleBase
             try { GiveAll(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] give: {e}"); }
         }
 
+        // DEFAULT difficulty: no gadgets at all (the hacking tool is everyone's again).
+        var perk = Difficulty.Vanilla ? PerkKind.None : Local().Perk;
+        bool inLevel = state == eGameStateName.InLevel;
         // The thermal material search is a scene-wide scan: do it while the elevator drops, not at first use.
-        if (state == eGameStateName.StopElevatorRide && Local().Perk == PerkKind.Thermal) try { ThermalMaterial(); } catch { }
-        try { ThermalTick(state == eGameStateName.InLevel, Local().Perk == PerkKind.Thermal); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] thermal: {e.Message}"); }
-        try { GadgetHudTick(state == eGameStateName.InLevel, Local().Perk); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] gadget line: {e.Message}"); }
-
-        try { RadarTick(state == eGameStateName.InLevel, Local().Perk == PerkKind.BioTracker); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] bio-tracker: {e.Message}"); }
-        BatteryTick(state == eGameStateName.InLevel, Local().Perk);
+        if (state == eGameStateName.StopElevatorRide && perk == PerkKind.Thermal) try { ThermalMaterial(); } catch { }
+        try { ThermalTick(inLevel, perk == PerkKind.Thermal); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] thermal: {e.Message}"); }
+        try { GadgetHudTick(inLevel, perk); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] gadget line: {e.Message}"); }
+        try { RadarTick(inLevel, perk == PerkKind.BioTracker); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] bio-tracker: {e.Message}"); }
+        try { HackerTick(inLevel, perk == PerkKind.Hacker); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] hacking tool: {e.Message}"); }
+        BatteryTick(inLevel, perk);
     }
 
     private static void ClearStockBoosters()
@@ -411,6 +416,7 @@ public partial class Loadout : ModuleBase
     private static void GiveAll()
     {
         if (!SNet.IsMaster) return;
+        if (Difficulty.Vanilla) { ModInfo.Log.LogInfo("[Loadout] DEFAULT difficulty — no loadout handed out"); return; }
         int players = 0;
         foreach (var p in SNet.Slots.SlottedPlayers.ToArray())
         {
@@ -419,7 +425,9 @@ public partial class Loadout : ModuleBase
             if (c == null) { ModInfo.Log.LogWarning($"[Loadout] no loadout received from {p.NickName} (no mod or old version?) — nothing given"); continue; }
             players++;
             ModInfo.Log.LogInfo($"[Loadout] giving {p.NickName}: {c}");
-            if (c.Pack != PackKind.None) Give(p, PackItemIds[(int)c.Pack], Math.Max(1, _packCharges.Value) * 20f);
+            // Pack fill and item count follow the difficulty (I 100% … VI 0%); nothing below one charge / one item.
+            int charges = Difficulty.Scale(Math.Max(1, _packCharges.Value));
+            if (c.Pack != PackKind.None && charges > 0) Give(p, PackItemIds[(int)c.Pack], charges * 20f);
             if (c.Item != 0) Give(p, c.Item, -1f);
         }
         ModInfo.Log.LogInfo($"[Loadout] handed out loadouts to {players} players");
@@ -439,7 +447,8 @@ public partial class Loadout : ModuleBase
         }
         if (ammo < 0f)
         {
-            ammo = _itemAmount.Value > 0 ? _itemAmount.Value : Math.Max(1, block.ConsumableAmmoMax);
+            ammo = Difficulty.Scale(_itemAmount.Value > 0 ? _itemAmount.Value : Math.Max(1, block.ConsumableAmmoMax));
+            if (ammo < 1f) { ModInfo.Log.LogInfo($"[Loadout] {block.publicName}: none at this difficulty"); return; }
         }
         ModInfo.Log.LogInfo($"[Loadout] spawning {block.publicName} ({itemId}, slot {block.inventorySlot}, ammo {ammo}; level stacks are {block.ConsumableAmmoMin}–{block.ConsumableAmmoMax}) for {player.NickName}");
 

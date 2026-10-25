@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.7
+- New module **Difficulty**: the lobby button (next to READY FOR CAGE DROP) is now DIFFICULTY, picked by the host, sent to everyone:
+  - I Warden's pet — alarm doors just open (no scan), 100% starting ammo (weapons and tool), full pack, full item stack;
+  - II Expendable asset — alarms at most 1 scan, 80%; III Prisoner — 2 scans, 60%; IV Survival odds: low — 3, 40%; V The Complex is hungry — 4, 20%; VI Get the f*** out — 5, 0% (melee only);
+  - DEFAULT (As the Warden intended) — the game's alarms and ammo, no loadout or gadgets, infection as in the game, artifacts stay. New gear stays available.
+  Item counts are rounded (0.4 → none, 0.8 → one). Replaces DoorAlarms.MaxAlarmClass and the ALARM button.
+- New gadget **Hacking tool**: only who picked it can use the hacking tool (N takes it out); the others can't (it's put away, with a note) — break the lock. In DEFAULT everyone has it.
+- New module **ScoutKill**: a scout's scream charges up longer (2 s) and meanwhile the scout takes ×3 damage — kill it then and there's no scream and no wave.
+
 ## 0.9.6
 - **Booster syringe effects didn't work at all**: the game's synced modifier call failed for the player (the log showed "id 0"). Effects are now applied as local modifiers (the log shows each modifier before → after).
 - **Silenced pistol** weaker: own copy of the Arid 5 archetype with 15 damage — a headshot kills a striker or a shooter, a body shot doesn't (SilencedGun.Damage; 0 — Arid 5's own).

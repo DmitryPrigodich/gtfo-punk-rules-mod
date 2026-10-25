@@ -56,6 +56,7 @@ public class Infection : ModuleBase
 
     private static void Tick()
     {
+        if (Difficulty.Vanilla) { StopTremor(); return; } // DEFAULT difficulty: infection as in the game
         TremorTick();
         if (!GameUtil.InLevel || !SNet.IsMaster || Time.time < _nextTick) return;
         const float step = 1f;
