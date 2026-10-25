@@ -23,6 +23,7 @@ public static class Net
     public const byte LoadoutChoice = 1;
     public const byte AmmoFix = 2;
     public const byte Cough = 3;
+    public const byte PartyRules = 4;
 
     public static void On(byte type, Action<ulong, byte[]> handler)
     {

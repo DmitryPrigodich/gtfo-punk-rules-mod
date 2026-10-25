@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.2
+- New **party rules panel** in the lobby (module PartyRules): settings everyone must share, picked by the host right in the lobby — left click — next value, right click — previous; the others see the host's choice (it's sent over the network, their own config is left alone). First rule: **door alarms** — as in the game, or at most I…V scans (DoorAlarms.MaxAlarmClass). The cap can now be changed between levels, also back to "as in the game" (PanelPosition, PanelTextSize, LobbyPanel).
+
 ## 0.9.1
 - Infection: from 70% the view **trembles** slightly, stronger towards 100% (TremorFrom, TremorAmount).
 - Infection: from 50%, after 4 s of running you **gasp for breath** — a quieter noise that unsettles sleepers nearby (6 m) without waking them (BreathFrom, BreathAfterRun, BreathNoiseRadius).

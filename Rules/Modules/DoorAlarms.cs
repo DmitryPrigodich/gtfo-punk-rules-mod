@@ -6,7 +6,7 @@ namespace GtfoPunk.Rules.Modules;
 /// <summary>
 /// Caps the alarm class of security door scans: an alarm puzzle keeps at most MaxAlarmClass scans
 /// ("Class V Alarm" with five scans becomes "Class II Alarm" with two). Non-alarm scans are left alone.
-/// Changes the level data, so everyone needs the same setting.
+/// Changes the level data, so everyone needs the same setting — the host picks it in the lobby (PartyRules panel).
 /// </summary>
 public class DoorAlarms : ModuleBase
 {
@@ -18,35 +18,61 @@ public class DoorAlarms : ModuleBase
 
     protected override void OnBindConfig()
     {
-        _maxClass = Bind("MaxAlarmClass", 2, "Most scans an alarm door may ask for (1, 2, 3…). 0 — no cap (as in the game).");
+        _maxClass = Bind("MaxAlarmClass", 2, "Most scans an alarm door may ask for (1–5). 0 — no cap (as in the game). The host can change it in the lobby (rules panel); the host's value is used for everyone.");
     }
 
-    protected override void OnEnable() => GearFactory.OnInject += Apply;
+    protected override void OnEnable()
+    {
+        GearFactory.OnInject += Snapshot;
+        PartyRules.Register("DoorAlarms.MaxAlarmClass", () => Lang.T("Door alarms", "Тревога дверей"),
+            v => v <= 0 ? Lang.T("as in the game", "как в игре") : Lang.T("max ", "макс. ") + Roman(v), 0, 5, _maxClass, Apply);
+    }
 
-    private static bool _applied;
     private static readonly Regex ClassName = new(@"Class\s+([IVX]+)", RegexOptions.IgnoreCase);
 
-    private static void Apply()
+    /// <summary>The game's own alarm puzzles, kept so the cap can be changed (and lifted) in the lobby.</summary>
+    private class Original
     {
-        if (_applied) return;
-        _applied = true;
-        int max = _maxClass.Value;
-        if (max <= 0) { ModInfo.Log.LogInfo("[DoorAlarms] no cap (MaxAlarmClass = 0)"); return; }
-        int capped = 0, total = 0;
+        public ChainedPuzzleDataBlock Block;
+        public List<ChainedPuzzleComponent> Steps;
+        public string Name;
+    }
+
+    private static readonly List<Original> _originals = new();
+    private static int _applied = -1;
+
+    private static void Snapshot()
+    {
+        if (_originals.Count > 0) return;
         foreach (var block in GameDataBlockBase<ChainedPuzzleDataBlock>.GetAllBlocks())
         {
             if (block == null || !block.TriggerAlarmOnActivate || block.ChainedPuzzle == null) continue;
-            total++;
-            int count = block.ChainedPuzzle.Count;
-            if (count <= max) continue;
-            while (block.ChainedPuzzle.Count > max) block.ChainedPuzzle.RemoveAt(block.ChainedPuzzle.Count - 1);
-            string oldName = block.PublicAlarmName;
-            if (!string.IsNullOrEmpty(oldName))
-                block.PublicAlarmName = ClassName.Replace(oldName, "Class " + Roman(max), 1);
-            capped++;
-            if (capped <= 10) ModInfo.Log.LogInfo($"[DoorAlarms] {block.name}: {count} scans → {max} ('{oldName}' → '{block.PublicAlarmName}')");
+            var steps = new List<ChainedPuzzleComponent>();
+            foreach (var c in block.ChainedPuzzle) steps.Add(c);
+            _originals.Add(new Original { Block = block, Steps = steps, Name = block.PublicAlarmName });
         }
-        ModInfo.Log.LogInfo($"[DoorAlarms] alarm puzzles: {total}, capped to {max} scans: {capped}");
+        ModInfo.Log.LogInfo($"[DoorAlarms] alarm puzzles in the game data: {_originals.Count}");
+        Apply(_maxClass.Value);
+    }
+
+    /// <summary>Restores the game's puzzles, then caps them to max scans (0 — no cap). Takes effect from the next level generation.</summary>
+    private static void Apply(int max)
+    {
+        if (_originals.Count == 0 || max == _applied) return;
+        _applied = max;
+        int capped = 0;
+        foreach (var o in _originals)
+        {
+            var list = o.Block.ChainedPuzzle;
+            list.Clear();
+            foreach (var c in o.Steps) list.Add(c);
+            o.Block.PublicAlarmName = o.Name;
+            if (max <= 0 || o.Steps.Count <= max) continue;
+            while (list.Count > max) list.RemoveAt(list.Count - 1);
+            if (!string.IsNullOrEmpty(o.Name)) o.Block.PublicAlarmName = ClassName.Replace(o.Name, "Class " + Roman(max), 1);
+            capped++;
+        }
+        ModInfo.Log.LogInfo(max <= 0 ? "[DoorAlarms] no cap — alarms as in the game" : $"[DoorAlarms] alarms capped to {max} scans: {capped} of {_originals.Count} puzzles");
     }
 
     private static string Roman(int n)
