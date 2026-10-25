@@ -22,6 +22,7 @@ public static class Net
     /// <summary>Message types (one byte). Keep values stable.</summary>
     public const byte LoadoutChoice = 1;
     public const byte AmmoFix = 2;
+    public const byte Cough = 3;
 
     public static void On(byte type, Action<ulong, byte[]> handler)
     {

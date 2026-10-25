@@ -9,7 +9,10 @@
 - **Grenades and C-Foam Grenades are carried up to 2** (Stack), one per pickup — no more packs of 12 like glow sticks. The loadout gives 2.
 - **Booster syringe is injected on pickup** (InjectOnPickup) — it no longer takes the consumable slot and pushes out the grenade you carry. Active syringe effects (with time left) and infection are listed on the **map screen** (ShowOnMap).
 - **Lobby pictures** of packs, items and gadgets: white silhouettes of the models, upright and filling the slot (ItemPictureSize 3, ItemPictureTilt). Replaces the broken weapon-icon renderer approach.
-- **Gadget line above health**: "BIO-TRACKER [N] ready / 5 s / found 3", "THERMAL [N] on ×2 / off" (GadgetHud, GadgetHudOpacity, GadgetHudOffset).
+- **Bio-tracker gadget is a screen now**: N switches on a motion-tracker screen at the bottom of the view (like the marine tracker in Aliens vs Predator) — a half-circle facing where you look, a pulse every 1.5 s, enemies within 20 m as blips (sleeping — dim, awake — bright), distance to the nearest one (BioRange, BioSweepSeconds, BioScreenSize/Opacity/Bottom, BioThroughWalls, BioSound). **It no longer tags enemies**, so it gives no sentry bonuses (only TB1 and the game's own bio-tracker do). The old pulse and its cooldown are gone (PerkScanInterval, BioTrackerAuto removed; PerkScan* settings moved to Bio*).
+- **Gadget battery**, like the Half-Life flashlight: drains while the gadget is on (90 s), recharges while it's off (45 s), switches the gadget off when empty and won't switch on below 10% (GadgetBatterySeconds, GadgetRechargeSeconds, GadgetMinCharge).
+- **Gadget line above health**: "BIO-TRACKER [N] on 73%", "THERMAL [N] off 100%" (GadgetHud, GadgetHudOpacity, GadgetHudOffset).
+- New module **Infection**: once infected, infection keeps growing (1% every 2 minutes, up to 95%) until disinfected; from 70% the player coughs every 25–50 s (twice as often near 100%) — a noise sleepers within 10 m notice. Run by the host, coughs are heard by everyone (GrowthPercent, GrowthMinutes, GrowthCap, CoughFrom, CoughIntervalMin/Max, CoughNoiseRadius).
 - **Thermal goggles**: no hitch on first use (material found during the elevator drop, drawn once hidden after landing); old-monitor on/off animation with a click.
 - Code: TurretVariants split into files per sentry; shared config migration helper.
 

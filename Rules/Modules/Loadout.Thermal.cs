@@ -59,7 +59,11 @@ public partial class Loadout
         if (_thermalPrewarming) return;
 
         if (ChatOpen()) return;
-        if (GadgetKeyDown()) { _zoom = Mathf.Clamp(_thermalZoom.Value, 0f, 0.99f); SetThermal(!_thermalOn); }
+        if (GadgetKeyDown())
+        {
+            if (_thermalOn) SetThermal(false);
+            else if (CanSwitchOn()) { _zoom = Mathf.Clamp(_thermalZoom.Value, 0f, 0.99f); SetThermal(true); }
+        }
         if (_thermalOn && Enum.TryParse<KeyCode>(_thermalZoomKey.Value, true, out var zk) && Input.GetKeyDown(zk))
         {
             var levels = new List<float>();

@@ -20,8 +20,6 @@ public partial class Loadout
     }
 
     private static TMPro.TextMeshPro _gadgetText;
-    private static int _lastFound = -1;
-    private static float _lastFoundAt = -10f;
 
     private static void GadgetHudTick(bool inLevel, PerkKind perk)
     {
@@ -31,21 +29,17 @@ public partial class Loadout
         if (!_gadgetText.gameObject.activeSelf) _gadgetText.gameObject.SetActive(true);
 
         string key = _gadgetKey.Value.ToUpperInvariant();
-        string state;
-        if (perk == PerkKind.BioTracker)
+        bool on = GadgetOn(perk);
+        string name = perk == PerkKind.BioTracker ? Lang.T("BIO-TRACKER", "БИОТРЕКЕР") : Lang.T("THERMAL", "ТЕПЛОВИЗОР");
+        string state = on ? $"<color=#ffb347>{Lang.T("on", "вкл")}</color>" : Lang.T("off", "выкл");
+        if (on && perk == PerkKind.Thermal && _zoom > 0.01f) state += $" ×{1f / (1f - _zoom):0.#}";
+        if (_batterySeconds.Value > 0f)
         {
-            float left = _nextScan - Time.time;
-            if (Time.time - _lastFoundAt < 2.5f && _lastFound >= 0)
-                state = _lastFound > 0 ? $"<color=#ff8a5c>{Lang.T("found", "найдено")} {_lastFound}</color>" : Lang.T("nothing", "пусто");
-            else if (_bioAuto.Value) state = Lang.T("auto", "авто");
-            else state = left > 0f ? $"{Mathf.CeilToInt(left)} {Lang.T("s", "с")}" : $"<color=#8fe08f>{Lang.T("ready", "готов")}</color>";
-            state = $"{Lang.T("BIO-TRACKER", "БИОТРЕКЕР")} [{key}]  {state}";
+            int pct = Mathf.CeilToInt(_charge * 100f);
+            string col = _charge < Mathf.Clamp01(_minCharge.Value) ? "#e05a4f" : _charge < 0.35f ? "#e0c04f" : "#8fe08f";
+            state += $"  <color={col}>{pct}%</color>";
         }
-        else
-        {
-            string on = _thermalOn ? $"<color=#ffb347>{Lang.T("on", "вкл")}</color>" + (_zoom > 0.01f ? $" ×{1f / (1f - _zoom):0.#}" : "") : Lang.T("off", "выкл");
-            state = $"{Lang.T("THERMAL", "ТЕПЛОВИЗОР")} [{key}]  {on}";
-        }
+        state = $"{name} [{key}]  {state}";
         if (_gadgetText.text != state) _gadgetText.SetText(state);
     }
 

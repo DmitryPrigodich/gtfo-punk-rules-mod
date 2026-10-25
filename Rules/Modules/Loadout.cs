@@ -44,17 +44,16 @@ public partial class Loadout : ModuleBase
     private static ConfigEntry<string> _pack, _perk, _itemChoices, _botPack;
     private static ConfigEntry<uint> _item, _botItem;
     private static ConfigEntry<int> _packCharges, _itemAmount;
-    private static ConfigEntry<bool> _blockBoosters, _perkWalls, _perkSound, _bioAuto;
+    private static ConfigEntry<bool> _blockBoosters;
     private static ConfigEntry<string> _gadgetKey;
-    private static ConfigEntry<float> _giveDelay, _perkInterval, _perkRange;
+    private static ConfigEntry<float> _giveDelay;
 
     protected override void OnBindConfig()
     {
         _pack = Bind("Pack", "Ammo", "Your resource pack (also set by clicking the 1st booster slot in the lobby): None, Ammo, Medi, Tool, Disinfection.");
         _item = Bind("Item", 136u, "Your extra item, an item ID (also set by clicking the 2nd booster slot). 0 — none.");
         _perk = Bind("Perk", "BioTracker", "Your gadget (also set by clicking the 3rd booster slot): BioTracker, Thermal.");
-        _gadgetKey = Bind("GadgetKey", "N", "Key that uses the gadget: thermal goggles on/off, or a bio-tracker pulse (Unity KeyCode name).");
-        _bioAuto = Bind("BioTrackerAuto", false, "Bio-tracker gadget pulses by itself every PerkScanInterval seconds. false — only when you press the gadget key (with that cooldown).");
+        _gadgetKey = Bind("GadgetKey", "N", "Key that switches the gadget on/off: thermal goggles or the bio-tracker screen (Unity KeyCode name).");
         _itemChoices = Bind("ItemChoices", "136,115,139,144,117,114,116,140",
             "Items the 2nd slot cycles through (item IDs): 136 grenade, 115 C-foam grenade, 139 explosive trip mine, 144 C-foam trip mine, 117 fog repeller, 114 glow sticks, 116 lock melter, 140 I2-LP syringe.");
         _packCharges = Bind("PackCharges", 5, "Charges in the pack you get (a full pack is 5).");
@@ -63,13 +62,12 @@ public partial class Loadout : ModuleBase
         _botItem = Bind("BotItem", 0u, "Extra item the host gives each bot (item ID, 0 — none).");
         _giveDelay = Bind("GiveDelay", 3f, "Seconds after drop-in before the host hands out the loadout.");
         _blockBoosters = Bind("BlockStockBoosters", true, "Stock boosters can't be selected (already selected ones are unselected, not used up).");
-        _perkInterval = Bind("PerkScanInterval", 8f, "Bio-tracker gadget: cooldown between pulses (s).");
-        _perkRange = Bind("PerkScanRange", 15f, "Bio-tracker gadget: pulse radius (m).");
-        _perkWalls = Bind("PerkThroughWalls", true, "Bio-tracker gadget sees through walls.");
-        _perkSound = Bind("PerkSound", true, "Bio-tracker gadget beeps when it finds enemies.");
+        BindBattery();
+        BindRadar();
         BindThermal();
         BindIcons();
         BindGadgetHud();
+        ConfigMigration.DropOrphans(Config, Id); // PerkScanInterval, BioTrackerAuto … (the pulse is gone)
     }
 
     protected override void OnEnable()
@@ -346,7 +344,7 @@ public partial class Loadout : ModuleBase
     // ---------- tick ----------
 
     private static eGameStateName _lastState;
-    private static float _giveAt = -1f, _nextLobbyCheck, _nextScan;
+    private static float _giveAt = -1f, _nextLobbyCheck;
     private static bool _boostersCleared;
 
     private static void Tick()
@@ -385,18 +383,8 @@ public partial class Loadout : ModuleBase
         try { ThermalTick(state == eGameStateName.InLevel, Local().Perk == PerkKind.Thermal); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] thermal: {e.Message}"); }
         try { GadgetHudTick(state == eGameStateName.InLevel, Local().Perk); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] gadget line: {e.Message}"); }
 
-        // Bio-tracker gadget: a pulse on the gadget key (or by itself with BioTrackerAuto), with a cooldown.
-        if (state == eGameStateName.InLevel && Local().Perk == PerkKind.BioTracker)
-        {
-            bool want = _bioAuto.Value || (GadgetKeyDown() && !ChatOpen());
-            if (want && Time.time >= _nextScan)
-            {
-                _nextScan = Time.time + Math.Max(1f, _perkInterval.Value);
-                try { PerkScan(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] bio-tracker: {e.Message}"); }
-            }
-            else if (want && !_bioAuto.Value && _cooldownLogs++ < 3)
-                ModInfo.Log.LogInfo($"[Loadout] bio-tracker gadget recharging: {(_nextScan - Time.time):0.#} s");
-        }
+        try { RadarTick(state == eGameStateName.InLevel, Local().Perk == PerkKind.BioTracker); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] bio-tracker: {e.Message}"); }
+        BatteryTick(state == eGameStateName.InLevel, Local().Perk);
     }
 
     private static void ClearStockBoosters()
@@ -539,40 +527,11 @@ public partial class Loadout : ModuleBase
         return true;
     }
 
-    private static int _cooldownLogs;
-
     internal static bool GadgetKeyDown() => Enum.TryParse<KeyCode>(_gadgetKey.Value, true, out var key) && Input.GetKeyDown(key);
 
     /// <summary>Don't react to keys while the player types in chat.</summary>
     internal static bool ChatOpen()
     {
         try { return PlayerChatManager.InChatMode; } catch { return false; }
-    }
-
-    // ---------- gadget: bio-tracker pulse ----------
-
-    private static int _perkLogs;
-
-    private static void PerkScan()
-    {
-        var agent = GameUtil.LocalAgent;
-        if (agent == null || !agent.Alive) return;
-        var origin = agent.EyePosition;
-        var seen = new HashSet<IntPtr>();
-        int count = 0, tagged = 0;
-        foreach (var col in Physics.OverlapSphere(origin, _perkRange.Value, LayerManager.MASK_ENEMY_DAMAGABLE))
-        {
-            var enemy = col == null ? null : col.GetComponent<Dam_EnemyDamageLimb>()?.GlueTargetEnemyAgent;
-            if (enemy == null || !enemy.Alive || !seen.Add(enemy.Pointer)) continue;
-            if (!_perkWalls.Value && Physics.Linecast(origin, enemy.EyePosition, LayerManager.MASK_WORLD)) continue;
-            count++;
-            if (enemy.IsTagged) continue;
-            ToolSyncManager.WantToTagEnemy(enemy);
-            tagged++;
-        }
-        _lastFound = count;
-        _lastFoundAt = Time.time;
-        if (count > 0 && _perkSound.Value) CellSound.Post(AK.EVENTS.BIOTRACKER_TAG, origin);
-        if (count > 0 && _perkLogs++ < 10) ModInfo.Log.LogInfo($"[Loadout] bio-tracker gadget: {count} enemies within {_perkRange.Value:0} m, newly tagged {tagged}");
     }
 }
