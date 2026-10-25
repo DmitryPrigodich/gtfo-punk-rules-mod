@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.1
+- Infection: from 70% the view **trembles** slightly, stronger towards 100% (TremorFrom, TremorAmount).
+- Infection: from 50%, after 4 s of running you **gasp for breath** — a quieter noise that unsettles sleepers nearby (6 m) without waking them (BreathFrom, BreathAfterRun, BreathNoiseRadius).
+- Infection: optional, off by default — disinfection removes only part of the infection (DisinfectionStrength, 1 = as in the game) and pauses the growth for a while (DisinfectionPauseMinutes, 0 = no pause).
+
 ## 0.9.0
 - **Config: every sentry has its own section** — `[TurretVariants.Searchlight]`, `[TurretVariants.FogRepeller]`, `[TurretVariants.FogTurbine]`, `[TurretVariants.BioTracker]`, `[TurretVariants.Foam]`, `[TurretVariants.Grenade]` — with the same keys for each: Enabled, Name, Label, ModelOffset, ModelRotation, ModelScale (+ BatterySeconds, Hum…, Parts, kind-specific settings). Old values are moved over automatically, old keys removed. `[TurretVariants]` keeps only the shared settings.
 - Sentries renamed: **DRED GARAGE TL1** (searchlight), **TF I** (fog repeller), **TF II** (fog turbine), **TB1** (bio-tracker), **TCF3** (foam), **TGL3** (grenade launcher). Names and screen labels are in the config.
