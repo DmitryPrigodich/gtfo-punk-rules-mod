@@ -47,6 +47,7 @@ public partial class Loadout
 
     private static readonly Dictionary<uint, Sprite> _iconSprites = new();
     private static string _iconDir;
+    private static int _iconMissLogs;
 
     /// <summary>The drawn icon for the key, sized like the item pictures; null if there's no file.</summary>
     private static Sprite IconFile(uint id, Sprite reference)
@@ -54,11 +55,15 @@ public partial class Loadout
         if (!_iconFiles.Value) return null;
         if (_iconSprites.TryGetValue(id, out var s)) return s;
         _iconSprites[id] = null;
-        _iconDir ??= System.IO.Path.Combine(System.IO.Path.GetDirectoryName(typeof(Loadout).Assembly.Location) ?? "", "icons");
+        // r2modman puts the package's files flat next to the DLL; a manual install may keep the icons folder.
+        _iconDir ??= System.IO.Path.GetDirectoryName(typeof(Loadout).Assembly.Location) ?? "";
         string name = IconFiles.TryGetValue(id, out var n) ? n : id.ToString();
-        string path = System.IO.Path.Combine(_iconDir, name + ".png");
-        if (!System.IO.File.Exists(path)) path = System.IO.Path.Combine(_iconDir, id + ".png");
-        if (!System.IO.File.Exists(path)) return null;
+        string path = new[]
+        {
+            System.IO.Path.Combine(_iconDir, "icons", name + ".png"), System.IO.Path.Combine(_iconDir, name + ".png"),
+            System.IO.Path.Combine(_iconDir, "icons", id + ".png"), System.IO.Path.Combine(_iconDir, id + ".png"),
+        }.FirstOrDefault(System.IO.File.Exists);
+        if (path == null) { if (_iconMissLogs++ < 3) ModInfo.Log.LogInfo($"[Loadout] no icon file {name}.png in {_iconDir}"); return null; }
         var tex = Png.Load(path);
         if (tex == null) return null;
         float refWidth = reference != null ? reference.bounds.size.x : 1f;

@@ -3,9 +3,9 @@ using Enemies;
 namespace GtfoPunk.Rules.Modules;
 
 /// <summary>
-/// Scouts can be stopped: the scream's charge-up lasts a bit longer (ScreamChargeup, the game's is shorter) and while
-/// it charges the scout takes more damage (ChargeupDamage) — kill it in those first seconds and there's no scream and
-/// no wave. Once the scream goes off — as in the game. Everyone needs it (the host runs the enemies).
+/// Scouts can be stopped: from the moment a scout catches you (its feelers) until the scream goes off it takes more
+/// damage (ChargeupDamage); the charge-up can be made longer (ScreamChargeup) — kill it in that window and there's no
+/// scream and no wave. Once the scream goes off — as in the game. Everyone needs it (the host runs the enemies).
 /// </summary>
 public class ScoutKill : ModuleBase
 {
@@ -18,7 +18,7 @@ public class ScoutKill : ModuleBase
     protected override void OnBindConfig()
     {
         _chargeup = Bind("ScreamChargeup", 2f, "Seconds a scout charges its scream before it goes off (at least the game's own). 0 — as in the game.");
-        _damage = Bind("ChargeupDamage", 3f, "Damage multiplier on a scout while its scream charges up. 1 — normal.");
+        _damage = Bind("ChargeupDamage", 3f, "Damage multiplier on a scout from the moment it catches you until the scream goes off. 1 — normal.");
     }
 
     protected override void OnEnable() => FrameTicker.OnUpdate += Tick;
@@ -50,11 +50,18 @@ public class ScoutKill : ModuleBase
             try
             {
                 var loco = __instance.Owner?.Locomotion;
-                if (loco == null || loco.CurrentStateEnum != ES_StateEnum.ScoutScream) return;
-                var scream = loco.ScoutScream;
-                if (scream == null || scream.m_state != ES_ScoutScream.ScoutScreamState.Chargeup) return;
+                if (loco == null) return;
+                // From the moment it catches you (its feelers) until the scream goes off.
+                var st = loco.CurrentStateEnum;
+                bool window = st == ES_StateEnum.ScoutDetection;
+                if (st == ES_StateEnum.ScoutScream)
+                {
+                    var scream = loco.ScoutScream;
+                    window = scream != null && (scream.m_state == ES_ScoutScream.ScoutScreamState.Setup || scream.m_state == ES_ScoutScream.ScoutScreamState.Chargeup);
+                }
+                if (!window) return;
                 damage *= _damage.Value;
-                if (_logs++ < 5) ModInfo.Log.LogInfo($"[ScoutKill] hit while charging the scream: ×{_damage.Value:0.#} → {damage:0.#}");
+                if (_logs++ < 5) ModInfo.Log.LogInfo($"[ScoutKill] hit in the window ({st}): ×{_damage.Value:0.#} → {damage:0.#}");
             }
             catch { }
         }

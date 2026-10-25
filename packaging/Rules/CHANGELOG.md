@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.8
+- Lobby: next to the DIFFICULTY button — what the chosen level means (alarm doors, ammo / pack / items). **Right click** on a lobby rule button steps back.
+- Lobby icons: also found next to the DLL (r2modman puts the `icons` folder's files there).
+- Booster syringe in a locker: it's picked up as usual (so it works in lockers) and the "picked up" state just removes it — it no longer stays in place after the injection, and doesn't go to the consumable slot.
+- Hand grenade: in hand it uses the C-Foam Grenade's own models and throwing animation (the glow stick's hand model never showed the grenade). Grenades.HandModels.
+- ScoutKill: the window is longer — from the moment the scout catches you (its feelers) until the scream goes off (it was only the charge-up).
+- Map screen: the booster effects are under the legend (left, middle).
+- The version line under the game's watermark: added by a hook on the watermark update instead of a scene search every few seconds (a possible source of hitches).
+
 ## 0.9.7
 - New module **Difficulty**: the lobby button (next to READY FOR CAGE DROP) is now DIFFICULTY, picked by the host, sent to everyone:
   - I Warden's pet — alarm doors just open (no scan), 100% starting ammo (weapons and tool), full pack, full item stack;

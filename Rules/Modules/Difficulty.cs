@@ -44,7 +44,7 @@ public class Difficulty : ModuleBase
 
     protected override void OnEnable()
     {
-        PartyRules.Register("Difficulty.Level", () => Lang.T("Difficulty", "Сложность"), Name, Default, Max, _level, Apply);
+        PartyRules.Register("Difficulty.Level", () => Lang.T("Difficulty", "Сложность"), Name, Default, Max, _level, Apply, Describe);
     }
 
     private static void Apply(int level)
@@ -67,6 +67,18 @@ public class Difficulty : ModuleBase
         6 => Lang.T("Get the f*** out (VI)", "Вали отсюда на… (VI)"),
         _ => Lang.T("As the Warden intended (default)", "Как задумал Смотритель (по умолчанию)"),
     };
+
+    /// <summary>Two short lines shown next to the lobby button.</summary>
+    public static string Describe(int level)
+    {
+        if (level <= Default) return Lang.T("Alarms and ammo as in the game\nNo loadout, no gadgets", "Тревоги и патроны как в игре\nБез снаряжения и гаджетов");
+        int scans = level - 1, pct = (Max - level) * 20;
+        string alarm = scans == 0 ? Lang.T("Alarm doors open without a scan", "Двери с тревогой — без скана")
+                                  : Lang.T($"Alarm doors: up to {scans} scan{(scans > 1 ? "s" : "")}", $"Двери с тревогой: до {scans} скан{(scans == 1 ? "а" : "ов")}");
+        string res = pct == 0 ? Lang.T("No ammo, packs or items — melee only", "Без патронов, пачек и предметов — только милишка")
+                              : Lang.T($"Ammo, pack and items: {pct}%", $"Патроны, пачка и предметы: {pct}%");
+        return alarm + "\n" + res;
+    }
 
     /// <summary>A stack scaled by the difficulty share, rounded (half up); below one — nothing.</summary>
     public static int Scale(int full) => (int)Math.Round(full * Share, MidpointRounding.AwayFromZero);

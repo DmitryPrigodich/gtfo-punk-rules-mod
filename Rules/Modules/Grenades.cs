@@ -32,6 +32,7 @@ public class Grenades : ModuleBase
     private static ConfigEntry<bool> _inLevels, _diag, _hitEnemies, _blastFx;
     private static ConfigEntry<float> _proximity, _noiseRadius, _shake;
     private static ConfigEntry<int> _stack;
+    private static ConfigEntry<bool> _handModels;
     private static ConfigEntry<float> _weight, _turretRadius, _turretDamage, _turretFuse, _handRadius, _handDamage, _handDelay;
     private static ConfigEntry<string> _nameEn, _nameRu;
 
@@ -41,6 +42,7 @@ public class Grenades : ModuleBase
         _weight = Bind("SpawnWeight", 0.6f, "How often a grenade shows up: fraction of the average consumable weight in the level distribution (1 — like a regular consumable).");
         _nameEn = Bind("NameEn", "Frag Grenade", "Grenade name (English).");
         _nameRu = Bind("NameRu", "Граната", "Grenade name (Russian).");
+        _handModels = Bind("HandModels", true, "In hand the grenade uses the C-Foam Grenade's own models and throwing animation.");
         _stack = Bind("Stack", 2, "How many hand grenades (and C-Foam Grenades) a player can carry. Level pickups hold 1. 0 — as in the game.");
         _handRadius = BindMigrated(Id, "HandBlastRadius", 8f, "Hand grenade blast radius (m). 0 — as designed in the game.", (Id, "HandRadius", "0"));
         _handDamage = BindMigrated(Id, "HandBlastDamage", 120f, "Hand grenade damage at the center. 0 — as designed in the game.", (Id, "HandDamage", "0"));
@@ -96,6 +98,15 @@ public class Grenades : ModuleBase
         var look = GameDataBlockBase<ItemDataBlock>.GetBlock(LookItemId);
         if (look != null && !string.IsNullOrEmpty(look.HUDIcon)) item.HUDIcon = look.HUDIcon;
 
+        // In hand (first and third person) use the C-Foam Grenade's own models and throwing script: the glow stick's
+        // hand model can't carry a grenade look (it never showed). What gets thrown is still item 136's grenade.
+        if (look != null && _handModels.Value)
+        {
+            item.FirstPersonPrefabs = look.FirstPersonPrefabs;
+            item.ThirdPersonPrefabs = look.ThirdPersonPrefabs;
+            ModInfo.Log.LogInfo($"[Grenades] in hand: C-Foam Grenade models ({look.FirstPersonPrefabs?.Count ?? 0} first person, {look.ThirdPersonPrefabs?.Count ?? 0} third person)");
+        }
+
         // Carried like C-Foam Grenades (one per pickup, a few in the pocket), not like a pack of glow sticks.
         if (_stack.Value > 0)
             foreach (var b in new[] { item, look })
@@ -135,6 +146,7 @@ public class Grenades : ModuleBase
         {
             var dict = perMode[m];
             if (dict == null || !dict.ContainsKey(id) || !dict.ContainsKey(LookItemId)) continue;
+            if (_handModels.Value && id == GrenadeItemId && (m == (int)ItemMode.FirstPerson || m == (int)ItemMode.ThirdPerson)) continue; // already the foam grenade's
             GameObject src = null;
             foreach (var cand in dict[LookItemId])
                 if (cand != null && cand.GetComponentsInChildren<Renderer>(true).Length > 0) { src = cand; break; }

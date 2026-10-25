@@ -26,6 +26,7 @@ public class PartyRules : ModuleBase
         public int Min, Max;
         public ConfigEntry<int> Config;
         public Action<int> Apply;
+        public Func<int, string> Describe; // optional: what the current value means, shown next to the button
         public int Value;
     }
 
@@ -33,9 +34,9 @@ public class PartyRules : ModuleBase
     private static ConfigEntry<bool> _panel;
 
     /// <summary>Adds a rule (call from a module's OnEnable). Its current value is applied right away.</summary>
-    public static Rule Register(string key, Func<string> title, Func<int, string> format, int min, int max, ConfigEntry<int> config, Action<int> apply)
+    public static Rule Register(string key, Func<string> title, Func<int, string> format, int min, int max, ConfigEntry<int> config, Action<int> apply, Func<int, string> describe = null)
     {
-        var r = new Rule { Key = key, Title = title, Format = format, Min = min, Max = max, Config = config, Apply = apply };
+        var r = new Rule { Key = key, Title = title, Format = format, Min = min, Max = max, Config = config, Apply = apply, Describe = describe };
         r.Value = Mathf.Clamp(config.Value, min, max);
         _rules.Add(r);
         return r;
@@ -100,7 +101,7 @@ public class PartyRules : ModuleBase
 
     // ---------- lobby buttons: copies of the lobby's own button, to the right of READY FOR CAGE DROP ----------
 
-    private class View { public GameObject Go; public CellMenu.CM_Item Item; }
+    private class View { public GameObject Go; public CellMenu.CM_Item Item; public TMPro.TextMeshPro Info; public bool Hover; }
 
     private static readonly List<View> _views = new();
     private static CellMenu.CM_PageLoadout _viewPage;
@@ -129,16 +130,27 @@ public class PartyRules : ModuleBase
             string text = $"{r.Title()}\n{r.Format(r.Value)}".ToUpperInvariant();
             var tmp = _views[i].Item.m_texts != null && _views[i].Item.m_texts.Length > 0 ? _views[i].Item.m_texts[0] : null;
             if (tmp != null && tmp.text != text) tmp.SetText(text);
+            var info = _views[i].Info;
+            if (info != null && r.Describe != null)
+            {
+                string d = r.Describe(r.Value);
+                if (info.text != d) info.SetText(d);
+            }
+            // Right click on a button — one step back.
+            if (_views[i].Hover && Input.GetMouseButtonDown(1)) Step(i, -1);
         }
     }
 
-    private static void Clicked(int index)
+    private static void Clicked(int index) => Step(index, +1);
+
+    private static void Step(int index, int dir)
     {
         if (index < 0 || index >= _rules.Count) return;
         if (!(SNet.IsMaster || !SNet.HasMaster)) { ModInfo.Log.LogInfo("[PartyRules] only the host changes the rules"); return; }
         var r = _rules[index];
-        int next = r.Value + 1;
+        int next = r.Value + dir;
         if (next > r.Max) next = r.Min;
+        if (next < r.Min) next = r.Max;
         r.Config.Value = next;
         Set(r, next, "host clicked");
         if (SNet.IsMaster) Broadcast();
@@ -151,7 +163,7 @@ public class PartyRules : ModuleBase
         if (_viewPage == page && _views.Count == _rules.Count && _views.All(v => v.Go != null)) return true;
         if (Time.time < _nextViewTry) return false;
         _nextViewTry = Time.time + 2f;
-        foreach (var v in _views) if (v.Go != null) UnityEngine.Object.Destroy(v.Go);
+        foreach (var v in _views) { if (v.Go != null) UnityEngine.Object.Destroy(v.Go); if (v.Info != null) UnityEngine.Object.Destroy(v.Info.gameObject); }
         _views.Clear();
 
         var src = page.m_changeLoadoutButton ?? page.m_copyLobbyIdButton;
@@ -181,7 +193,34 @@ public class PartyRules : ModuleBase
             var shift = new Vector3(x + gap - box.min.x, readyBox.center.y - box.center.y, 0f);
             go.transform.localPosition += shift;
             x += gap + box.size.x;
-            _views.Add(new View { Go = go, Item = item });
+            var view = new View { Go = go, Item = item };
+            try
+            {
+                item.OnBtnHoverChanged = DelegateSupport.ConvertDelegate<Il2CppSystem.Action<int, bool>>(new Action<int, bool>((_, on) => view.Hover = on));
+            }
+            catch (Exception e) { ModInfo.Log.LogWarning($"[PartyRules] hover: {e.Message}"); }
+
+            // What the value means: a smaller text to the right of the button.
+            if (_rules[i].Describe != null && item.m_texts != null && item.m_texts.Length > 0 && item.m_texts[0] != null)
+            {
+                var src0 = item.m_texts[0];
+                var tp = src0.transform.parent; // same space as the button's own text (same scale)
+                var infoGo = UnityEngine.Object.Instantiate(src0.gameObject, tp, false);
+                infoGo.name = go.name + "_Info";
+                var info = infoGo.GetComponent<TMPro.TextMeshPro>();
+                info.enableAutoSizing = false;
+                info.enableWordWrapping = false;
+                info.fontSize = src0.fontSize * 0.6f;
+                info.alignment = TMPro.TextAlignmentOptions.MidlineLeft;
+                info.rectTransform.pivot = new Vector2(0f, 0.5f);
+                info.SetText(_rules[i].Describe(_rules[i].Value));
+                var b2 = LocalBox(go, tp);
+                var bb = LocalBox(go, parent);
+                infoGo.transform.localPosition = new Vector3(b2.max.x + (b2.size.y * 0.3f), b2.center.y, infoGo.transform.localPosition.z);
+                view.Info = info;
+                x += gap + bb.size.x * 1.3f; // room for the text before the next button
+            }
+            _views.Add(view);
         }
         _viewPage = page;
         ModInfo.Log.LogInfo($"[PartyRules] lobby buttons made: {_views.Count} (copy of {src.GetIl2CppType().Name} '{src.name}'), next to '{ready.name}'");

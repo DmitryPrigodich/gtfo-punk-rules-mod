@@ -93,6 +93,27 @@ public class Syringes : ModuleBase
 
     // ---------- injection ----------
 
+    /// <summary>
+    /// Everyone: a booster syringe that gets "picked up" just disappears (the injection already happened on the
+    /// picker's side) — it doesn't go into anyone's consumable slot, so whatever they carry stays.
+    /// </summary>
+    [HarmonyPatch(typeof(ConsumablePickup_Core), nameof(ConsumablePickup_Core.OnSyncStateChange))]
+    private static class Patch_State
+    {
+        private static bool Prefix(ConsumablePickup_Core __instance, ePickupItemStatus status, bool isRecall)
+        {
+            try
+            {
+                if (!_onPickup.Value || status != ePickupItemStatus.PickedUp || isRecall) return true;
+                if ((__instance.ItemDataBlock?.persistentID ?? 0) != SyringeItemId) return true;
+                __instance.gameObject.SetActive(false);
+                ModInfo.Log.LogInfo("[Syringes] used syringe removed from the level");
+                return false;
+            }
+            catch (Exception e) { ModInfo.Log.LogWarning($"[Syringes] state: {e.Message}"); return true; }
+        }
+    }
+
     /// <summary>Use on pickup: the effects right away, the syringe disappears instead of going to the consumable slot.</summary>
     [HarmonyPatch(typeof(ConsumablePickup_Core), nameof(ConsumablePickup_Core.OnInteractionPickUp))]
     private static class Patch_Pickup
@@ -105,10 +126,11 @@ public class Syringes : ModuleBase
                 if ((__instance.ItemDataBlock?.persistentID ?? 0) != SyringeItemId) return true;
                 var sync = __instance.GetSyncComponent();
                 if (sync == null) return true;
-                // Out of the level (a level pickup can't be despawned like gear).
-                sync.AttemptPickupInteraction(ePickupItemInteractionType.Place, player.Owner, sync.GetCustomData(), new Vector3(0f, -5000f, 0f), Quaternion.identity);
+                // Picked up as usual (works in lockers too), but the "picked up" state hides it instead of putting it
+                // into the consumable slot — see Patch_State.
+                sync.AttemptPickupInteraction(ePickupItemInteractionType.Pickup, player.Owner, sync.GetCustomData());
                 try { CellSound.Post(AK.EVENTS.SYRINGE_USE, player.Position); } catch { }
-                ModInfo.Log.LogInfo("[Syringes] syringe injected on pickup (moved out of the level)");
+                ModInfo.Log.LogInfo("[Syringes] syringe injected on pickup");
                 ApplyRandomBooster();
                 return false;
             }
@@ -294,7 +316,7 @@ public class Syringes : ModuleBase
     private static TMPro.TextMeshPro _map;
 
     /// <summary>
-    /// Map screen, left, above the legend: "BOOSTER" and one line per effect — name, total change, time left.
+    /// Map screen, left, under the legend: "BOOSTER" and one line per effect — name, total change, time left.
     /// Effects of several syringes add up (opposite ones cancel out); each keeps its own time.
     /// </summary>
     private static void UpdateMap()
@@ -310,21 +332,22 @@ public class Syringes : ModuleBase
             go.name = "GtfoPunk_MapEffects";
             _map = go.GetComponent<TMPro.TextMeshPro>();
             if (_map == null) { UnityEngine.Object.Destroy(go); return; }
-            _map.alignment = TMPro.TextAlignmentOptions.BottomLeft;
+            _map.alignment = TMPro.TextAlignmentOptions.TopLeft;
             _map.enableWordWrapping = false;
-            _map.rectTransform.pivot = new Vector2(0f, 0f);
-            // Bottom-left corner just above the legend's top-left.
-            float top = float.MinValue, left = float.MaxValue, z = legend.transform.position.z;
+            _map.rectTransform.pivot = new Vector2(0f, 1f);
+            // Left side, in the middle: just under the legend (its top-left corner below the legend's bottom-left).
+            float bottom = float.MaxValue, left = float.MaxValue, top = float.MinValue, z = legend.transform.position.z;
             foreach (var r in legend.GetComponentsInChildren<Renderer>(false))
             {
                 if (r == null || !r.enabled) continue;
+                bottom = Math.Min(bottom, r.bounds.min.y);
                 top = Math.Max(top, r.bounds.max.y);
                 left = Math.Min(left, r.bounds.min.x);
             }
-            if (top == float.MinValue) { top = legend.transform.position.y; left = legend.transform.position.x; }
-            float gap = (top - legend.transform.position.y) * 0.15f;
-            go.transform.position = new Vector3(left, top + Math.Max(0f, gap), z);
-            ModInfo.Log.LogInfo($"[Syringes] map effects text added above the legend");
+            if (bottom == float.MaxValue) { bottom = legend.transform.position.y; left = legend.transform.position.x; top = bottom; }
+            float gap = Math.Max(0f, top - bottom) * 0.06f;
+            go.transform.position = new Vector3(left, bottom - gap, z);
+            ModInfo.Log.LogInfo($"[Syringes] map effects text added under the legend");
         }
         var sb = new System.Text.StringBuilder();
         if (_active.Count > 0)
