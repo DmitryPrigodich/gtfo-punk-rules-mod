@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.3
+- Fixed: **TF I / TF II sentries piled up copies of their model** every frame (the set-up was retried after the model was already attached).
+- Party rules panel: now in the middle at the top of the lobby, in the game's own font, capitals, framed (the position setting was read wrong — it was stuck in the corner). New keys PanelPlace, PanelTextSize.
+- **Bio-tracker screen** restyled after the game's bio-tracker (dark glass, pale lines, red blips), smaller, and by default sits **above health, in place of the booster icons** (BioScreenPlace = health / bottom, BioScreenRadius, BioScreenShift); a battery bar along its base.
+- **Gadget line** (name, on/off, battery bar ||||||···· and %) moved to where the stock booster icons were, bigger; the booster icons are hidden (HideBoosterIcons, GadgetHudSize, GadgetHudShift). It used to sit right on top of the health readout because of the same position bug.
+- Lobby slots: **text only** by default; model pictures are an option (ItemPictures).
+- Hand grenade: the C-Foam look now moves with the throwing hand (it stayed in place and jumped out at the end).
+- Grenade explosions: the tripmine's own explosion and flash effects (they weren't found before); an explosion is also caught when the grenade just disappears (the hand grenade didn't always report it).
+- In-game texts follow the game's language by default ([General] TextLanguage = auto / en / ru).
+
 ## 0.9.2
 - New **party rules panel** in the lobby (module PartyRules): settings everyone must share, picked by the host right in the lobby — left click — next value, right click — previous; the others see the host's choice (it's sent over the network, their own config is left alone). First rule: **door alarms** — as in the game, or at most I…V scans (DoorAlarms.MaxAlarmClass). The cap can now be changed between levels, also back to "as in the game" (PanelPosition, PanelTextSize, LobbyPanel).
 

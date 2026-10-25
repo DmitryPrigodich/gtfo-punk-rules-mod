@@ -4,7 +4,8 @@ using UnityEngine;
 namespace GtfoPunk.Rules.Modules;
 
 /// <summary>
-/// Bio-tracker gadget: a motion-tracker screen at the bottom of the view (like the marine tracker in Aliens vs Predator).
+/// Bio-tracker gadget: a motion-tracker screen at the bottom of the view (the idea of the Aliens vs Predator tracker,
+/// the look of GTFO's bio-tracker screen: dark glass, pale lines, red blips).
 /// A half-circle facing where you look; every sweep a pulse runs out from you and shows the enemies within range as
 /// blips (sleeping — dim, awake — bright), with the distance to the nearest one. It only shows: it doesn't tag
 /// enemies, so it gives no bonuses to sentries. Runs on the gadget battery.
@@ -13,6 +14,7 @@ public partial class Loadout
 {
     private static ConfigEntry<float> _bioRange, _bioSweep, _radarSize, _radarOpacity, _radarBottom;
     private static ConfigEntry<bool> _bioWalls, _bioSound;
+    private static ConfigEntry<string> _radarPlace, _radarShift;
 
     private void BindRadar()
     {
@@ -20,9 +22,11 @@ public partial class Loadout
         _bioWalls = BindMigrated(Id, "BioThroughWalls", true, "Bio-tracker screen sees through walls.", (Id, "PerkThroughWalls", "true"));
         _bioSound = BindMigrated(Id, "BioSound", true, "Bio-tracker screen beeps on a sweep that finds enemies.", (Id, "PerkSound", "true"));
         _bioSweep = Bind("BioSweepSeconds", 1.5f, "Bio-tracker screen: time between sweeps (s).");
-        _radarSize = Bind("BioScreenSize", 0.2f, "Bio-tracker screen radius, as a fraction of the screen height.");
+        _radarSize = BindMigrated(Id, "BioScreenRadius", 0.12f, "Bio-tracker screen radius, as a fraction of the screen height.", (Id, "BioScreenSize", "0.2"));
+        _radarPlace = Bind("BioScreenPlace", "health", "Where the bio-tracker screen sits: health — above the health readout, in place of the booster icons; bottom — bottom centre of the view.");
+        _radarShift = Bind("BioScreenShift", "0,0", "Shift of the bio-tracker screen from its place (x right, y up; fractions of the screen height).");
         _radarOpacity = Bind("BioScreenOpacity", 0.65f, "Bio-tracker screen opacity (0–1).");
-        _radarBottom = Bind("BioScreenBottom", 0.02f, "Gap between the bio-tracker screen and the bottom of the view, as a fraction of the screen height.");
+        _radarBottom = Bind("BioScreenBottom", 0.02f, "BioScreenPlace = bottom: gap between the screen and the bottom of the view (fraction of the screen height).");
     }
 
     private struct Blip { public Vector3 Pos; public bool Awake; }
@@ -41,6 +45,42 @@ public partial class Loadout
             else if (CanSwitchOn()) SetRadar(true);
         }
         if (_radarOn && Time.time - _sweepAt >= Math.Max(0.3f, _bioSweep.Value)) Sweep();
+        if (_radarOn) FindAnchor();
+    }
+
+    // ---------- where to draw: above the health readout (in GUI pixels) ----------
+
+    private static bool _anchorOk;
+    private static Vector2 _anchor; // GUI space (y from the top): left end of the line the screen stands on
+    private static Camera _hudCam;
+    private static PUI_LocalPlayerStatus _radarStatus;
+
+    private static void FindAnchor()
+    {
+        _anchorOk = false;
+        if (!string.Equals(_radarPlace.Value, "health", StringComparison.OrdinalIgnoreCase)) return;
+        // Stand on the gadget line (it's where the booster icons were); without it — on the health readout.
+        TMPro.TextMeshPro t = _gadgetText != null && _gadgetText.gameObject.activeInHierarchy ? _gadgetText : null;
+        if (t == null)
+        {
+            if (_radarStatus == null) _radarStatus = UnityEngine.Object.FindObjectOfType<PUI_LocalPlayerStatus>();
+            t = _radarStatus?.m_healthText;
+        }
+        if (t == null) return;
+        int layer = t.gameObject.layer;
+        if (_hudCam == null || (_hudCam.cullingMask & (1 << layer)) == 0)
+        {
+            _hudCam = null;
+            foreach (var c in Camera.allCameras) if (c != null && (c.cullingMask & (1 << layer)) != 0) { _hudCam = c; break; }
+            if (_hudCam == null) return;
+        }
+        var r = t.GetComponent<Renderer>();
+        if (r == null) return;
+        var b = r.bounds;
+        var top = _hudCam.WorldToScreenPoint(new Vector3(b.min.x, b.max.y, b.center.z));
+        if (top.z < 0f) return;
+        _anchor = new Vector2(top.x, Screen.height - top.y);
+        _anchorOk = true;
     }
 
     private static void SetRadar(bool on, bool quiet = false)
@@ -99,8 +139,12 @@ public partial class Loadout
         if (agent == null || cam == null || !agent.Alive) return;
         MakeRadarTextures();
 
-        float R = Screen.height * Mathf.Clamp(_radarSize.Value, 0.05f, 0.5f);
+        float R = Screen.height * Mathf.Clamp(_radarSize.Value, 0.03f, 0.5f);
         float cx = Screen.width * 0.5f, by = Screen.height * (1f - Mathf.Clamp(_radarBottom.Value, 0f, 0.5f));
+        if (_anchorOk) { cx = _anchor.x + R; by = _anchor.y - R * 0.1f; } // above health, left edges lined up
+        var shift = TurretVariants.Vec(_radarShift.Value);
+        cx += shift.x * Screen.height;
+        by -= shift.y * Screen.height;
         float a = Mathf.Clamp01(_radarOpacity.Value);
         var old = GUI.color;
 
@@ -133,7 +177,7 @@ public partial class Loadout
             // Appears when the pulse reaches it, then fades towards the next sweep.
             if (p < 1f && Mathf.Sqrt(x * x + y * y) > p) continue;
             float fade = Mathf.Lerp(1f, 0.35f, age);
-            GUI.color = b.Awake ? new Color(1f, 0.32f, 0.18f, a * fade) : new Color(0.75f, 0.2f, 0.15f, a * fade * 0.8f);
+            GUI.color = b.Awake ? new Color(1f, 0.12f, 0.08f, a * fade) : new Color(0.7f, 0.08f, 0.06f, a * fade * 0.85f);
             float s = b.Awake ? size : size * 0.8f;
             GUI.DrawTexture(new Rect(cx + x * R - s * 0.5f, by - y * R - s * 0.5f, s, s), _texBlip);
         }
@@ -142,9 +186,20 @@ public partial class Loadout
         if (_radarLabel == null)
             _radarLabel = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.LowerRight, fontStyle = FontStyle.Bold };
         _radarLabel.fontSize = Math.Max(10, (int)(R * 0.11f));
-        GUI.color = new Color(0.55f, 1f, 0.85f, a);
+        GUI.color = new Color(0.88f, 0.92f, 0.95f, a);
         string text = _nearest >= 0f ? $"{_nearest:00.0}m" : "--.-m";
         GUI.Label(new Rect(cx + R * 0.35f, by - R * 0.22f, R * 0.6f, R * 0.2f), text, _radarLabel);
+
+        // Battery along the base of the screen.
+        if (_batterySeconds.Value > 0f)
+        {
+            _texWhite ??= MakeWhite();
+            float bw = 2f * R * 0.9f, bh = Math.Max(2f, R * 0.025f), bx = cx - bw * 0.5f, byy = by + bh * 0.8f;
+            GUI.color = new Color(1f, 1f, 1f, a * 0.25f);
+            GUI.DrawTexture(new Rect(bx, byy, bw, bh), _texWhite);
+            GUI.color = _charge < Mathf.Clamp01(_minCharge.Value) ? new Color(0.9f, 0.3f, 0.25f, a) : _charge < 0.35f ? new Color(0.9f, 0.75f, 0.3f, a) : new Color(0.88f, 0.92f, 0.95f, a);
+            GUI.DrawTexture(new Rect(bx, byy, bw * Mathf.Clamp01(_charge), bh), _texWhite);
+        }
         GUI.color = old;
     }
 
@@ -152,7 +207,7 @@ public partial class Loadout
     {
         if (_texFan != null && _texRing != null && _texBlip != null) return;
         const int W = 512, H = 256;
-        var teal = new Color(0.45f, 1f, 0.85f);
+        var teal = new Color(0.82f, 0.88f, 0.92f); // pale grey-blue lines, like the bio-tracker screen
 
         static float Line(float dist, float width) => Mathf.Clamp01(1f - Math.Abs(dist) / width);
 
@@ -172,7 +227,7 @@ public partial class Loadout
                     lines = Math.Max(lines, Line((ang - spoke) * Mathf.Deg2Rad * rr, 1f) * 0.35f);
                 lines = Math.Max(lines, Line(dy - 0.5f, 1.2f) * 0.8f); // base line
                 float fill = 0.35f + 0.15f * (1f - r);
-                var c = Color.Lerp(new Color(0.02f, 0.12f, 0.1f, fill), new Color(teal.r, teal.g, teal.b, 0.9f), lines);
+                var c = Color.Lerp(new Color(0.015f, 0.02f, 0.025f, fill + 0.15f), new Color(teal.r, teal.g, teal.b, 0.85f), lines);
                 if (r > 1f) c.a *= Mathf.Clamp01((1.01f - r) * 100f);
                 px[y * W + x] = c;
             }
@@ -205,6 +260,16 @@ public partial class Loadout
             }
         _texBlip.SetPixels(bp);
         _texBlip.Apply();
+    }
+
+    private static Texture2D _texWhite;
+
+    private static Texture2D MakeWhite()
+    {
+        var t = NewTex(1, 1);
+        t.SetPixel(0, 0, Color.white);
+        t.Apply();
+        return t;
     }
 
     private static Texture2D NewTex(int w, int h) =>

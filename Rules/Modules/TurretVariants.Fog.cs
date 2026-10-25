@@ -13,7 +13,7 @@ public partial class TurretVariants
 
     private static bool SetupFog(Turret t)
     {
-        var sphereSource = ItemModel(FogRepellerItemId, new[] { ItemMode.Instance });
+        var sphereSource = FogSpherePrefab();
         if (sphereSource == null) return false;
         var muzzle = Firing(t)?.MuzzleAlign;
         // Wait until the sentry assembles its parts (otherwise nothing to hide and nowhere to attach).
@@ -21,11 +21,10 @@ public partial class TurretVariants
         var top = muzzle != null ? muzzle.position : t.Inst.transform.position + Vector3.up * 0.6f;
 
         var go = UnityEngine.Object.Instantiate(sphereSource, top, Quaternion.identity);
+        var sphere = go.GetComponentInChildren<FogRepeller_Sphere>(true);
+        if (sphere == null) { UnityEngine.Object.Destroy(go); return false; }
         go.transform.SetParent(t.Inst.transform, true);
         go.name = "GtfoPunk_FogSphere";
-        HideGun(t.Inst);
-        try { AttachFogModel(t, top); }
-        catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] {t.Kind.Label.Value} model: {e.Message}"); }
 
         // Of the thrown repeller keep only the sphere: no physics, colliders or model.
         foreach (var c in go.GetComponentsInChildren<FogRepellerInstance>(true)) UnityEngine.Object.Destroy(c);
@@ -33,15 +32,31 @@ public partial class TurretVariants
         foreach (var col in go.GetComponentsInChildren<Collider>(true)) col.enabled = false;
         foreach (var r in go.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
 
-        var sphere = go.GetComponentInChildren<FogRepeller_Sphere>(true);
-        if (sphere == null) { UnityEngine.Object.Destroy(go); return false; }
         sphere.InfiniteDuration = true;
         sphere.Range = t.Mode == Mode.FogTurbine ? _turbineRadius.Value : _fogRadius.Value;
         sphere.gameObject.SetActive(true);
         sphere.StartRepelling();
         t.Extra = go;
         t.Sphere = sphere;
+
+        // Models only once the sphere is in place (set-up is retried every frame until it succeeds).
+        HideGun(t.Inst);
+        try { AttachFogModel(t, top); }
+        catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] {t.Kind.Label.Value} model: {e.Message}"); }
         return true;
+    }
+
+    /// <summary>The thrown fog repeller variant that carries the fog sphere (not just any variant with meshes).</summary>
+    private static GameObject FogSpherePrefab()
+    {
+        var perMode = ItemSpawnManager.m_loadedPrefabsPerItemMode;
+        if (perMode == null || perMode.Length <= (int)ItemMode.Instance) return null;
+        var dict = perMode[(int)ItemMode.Instance];
+        if (dict == null || !dict.ContainsKey(FogRepellerItemId)) return null;
+        var list = dict[FogRepellerItemId];
+        for (int k = 0; list != null && k < list.Count; k++)
+            if (list[k] != null && list[k].GetComponentInChildren<FogRepeller_Sphere>(true) != null) return list[k];
+        return null;
     }
 
     /// <summary>The repeller / turbine model on top and the bulb.</summary>

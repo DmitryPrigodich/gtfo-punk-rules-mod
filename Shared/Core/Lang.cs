@@ -4,8 +4,7 @@ namespace GtfoPunk.Core;
 
 /// <summary>
 /// Language of the text the mod shows inside the game (HUD, loadout, terminal, summaries).
-/// English by default: the game's fonts are guaranteed to support it.
-/// Russian can be enabled with [General] Language = ru (if the game font has Cyrillic).
+/// "auto" (default) follows the game's own language setting: Russian if the game is in Russian, otherwise English.
 /// </summary>
 public static class Lang
 {
@@ -13,11 +12,40 @@ public static class Lang
 
     internal static void Bind(ConfigFile config)
     {
-        _lang = config.Bind("General", "Language", "en",
-            "In-game text language of the mod: en or ru. If Russian letters show up as boxes, switch back to en.");
+        _lang = ConfigMigration.Bind(config, "General", "TextLanguage", "auto",
+            "In-game text language of the mod: auto (as the game's language), en or ru.",
+            ("General", "Language", "en"));
     }
 
-    public static bool Ru => _lang != null && _lang.Value.Trim().ToLowerInvariant().StartsWith("ru");
+    private static float _checkedAt = -100f;
+    private static bool _gameRu;
+
+    /// <summary>The game's language is Russian (checked at most once a second; false if unknown).</summary>
+    private static bool GameRu()
+    {
+        float now = UnityEngine.Time.realtimeSinceStartup;
+        if (now - _checkedAt < 1f) return _gameRu;
+        _checkedAt = now;
+        try
+        {
+            var svc = Localization.Text.TextLocalizationService;
+            var gd = svc == null ? null : ((Il2CppInterop.Runtime.InteropTypes.Il2CppObjectBase)svc).TryCast<Localization.GameDataTextLocalizationService>();
+            _gameRu = gd != null && gd.CurrentLanguage == Localization.Language.Russian;
+        }
+        catch { _gameRu = false; }
+        return _gameRu;
+    }
+
+    public static bool Ru
+    {
+        get
+        {
+            string v = _lang?.Value?.Trim().ToLowerInvariant() ?? "auto";
+            if (v.StartsWith("ru")) return true;
+            if (v.StartsWith("en")) return false;
+            return GameRu();
+        }
+    }
 
     /// <summary>Pick the string for the current language.</summary>
     public static string T(string en, string ru) => Ru ? ru : en;

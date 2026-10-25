@@ -15,7 +15,7 @@ public partial class Loadout
 
     private void BindIcons()
     {
-        _photos = Bind("ItemPhotos", true, "Lobby slots show silhouettes of the item models instead of the small inventory symbols.");
+        _photos = Bind("ItemPictures", false, "Lobby slots show silhouettes of the pack / item / gadget models. false — text only.");
         _photoSize = BindMigrated(Id, "ItemPictureSize", 3f, "Size of the item pictures in the lobby slots, relative to the slot's \"+\" symbol.", (Id, "ItemPhotoSize", "2.5"));
         _photoTilt = Bind("ItemPictureTilt", 12f, "Tilt of the item models in the pictures (degrees; 0 — flat side view).");
     }

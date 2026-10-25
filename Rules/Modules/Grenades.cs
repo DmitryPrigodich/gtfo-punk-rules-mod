@@ -61,7 +61,7 @@ public class Grenades : ModuleBase
     {
         GearFactory.OnInject += Inject;
         FrameTicker.OnUpdate += Tick;
-        FrameTicker.OnLevelExit += () => { _pending.Clear(); _calib.Clear(); _armed.Clear(); _turretGrenades.Clear(); _exploded.Clear(); _dumped = false; };
+        FrameTicker.OnLevelExit += () => { _pending.Clear(); _calib.Clear(); _armed.Clear(); _turretGrenades.Clear(); _exploded.Clear(); _live.Clear(); _boomPool = null; _flashPool = null; _dumped = false; };
     }
 
     // ---------- data: name and distribution ----------
@@ -145,10 +145,35 @@ public class Grenades : ModuleBase
                 var rs = dst.GetComponentsInChildren<Renderer>(true);
                 if (rs.Length == 0) continue;
                 foreach (var r in rs) { r.enabled = false; r.forceRenderingOff = true; }
-                if (TurretVariants.CopyModel(src, dst.transform, "GtfoPunk_Look") != null) done++;
+                // In hand (first / third person) the glow stick mesh moves with the throwing animation, the prefab root
+                // doesn't — put the look on the mesh so it leaves the hand when the throw does.
+                bool inHand = m == (int)ItemMode.FirstPerson || m == (int)ItemMode.ThirdPerson;
+                var mount = inHand ? MainRenderer(rs).transform : dst.transform;
+                var look = TurretVariants.CopyModel(src, mount, "GtfoPunk_Look");
+                if (look == null) continue;
+                if (mount != dst.transform)
+                {
+                    // Keep the size it had on the root (the mesh node may be scaled).
+                    var want = dst.transform.lossyScale; var have = mount.lossyScale;
+                    look.transform.localScale = new Vector3(want.x / Math.Max(1e-4f, have.x), want.y / Math.Max(1e-4f, have.y), want.z / Math.Max(1e-4f, have.z));
+                }
+                done++;
             }
         }
         if (done > 0) ModInfo.Log.LogInfo($"[Grenades] item {id}: C-Foam Grenade look applied to {done} models");
+    }
+
+    /// <summary>The biggest mesh of the model (the glow stick itself, not small extras).</summary>
+    private static Renderer MainRenderer(Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppArrayBase<Renderer> rs)
+    {
+        Renderer best = rs[0];
+        float size = -1f;
+        foreach (var r in rs)
+        {
+            float v = r.bounds.size.sqrMagnitude;
+            if (v > size) { size = v; best = r; }
+        }
+        return best;
     }
 
     private static void Distribute()
@@ -207,6 +232,7 @@ public class Grenades : ModuleBase
     {
         if (_diag.Value && !_dumped && GameUtil.InLevel) { _dumped = true; try { Dump(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] {e.Message}"); } }
         if (_armed.Count > 0) ProximityTick();
+        if (_live.Count > 0) WatchTick();
         if (_pending.Count == 0) return;
         for (int i = _pending.Count - 1; i >= 0; i--)
         {
@@ -246,6 +272,7 @@ public class Grenades : ModuleBase
             if (_handDelay.Value >= 0f) g.m_grenadeExplosionDelay = _handDelay.Value;
         }
         ModInfo.Log.LogInfo($"[Grenades] {(turret ? "sentry grenade" : "grenade")}: radius {g.m_grenadeExplosionRadius:0.#} m, damage {g.m_grenadeMaxDamage}, fuse {g.m_grenadeExplosionDelay:0.##} s");
+        _live.Add(new Live { G = g, Key = g.Pointer, Pos = g.transform.position, Radius = g.m_grenadeExplosionRadius, Damage = g.m_grenadeMaxDamage, Owner = SafeOwner(g) });
     }
 
     private static int _maskLogs;
@@ -280,75 +307,113 @@ public class Grenades : ModuleBase
         private static void Prefix(GrenadeBase __instance)
         {
             if (__instance == null || !_exploded.Add(__instance.Pointer)) return;
-            try { Bang(__instance); } catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] explosion effect: {e.Message}"); }
+            try { Bang(__instance.Pointer, __instance.transform.position, __instance.m_grenadeExplosionRadius, __instance.m_grenadeMaxDamage, SafeOwner(__instance), "fuse"); }
+            catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] explosion effect: {e.Message}"); }
         }
     }
 
-    private static void Bang(GrenadeBase g)
+    private static PlayerAgent SafeOwner(GrenadeBase g) { try { return g.Owner; } catch { return null; } }
+
+    private static void Bang(IntPtr key, Vector3 pos, float radius, int damage, PlayerAgent owner, string how)
     {
-        var pos = g.transform.position;
-        bool turret = _turretGrenades.Contains(g.Pointer);
+        bool turret = _turretGrenades.Contains(key);
         float scale = turret ? 0.5f : 1f;
-        ModInfo.Log.LogInfo($"[Grenades] {(turret ? "sentry grenade" : "grenade")} exploded at {pos}, radius {g.m_grenadeExplosionRadius:0.#} m, damage {g.m_grenadeMaxDamage}");
+        ModInfo.Log.LogInfo($"[Grenades] {(turret ? "sentry grenade" : "grenade")} exploded at {pos} ({how}), radius {radius:0.#} m, damage {damage}");
         if (_blastFx.Value)
         {
             try { CellSound.Post(AK.EVENTS.STICKYMINEEXPLODE, pos); } catch { }
-            bool fx = PlayMineEffect(pos);
-            if (!fx) Flash(pos, g.m_grenadeExplosionRadius);
+            bool fx = false;
+            try { fx = PlayMineEffect(pos); } catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] effect: {e.Message}"); }
+            if (!fx) Flash(pos, radius);
         }
-        if (_shake.Value > 0f) Shake(pos, g.m_grenadeExplosionRadius, _shake.Value * scale);
-        if (_noiseRadius.Value > 0f && SNetwork.SNet.IsMaster) Noise(g, pos, _noiseRadius.Value * scale);
+        if (_shake.Value > 0f) Shake(pos, radius, _shake.Value * scale);
+        if (_noiseRadius.Value > 0f && SNetwork.SNet.IsMaster) Noise(owner, pos, _noiseRadius.Value * scale);
     }
 
-    /// <summary>The tripmine's explosion (fire, smoke, light) from its effect pool.</summary>
+    // The hand grenade's explosion doesn't always go through GrenadeDelay — also watch the thrown grenades and
+    // treat one that disappears (and wasn't seen exploding) as exploded where it was last.
+    private class Live { public GrenadeBase G; public IntPtr Key; public Vector3 Pos; public float Radius; public int Damage; public PlayerAgent Owner; }
+    private static readonly List<Live> _live = new();
+
+    private static void WatchTick()
+    {
+        for (int i = _live.Count - 1; i >= 0; i--)
+        {
+            var l = _live[i];
+            bool gone = true;
+            try { gone = l.G == null || l.G.gameObject == null || !l.G.gameObject.activeInHierarchy; } catch { }
+            if (!gone) { try { l.Pos = l.G.transform.position; l.Radius = l.G.m_grenadeExplosionRadius; l.Damage = l.G.m_grenadeMaxDamage; } catch { } continue; }
+            _live.RemoveAt(i);
+            if (_exploded.Add(l.Key)) try { Bang(l.Key, l.Pos, l.Radius, l.Damage, l.Owner, "gone"); } catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] explosion effect: {e.Message}"); }
+        }
+    }
+
+    /// <summary>The tripmine's explosion (fire, smoke) and its flash, from the game's effect pools.</summary>
     private static bool PlayMineEffect(Vector3 pos)
     {
-        FX_EffectSystem.FX_Pool pool = null;
-        try { pool = MineDeployerInstance_Detonate_Explosive.s_explosionPool; } catch { }
-        if (pool == null) pool = FindExplosionPool();
+        bool boom = PlayPooled(pos, "TripmineExplosion", ref _boomPool);
+        PlayPooled(pos, "TripmineFlash", ref _flashPool);
+        return boom;
+    }
+
+    private static FX_EffectSystem.FX_Pool _boomPool, _flashPool;
+    private static bool _poolsLogged;
+
+    /// <summary>Plays one effect from the pool whose prefab name contains the key (not the glue mine's); a fresh copy if the pool is empty.</summary>
+    private static bool PlayPooled(Vector3 pos, string key, ref FX_EffectSystem.FX_Pool pool)
+    {
+        if (pool == null) pool = FindPool(key);
         if (pool == null) return false;
-        var fx = pool.AquireEffect();
+        var rot = Quaternion.LookRotation(Vector3.up);
+        FX_EffectSystem.FX_EffectBase fx = null;
+        try { fx = pool.AquireEffect(); } catch { }
+        string how = "pool";
+        if (fx == null && pool.m_prefab != null)
+        {
+            var go = UnityEngine.Object.Instantiate(pool.m_prefab, pos, rot);
+            fx = go.GetComponentInChildren<FX_EffectSystem.FX_EffectBase>(true);
+            UnityEngine.Object.Destroy(go, 10f);
+            how = "copy";
+            if (fx == null) return false;
+        }
         if (fx == null) return false;
-        fx.Play(null, pos, Quaternion.LookRotation(Vector3.up));
-        if (!_fxLogged)
+        fx.gameObject.SetActive(true);
+        fx.Play(null, pos, rot);
+        if (!_fxLogged || how == "copy" && _copyLogs++ < 2)
         {
             _fxLogged = true;
-            var comps = fx.GetComponentsInChildren<Component>(true).Select(c => c == null ? "null" : c.GetIl2CppType().Name).GroupBy(n => n).Select(x => $"{x.Key}x{x.Count()}");
-            ModInfo.Log.LogInfo($"[Grenades] explosion effect '{fx.gameObject.name}' from pool '{pool.gameObject.name}': {string.Join(", ", comps)}");
+            ModInfo.Log.LogInfo($"[Grenades] explosion effect '{fx.gameObject.name}' ({how}, key {key})");
         }
         return true;
     }
 
-    private static bool _poolsLogged;
+    private static int _copyLogs;
 
-    /// <summary>No tripmine was placed yet — look for an explosion among the effect pools (names go to the log once).</summary>
-    private static FX_EffectSystem.FX_Pool FindExplosionPool()
+    private static FX_EffectSystem.FX_Pool FindPool(string key)
     {
+        FX_EffectSystem.FX_Pool pool = null;
+        if (key == "TripmineExplosion") try { pool = MineDeployerInstance_Detonate_Explosive.s_explosionPool; } catch { }
+        if (pool != null) return pool;
         var mgr = FX_EffectSystem.FX_Manager.Current;
         if (mgr?.m_pools == null) return null;
-        FX_EffectSystem.FX_Pool best = null;
         var names = new List<string>();
         foreach (var p in mgr.m_pools)
         {
             if (p == null) continue;
             string n = p.m_prefab != null ? p.m_prefab.name : p.gameObject.name;
             names.Add(n);
-            if (best == null && n.IndexOf("xplo", StringComparison.OrdinalIgnoreCase) >= 0 && n.IndexOf("glue", StringComparison.OrdinalIgnoreCase) < 0) best = p;
+            if (pool == null && n.IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0 && n.IndexOf("glue", StringComparison.OrdinalIgnoreCase) < 0) pool = p;
         }
-        if (!_poolsLogged) { _poolsLogged = true; ModInfo.Log.LogInfo($"[Grenades] mine explosion pool not ready; effect pools: {string.Join(", ", names)} → {(best == null ? "none" : best.gameObject.name)}"); }
-        return best;
+        if (pool == null && !_poolsLogged) { _poolsLogged = true; ModInfo.Log.LogInfo($"[Grenades] no '{key}' effect pool; pools: {string.Join(", ", names)}"); }
+        return pool;
     }
 
-    /// <summary>Fallback when no explosion effect is found: a short bright flash.</summary>
+    /// <summary>Fallback when no explosion effect is found: a short bright flash (a light GTFO actually draws).</summary>
     private static void Flash(Vector3 pos, float radius)
     {
         var go = new GameObject("GtfoPunk_GrenadeFlash");
         go.transform.position = pos + Vector3.up * 0.3f;
-        var l = go.AddComponent<Light>();
-        l.type = LightType.Point;
-        l.color = new Color(1f, 0.7f, 0.35f);
-        l.range = Math.Max(4f, radius * 2.5f);
-        l.intensity = 8f;
+        TurretVariants.MakeLight(go, LightType.Point, Math.Max(4f, radius * 2.5f), 8f, new Color(1f, 0.7f, 0.35f));
         UnityEngine.Object.Destroy(go, 0.25f);
     }
 
@@ -367,10 +432,8 @@ public class Grenades : ModuleBase
     }
 
     /// <summary>"Good morning, Vietnam": everything within the radius wakes up and comes to look.</summary>
-    private static void Noise(GrenadeBase g, Vector3 pos, float radius)
+    private static void Noise(PlayerAgent owner, Vector3 pos, float radius)
     {
-        PlayerAgent owner = null;
-        try { owner = g.Owner; } catch { }
         owner ??= PlayerManager.GetLocalPlayerAgent();
         if (owner == null) return;
         if (!AIG_CourseNode.TryGetCourseNode(owner.DimensionIndex, pos, 3f, out var node)) node = owner.CourseNode;

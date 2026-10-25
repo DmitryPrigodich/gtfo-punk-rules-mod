@@ -252,14 +252,19 @@ public partial class TurretVariants
 
     // ---------- parsing ----------
 
-    /// <summary>"x,y,z" → vector (invariant culture); zero if malformed.</summary>
+    /// <summary>"x,y,z" or "x,y" → vector (invariant culture); zero if malformed.</summary>
     internal static Vector3 Vec(string s)
     {
         var p = (s ?? "").Split(',');
-        if (p.Length != 3) return Vector3.zero;
+        if (p.Length < 2 || p.Length > 3) return Vector3.zero;
         var ci = System.Globalization.CultureInfo.InvariantCulture;
         var st = System.Globalization.NumberStyles.Float;
-        return float.TryParse(p[0], st, ci, out var x) && float.TryParse(p[1], st, ci, out var y) && float.TryParse(p[2], st, ci, out var z)
-            ? new Vector3(x, y, z) : Vector3.zero;
+        var v = Vector3.zero;
+        for (int i = 0; i < p.Length; i++)
+        {
+            if (!float.TryParse(p[i].Trim(), st, ci, out var f)) return Vector3.zero;
+            v[i] = f;
+        }
+        return v;
     }
 }

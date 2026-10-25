@@ -55,7 +55,7 @@ public partial class TurretVariants
     }
 
     /// <summary>A light that GTFO actually renders (it draws lights through its own clustered system).</summary>
-    private static Light MakeLight(GameObject go, LightType type, float range, float intensity, Color color)
+    internal static Light MakeLight(GameObject go, LightType type, float range, float intensity, Color color)
     {
         var l = go.AddComponent<Light>();
         l.type = type;
