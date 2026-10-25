@@ -43,7 +43,14 @@ public class Syringes : ModuleBase
     {
         GearFactory.OnInject += Inject;
         FrameTicker.OnUpdate += Tick;
-        FrameTicker.OnLevelExit += () => { ClearAll(); _hud = null; _map = null; };
+        FrameTicker.OnLevelExit += () =>
+        {
+            ClearAll();
+            // The watermark copy and the map copy live in menus too — remove them, or the last effects stay on screen.
+            if (_hud != null) UnityEngine.Object.Destroy(_hud.gameObject);
+            if (_map != null) UnityEngine.Object.Destroy(_map.gameObject);
+            _hud = null; _map = null;
+        };
     }
 
     // ---------- item ----------
