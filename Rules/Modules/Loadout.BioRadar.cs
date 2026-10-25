@@ -122,9 +122,11 @@ public partial class Loadout
             float x = Vector3.Dot(d, right) / range, y = Vector3.Dot(d, fwd) / range;
             if (y < 0f || x * x + y * y > 1f) continue; // behind you or out of range
             if (p < 1f && Mathf.Sqrt(x * x + y * y) > p) continue; // appears when the pulse reaches it
-            float fade = Mathf.Lerp(1f, 0.4f, age);
-            float sz = R * (b.Awake ? 0.16f : 0.11f);
-            GUI.color = b.Awake ? new Color(1f, 1f, 1f, alpha * fade) : new Color(0.8f, 0.85f, 0.9f, alpha * fade * 0.6f);
+            float fade = Mathf.Lerp(1f, 0.45f, age);
+            // Like the tool's blips: a dot, an iris and an outer ring. Awake enemies turn red and blink.
+            float sz = R * (b.Awake ? 0.26f : 0.2f);
+            float blink = 0.6f + 0.4f * Mathf.Sin(Time.time * 9f);
+            GUI.color = b.Awake ? new Color(1f, 0.18f, 0.12f, alpha * fade * blink) : new Color(0.92f, 0.96f, 1f, alpha * fade * 0.85f);
             GUI.DrawTexture(new Rect(cx + x * R - sz * 0.5f, by - y * R - sz * 0.5f, sz, sz), _texBlip);
         }
 
@@ -138,7 +140,15 @@ public partial class Loadout
         GUI.Label(new Rect(cx - R * 0.5f - lw * 0.5f, by + 1f, lw, lh), mid, small);
         GUI.Label(new Rect(cx + R * 0.5f - lw * 0.5f, by + 1f, lw, lh), mid, small);
         small.alignment = TextAnchor.UpperLeft;
-        GUI.Label(new Rect(panel.x + pad, panel.y + pad * 0.5f, panel.width * 0.5f, lh), $"{Lang.T("TARGETS", "ЦЕЛИ")} {_blips.Count}", small);
+        GUI.Label(new Rect(panel.x + pad, panel.y + pad * 0.5f, panel.width * 0.5f, lh), Lang.T("TARGETS", "ЦЕЛИ"), small);
+        int awake = 0;
+        foreach (var b in _blips) if (b.Awake) awake++;
+        int oldSize = small.fontSize;
+        small.fontSize = oldSize * 2;
+        GUI.color = awake > 0 ? new Color(1f, 0.25f, 0.2f, alpha) : new Color(line.r, line.g, line.b, alpha);
+        GUI.Label(new Rect(panel.x + pad, panel.y + pad * 0.5f + lh * 0.9f, panel.width * 0.4f, oldSize * 2.6f), $"{_blips.Count}", small);
+        small.fontSize = oldSize;
+        GUI.color = new Color(line.r, line.g, line.b, alpha * 0.9f);
         small.alignment = TextAnchor.UpperRight;
         GUI.Label(new Rect(panel.center.x, panel.y + pad * 0.5f, panel.width * 0.5f - pad, lh), _nearest >= 0f ? $"{_nearest:0.0} m" : "--.- m", small);
     }
@@ -188,7 +198,7 @@ public partial class Loadout
         _texFan.SetPixels(px);
         _texFan.Apply();
 
-        const int B = 32;
+        const int B = 64;
         _texBlip = NewTex(B, B);
         var bp = new Color[B * B];
         for (int y = 0; y < B; y++)
@@ -196,8 +206,12 @@ public partial class Loadout
             {
                 float dx = (x + 0.5f) / B * 2f - 1f, dy = (y + 0.5f) / B * 2f - 1f;
                 float r = Mathf.Sqrt(dx * dx + dy * dy);
-                float core = r < 0.35f ? 1f : 0f, glow = Mathf.Clamp01(1f - r);
-                bp[y * B + x] = new Color(1f, 1f, 1f, Mathf.Clamp01(core + glow * glow * 0.8f));
+                float a = 0f;
+                if (r < 0.16f) a = 1f;                                   // the dot
+                else if (r > 0.3f && r < 0.5f) a = 0.28f;                 // the iris
+                a = Math.Max(a, Mathf.Clamp01(1f - Math.Abs(r - 0.5f) / 0.04f) * 0.95f); // iris edge
+                a = Math.Max(a, Mathf.Clamp01(1f - Math.Abs(r - 0.82f) / 0.05f) * 0.8f); // outer ring
+                bp[y * B + x] = new Color(1f, 1f, 1f, a);
             }
         _texBlip.SetPixels(bp);
         _texBlip.Apply();

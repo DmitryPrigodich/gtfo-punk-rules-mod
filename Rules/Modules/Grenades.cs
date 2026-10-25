@@ -153,7 +153,10 @@ public class Grenades : ModuleBase
                 // A skinned mesh stays put and its bones move — mount on the bone then.
                 var skinned = main.TryCast<SkinnedMeshRenderer>();
                 var mover = skinned != null ? (skinned.rootBone ?? (skinned.bones != null && skinned.bones.Length > 0 ? skinned.bones[0] : null)) ?? main.transform : main.transform;
-                var mount = inHand ? mover : dst.transform;
+                // The throwing script moves one transform through the swing and the release — that's where the grenade belongs.
+                Transform thrown = null;
+                try { thrown = dst.GetComponentInChildren<ThrowingWeapon>(true)?.m_movingThrowObj; } catch { }
+                var mount = inHand ? (thrown ?? mover) : dst.transform;
                 var look = TurretVariants.CopyModel(src, mount, "GtfoPunk_Look");
                 if (look == null) continue;
                 // Same layer as the stick it replaces (first person items are drawn by their own camera).
@@ -166,7 +169,7 @@ public class Grenades : ModuleBase
                     if (k.x < 0.01f || k.x > 100f || float.IsNaN(k.x)) k = Vector3.one;
                     look.transform.localScale = k;
                 }
-                if (inHand) ModInfo.Log.LogInfo($"[Grenades] item {id} {(ItemMode)m} '{dst.name}': look on '{PathOf(mount, dst.transform)}' ({main.GetIl2CppType().Name} '{main.name}', scale {look.transform.localScale.x:0.###}, renderers {rs.Length})");
+                if (inHand) ModInfo.Log.LogInfo($"[Grenades] item {id} {(ItemMode)m} '{dst.name}': look on '{PathOf(mount, dst.transform)}'{(thrown != null ? " (throw object)" : "")} ({main.GetIl2CppType().Name} '{main.name}', scale {look.transform.localScale.x:0.###}, renderers {rs.Length})");
                 done++;
             }
         }

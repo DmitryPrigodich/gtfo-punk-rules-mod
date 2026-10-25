@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.6
+- **Booster syringe effects didn't work at all**: the game's synced modifier call failed for the player (the log showed "id 0"). Effects are now applied as local modifiers (the log shows each modifier before → after).
+- **Silenced pistol** weaker: own copy of the Arid 5 archetype with 15 damage — a headshot kills a striker or a shooter, a body shot doesn't (SilencedGun.Damage; 0 — Arid 5's own).
+- Hand grenade: the look is put on the object the throwing script swings and releases.
+- Bio-tracker screen: blips like the tool's — a dot, an iris and an outer ring, bigger; awake enemies red and blinking. TARGETS with a big count under it (red when someone is awake).
+- The version shows under the game's watermark (bottom right): "GPUNK RULES v0.9.6".
+- In-game texts: an old "ru" setting is switched back to auto once (follow the game's language).
+
 ## 0.9.5
 - **Party rules**: now a button like the lobby's own, to the right of READY FOR CAGE DROP: "ALARM / LEVEL II"; a click steps LEVEL I → … → V → DEFAULT. Only the host changes it. (The framed panel never showed — the lobby camera couldn't be used for placing it.)
 - **Gadget panel** above the health bar, drawn in screen space (always the same size): name and key, ON/OFF, the **battery as a progress bar** with percent — for the thermal goggles too. GadgetPanelBottom, GadgetPanelScale, GadgetHudOpacity.

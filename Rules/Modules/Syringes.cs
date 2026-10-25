@@ -243,10 +243,14 @@ public class Syringes : ModuleBase
             float delta = value > 0.2f && value < 5f ? value - 1f : value;
             bool good = AgentModifierManager.ModifierHasInvertedMeaning(eff.Effect) ? delta < 0f : delta > 0f;
             if (!good && !_downsides.Value) continue;
-            uint id = AgentModifierManager.AddSyncedModifierValue(agent, eff.Effect, delta);
+            float before = AgentModifierManager.GetModifierValue(agent, eff.Effect);
+            // The synced variant throws inside the game for a player agent (and returned 0) — the local one works:
+            // these effects are all evaluated on the player's own machine.
+            AgentModifierManager.InitModificationInstanceIfNone(agent);
+            uint id = AgentModifierManager.AddModifierValue(agent, eff.Effect, delta, 0f);
             boost.Ids.Add(id);
             boost.Effects.Add((eff.Effect, delta, good));
-            ModInfo.Log.LogInfo($"[Syringes] {eff.Effect}: value {value:0.###} → change {delta:+0.###;-0.###} (id {id})");
+            ModInfo.Log.LogInfo($"[Syringes] {eff.Effect}: value {value:0.###} → change {delta:+0.###;-0.###} (id {id}; modifier {before:0.###} → {AgentModifierManager.GetModifierValue(agent, eff.Effect):0.###})");
         }
         if (boost.Ids.Count == 0) return;
         _active.Add(boost);
@@ -256,7 +260,7 @@ public class Syringes : ModuleBase
 
     private static void Expire(Boost b)
     {
-        foreach (var id in b.Ids) try { AgentModifierManager.ClearSyncedModifierChange(id); } catch { }
+        foreach (var id in b.Ids) try { AgentModifierManager.ClearModifierChange(id); } catch { }
         ModInfo.Log.LogInfo($"[Syringes] '{b.Name}' wore off");
     }
 

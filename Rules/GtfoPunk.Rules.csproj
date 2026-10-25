@@ -2,7 +2,7 @@
   <PropertyGroup>
     <AssemblyName>GtfoPunk.Rules</AssemblyName>
     <RootNamespace>GtfoPunk.Rules</RootNamespace>
-    <Version>0.9.5</Version>
+    <Version>0.9.6</Version>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="**/*.cs" Exclude="bin/**;obj/**" />

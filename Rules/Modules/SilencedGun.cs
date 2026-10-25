@@ -10,7 +10,7 @@ using UnityEngine;
 namespace GtfoPunk.Rules.Modules;
 
 /// <summary>
-/// "DRED SILENZIO GP6-S": silenced pistol from the "garage". Damage from Shelling Arid 5, sound from S49,
+/// "DRED SILENZIO GP6-S": silenced pistol from the "garage". Damage (lower, 15 by default) from Shelling Arid 5, sound from S49,
 /// body and barrel assembled from parts of different guns (option Guns). A shot wakes sleepers only within HardRadius (10 m),
 /// further out, up to SoftRadius, it only disturbs them (pulse), beyond that — silence. Not heard through walls.
 /// The host computes the noise, so everyone needs the mod.
@@ -18,7 +18,7 @@ namespace GtfoPunk.Rules.Modules;
 public class SilencedGun : ModuleBase
 {
     public override string Id => "SilencedGun";
-    public override string Description => "Silenced pistol DRED SILENZIO GP6-S: Arid 5 damage, S49 sound, 3RB body + Mastaba top. Only wakes enemies up close. Everyone needs it.";
+    public override string Description => "Silenced pistol DRED SILENZIO GP6-S: Arid 5 body (damage 15 — headshots kill), S49 sound, 3RB body + Mastaba top. Only wakes enemies up close. Everyone needs it.";
     public override ModuleSide Side => ModuleSide.Everyone;
     public override IReadOnlyList<string> ReplacedBy => Array.Empty<string>();
 
@@ -34,6 +34,7 @@ public class SilencedGun : ModuleBase
         _guns = Bind("SilencedGuns", NewDefault,
             "Silenced guns separated by ';': 'Name: Body + part=from, …'. Body — the weapon whose parts are the base; 12 — barrel/top. Parts and IDs are in GtfoPunk.GearList.txt.");
         _hard = Bind("HardRadius", 10f, "Radius (m) within which a shot wakes enemies.");
+        _damage = Bind("Damage", 15f, "Damage per shot. 15: a headshot kills a striker or a shooter, a body shot doesn't (Arid 5 itself does far more). 0 — Arid 5's own.");
         _soft = Bind("SoftRadius", 25f, "Radius (m) within which a shot only disturbs (pulse) without waking. 0 — don't disturb.");
         _softPulse = Bind("SoftIsPulseOnly", true, "true — distant enemies only pulse; false — they get regular noise (may wake up after repeated shots).");
     }
@@ -64,6 +65,7 @@ public class SilencedGun : ModuleBase
         uint catId = GearFactory.CloneCategory(statsCat, "GtfoPunk_SilencedGun", "DRED SILENZIO",
             Lang.T("Silenced. Wakes enemies only within 10 m; farther ones only stir.", "С глушителем. Будит только в 10 м, дальше враги лишь тревожатся."));
         _categories.Add(catId);
+        OwnArchetypes(catId);
 
         // The hand grip comes from the category: pose and part priority for the left hand. Arid's left hand holds the magazine,
         // but the revolver-style top has no magazine — so the hand disappeared. Copy from the "top" weapon's category.
@@ -108,6 +110,32 @@ public class SilencedGun : ModuleBase
                 foreach (var kv in GearFactory.ParseParts(bodySplit[1], "SilencedGun")) comps[kv.Key] = kv.Value;
             GearFactory.AddGear(body, $"GtfoPunk_SilencedGun_{idx}", nameSplit[0], comps);
         }
+    }
+
+    private static ConfigEntry<float> _damage;
+
+    /// <summary>The cloned category still points at Arid 5's archetypes: give it its own copies with our damage.</summary>
+    private static void OwnArchetypes(uint catId)
+    {
+        if (_damage.Value <= 0f) return;
+        var cat = GameDataBlockBase<GearCategoryDataBlock>.GetBlock(catId);
+        if (cat == null) return;
+        uint Own(uint src, string mode)
+        {
+            if (src == 0) return 0;
+            uint id = GearFactory.CloneArchetype(src, "GtfoPunk_SilencedGun_Arch_" + mode);
+            var a = GameDataBlockBase<ArchetypeDataBlock>.GetBlock(id);
+            if (a != null)
+            {
+                ModInfo.Log.LogInfo($"[SilencedGun] {mode} archetype {src} → {id}: damage {a.Damage:0.#} → {_damage.Value:0.#} (precision ×{a.PrecisionDamageMulti:0.##})");
+                a.Damage = _damage.Value;
+            }
+            return id;
+        }
+        cat.SemiArchetype = Own(cat.SemiArchetype, "Semi");
+        cat.BurstArchetype = Own(cat.BurstArchetype, "Burst");
+        cat.AutoArchetype = Own(cat.AutoArchetype, "Auto");
+        cat.SemiBurstArchetype = Own(cat.SemiBurstArchetype, "SemiBurst");
     }
 
     private static bool IsOurs(BulletWeapon w)

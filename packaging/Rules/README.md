@@ -5,7 +5,7 @@ Gameplay changes for GTFO. **This changes the game:** play only with friends, an
 - Does not require GTFO-API.
 - Every feature has its own toggle in `BepInEx/config/AmDDRed.GtfoPunk.Rules.cfg`.
 - In-game text language: `[General] TextLanguage = auto` — as the game's language (or `en` / `ru`).
-- Client-side QoL lives in a separate package: **GtfoPunk QoL**.
+- Meant to be played together with **GtfoPunk QoL** (client-side quality of life, separate package).
 
 ## Features
 | Feature | Who needs it | What it does |
@@ -25,7 +25,7 @@ Gameplay changes for GTFO. **This changes the game:** play only with friends, an
 ---
 
 ## По-русски
-Геймплейные изменения. Играть только с друзьями, у которых пакет тоже стоит.
+Геймплейные изменения. Играть только с друзьями, у которых пакет тоже стоит. Рассчитан на игру вместе с **GtfoPunk QoL**.
 
 | Фича | Кому нужна | Что делает |
 |---|---|---|

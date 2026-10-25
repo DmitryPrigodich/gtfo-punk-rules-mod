@@ -13,11 +13,12 @@ public class Plugin : BasePlugin
 {
     public const string GUID = "AmDDRed.GtfoPunk.Rules";
     public const string NAME = "GtfoPunk My Game My Rules";
-    public const string VERSION = "0.9.5";
+    public const string VERSION = "0.9.6";
 
     public override void Load()
     {
         ModInfo.Start(GUID, NAME, VERSION, Config, Log);
+        Watermark.Register($"GPUNK RULES v{VERSION}");
         // After modules are enabled (they subscribe to GearFactory.OnInject) — hook up the "garage".
         IL2CPPChainloader.Instance.Finished += Core.GearFactory.Install;
     }

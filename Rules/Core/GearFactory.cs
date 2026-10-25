@@ -211,6 +211,18 @@ public static class GearFactory
         return id;
     }
 
+    /// <summary>Copy of a weapon archetype (damage, rate of fire…) under a stable ID.</summary>
+    public static uint CloneArchetype(uint srcId, string key)
+    {
+        if (GameDataBlockBase<ArchetypeDataBlock>.HasBlock(key)) return GameDataBlockBase<ArchetypeDataBlock>.GetBlockID(key);
+        var src = GameDataBlockBase<ArchetypeDataBlock>.GetBlock(srcId) ?? throw new Exception($"no archetype {srcId}");
+        var a = CloneBlock(src);
+        a.persistentID = StableId<ArchetypeDataBlock>(key);
+        a.name = key;
+        GameDataBlockBase<ArchetypeDataBlock>.AddBlock(a);
+        return a.persistentID;
+    }
+
     /// <summary>
     /// New offline gear from stock gear. <paramref name="comps"/>: part type → ID (null — remove the part).
     /// </summary>
