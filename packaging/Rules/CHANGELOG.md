@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.4
+- Party rules panel didn't show up (the lobby camera isn't in the camera list) — fixed; the same camera search is used for the HUD.
+- **Gadget line** in the HUD font, sized to 2% of the screen height whatever the HUD scale (GadgetHudHeight), centered above the health readout; ON/OFF and the battery bar. The bio-tracker screen stands on it.
+- **Thermal goggles** didn't switch on if no thermal-sight weapon was loaded in that level: the lens material is now kept from the lobby (and searched again if missing).
+- **Booster syringe**: picking it up threw an error and fell back to the normal pickup — fixed. Map screen: effects listed on the left above the legend — "BOOSTER", then one line per effect with a readable name, the total change and time left; several syringes add up, opposite effects cancel out, each keeps its own time. Effect names in English or Russian.
+- Hand grenade in hand: the look is mounted on the moving part of the model (bone) and kept on the item's layer; details in the log.
+
 ## 0.9.3
 - Fixed: **TF I / TF II sentries piled up copies of their model** every frame (the set-up was retried after the model was already attached).
 - Party rules panel: now in the middle at the top of the lobby, in the game's own font, capitals, framed (the position setting was read wrong — it was stuck in the corner). New keys PanelPlace, PanelTextSize.

@@ -148,19 +148,36 @@ public class Grenades : ModuleBase
                 // In hand (first / third person) the glow stick mesh moves with the throwing animation, the prefab root
                 // doesn't — put the look on the mesh so it leaves the hand when the throw does.
                 bool inHand = m == (int)ItemMode.FirstPerson || m == (int)ItemMode.ThirdPerson;
-                var mount = inHand ? MainRenderer(rs).transform : dst.transform;
+                var main = MainRenderer(rs);
+                // A skinned mesh stays put and its bones move — mount on the bone then.
+                var skinned = main.TryCast<SkinnedMeshRenderer>();
+                var mover = skinned != null ? (skinned.rootBone ?? (skinned.bones != null && skinned.bones.Length > 0 ? skinned.bones[0] : null)) ?? main.transform : main.transform;
+                var mount = inHand ? mover : dst.transform;
                 var look = TurretVariants.CopyModel(src, mount, "GtfoPunk_Look");
                 if (look == null) continue;
+                // Same layer as the stick it replaces (first person items are drawn by their own camera).
+                foreach (var tr in look.GetComponentsInChildren<Transform>(true)) tr.gameObject.layer = main.gameObject.layer;
                 if (mount != dst.transform)
                 {
                     // Keep the size it had on the root (the mesh node may be scaled).
                     var want = dst.transform.lossyScale; var have = mount.lossyScale;
-                    look.transform.localScale = new Vector3(want.x / Math.Max(1e-4f, have.x), want.y / Math.Max(1e-4f, have.y), want.z / Math.Max(1e-4f, have.z));
+                    var k = new Vector3(want.x / Math.Max(1e-4f, have.x), want.y / Math.Max(1e-4f, have.y), want.z / Math.Max(1e-4f, have.z));
+                    if (k.x < 0.01f || k.x > 100f || float.IsNaN(k.x)) k = Vector3.one;
+                    look.transform.localScale = k;
                 }
+                if (inHand) ModInfo.Log.LogInfo($"[Grenades] item {id} {(ItemMode)m} '{dst.name}': look on '{PathOf(mount, dst.transform)}' ({main.GetIl2CppType().Name} '{main.name}', scale {look.transform.localScale.x:0.###}, renderers {rs.Length})");
                 done++;
             }
         }
         if (done > 0) ModInfo.Log.LogInfo($"[Grenades] item {id}: C-Foam Grenade look applied to {done} models");
+    }
+
+    private static string PathOf(Transform t, Transform root)
+    {
+        var parts = new List<string>();
+        for (var x = t; x != null && x != root; x = x.parent) parts.Add(x.name);
+        parts.Reverse();
+        return parts.Count == 0 ? "(root)" : string.Join("/", parts);
     }
 
     /// <summary>The biggest mesh of the model (the glow stick itself, not small extras).</summary>

@@ -344,7 +344,7 @@ public partial class Loadout : ModuleBase
     // ---------- tick ----------
 
     private static eGameStateName _lastState;
-    private static float _giveAt = -1f, _nextLobbyCheck;
+    private static float _giveAt = -1f, _nextLobbyCheck, _lobbySince;
     private static bool _boostersCleared;
 
     private static void Tick()
@@ -352,7 +352,7 @@ public partial class Loadout : ModuleBase
         var state = GameStateManager.CurrentStateName;
         if (state != _lastState)
         {
-            if (state == eGameStateName.Lobby) { _boostersCleared = false; _nextBroadcast = 0f; }
+            if (state == eGameStateName.Lobby) { _boostersCleared = false; _nextBroadcast = 0f; _lobbySince = Time.time; }
             if (state == eGameStateName.InLevel && SNet.IsMaster) _giveAt = Time.time + Math.Max(0.5f, _giveDelay.Value);
             if (state != eGameStateName.InLevel) _giveAt = -1f;
             _lastState = state;
@@ -367,6 +367,7 @@ public partial class Loadout : ModuleBase
             _nextLobbyCheck = Time.time + 1f;
             ClearStockBoosters();
             try { PhotoTick(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] photos: {e.Message}"); }
+            if (Time.time - _lobbySince > 4f) ThermalLobbyPrep();
             RepaintAll();
         }
 

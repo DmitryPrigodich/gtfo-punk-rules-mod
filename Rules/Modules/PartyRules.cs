@@ -172,9 +172,8 @@ public class PartyRules : ModuleBase
         if (bars != null) foreach (var bar in bars) if (bar != null && bar.m_boosterImplantsHeaderText != null) { src = bar.m_boosterImplantsHeaderText; break; }
         if (src == null) { ModInfo.Log.LogWarning("[PartyRules] no lobby text to copy the look from"); return false; }
         int layer = src.gameObject.layer;
-        _uiCam = null;
-        foreach (var c in Camera.allCameras) if (c != null && (c.cullingMask & (1 << layer)) != 0) { _uiCam = c; break; }
-        if (_uiCam == null) { ModInfo.Log.LogWarning("[PartyRules] no camera draws the lobby"); return false; }
+        _uiCam = UiCamera.For(layer);
+        if (_uiCam == null) return false;
         MakeSprites();
 
         var srcRenderer = src.GetComponent<MeshRenderer>();

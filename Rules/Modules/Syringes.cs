@@ -98,10 +98,10 @@ public class Syringes : ModuleBase
                 if ((__instance.ItemDataBlock?.persistentID ?? 0) != SyringeItemId) return true;
                 var sync = __instance.GetSyncComponent();
                 if (sync == null) return true;
-                if (SNet.IsMaster) ItemReplicationManager.DeSpawn(sync.GetReplicator());
-                else sync.AttemptPickupInteraction(ePickupItemInteractionType.Place, player.Owner, sync.GetCustomData(), new Vector3(0f, -5000f, 0f), Quaternion.identity);
+                // Out of the level (a level pickup can't be despawned like gear).
+                sync.AttemptPickupInteraction(ePickupItemInteractionType.Place, player.Owner, sync.GetCustomData(), new Vector3(0f, -5000f, 0f), Quaternion.identity);
                 try { CellSound.Post(AK.EVENTS.SYRINGE_USE, player.Position); } catch { }
-                ModInfo.Log.LogInfo($"[Syringes] syringe injected on pickup ({(SNet.IsMaster ? "despawned" : "moved out of the level")})");
+                ModInfo.Log.LogInfo("[Syringes] syringe injected on pickup (moved out of the level)");
                 ApplyRandomBooster();
                 return false;
             }
@@ -159,7 +159,48 @@ public class Syringes : ModuleBase
         public string Name;
         public float Until;
         public readonly List<uint> Ids = new();
-        public readonly List<string> Lines = new();
+        public readonly List<(AgentModifier Mod, float Delta, bool Good)> Effects = new();
+    }
+
+    /// <summary>Effect name in a word or two (the game's own names are abbreviations like "Rev-Q").</summary>
+    private static string EffectName(AgentModifier m) => m switch
+    {
+        AgentModifier.RegenerationCap => Lang.T("Regeneration cap", "Предел регенерации"),
+        AgentModifier.RegenerationSpeed => Lang.T("Regeneration speed", "Скорость регенерации"),
+        AgentModifier.HealSupport => Lang.T("Healing others", "Лечение других"),
+        AgentModifier.ReviveSpeedSupport => Lang.T("Revive speed", "Скорость поднятия"),
+        AgentModifier.ReviveStartHealthSupport => Lang.T("Revived health", "Здоровье после поднятия"),
+        AgentModifier.MeleeResistance => Lang.T("Melee resistance", "Защита от ударов"),
+        AgentModifier.ProjectileResistance => Lang.T("Projectile resistance", "Защита от снарядов"),
+        AgentModifier.InfectionResistance => Lang.T("Infection resistance", "Защита от инфекции"),
+        AgentModifier.ExplosionResistance => Lang.T("Explosion resistance", "Защита от взрывов"),
+        AgentModifier.StandardWeaponDamage => Lang.T("Main weapon damage", "Урон основного оружия"),
+        AgentModifier.SpecialWeaponDamage => Lang.T("Special weapon damage", "Урон спецоружия"),
+        AgentModifier.MeleeDamage => Lang.T("Melee damage", "Урон в ближнем бою"),
+        AgentModifier.GlueStrength => Lang.T("Foam strength", "Сила пены"),
+        AgentModifier.GlueEfficiency => Lang.T("Foam efficiency", "Экономия пены"),
+        AgentModifier.SentryGunSpeed => Lang.T("Sentry speed", "Скорость турелей"),
+        AgentModifier.SentryGunDamage => Lang.T("Sentry damage", "Урон турелей"),
+        AgentModifier.TripMineDamage => Lang.T("Mine damage", "Урон мин"),
+        AgentModifier.ScannerRechargeSpeed => Lang.T("Bio-tracker recharge", "Перезарядка биотрекера"),
+        AgentModifier.AmmoSupport => Lang.T("Ammo given", "Отдача патронов"),
+        AgentModifier.HackingProficiency => Lang.T("Hacking", "Взлом"),
+        AgentModifier.ComputerProcessingSpeed => Lang.T("Terminal speed", "Скорость терминалов"),
+        AgentModifier.InitialAmmoStandard => Lang.T("Starting main ammo", "Начальные патроны"),
+        AgentModifier.InitialAmmoSpecial => Lang.T("Starting special ammo", "Начальные спецпатроны"),
+        AgentModifier.InitialAmmoTool => Lang.T("Starting tool ammo", "Начальный запас инструмента"),
+        AgentModifier.FogRepellerEffect => Lang.T("Fog repeller", "Отпугиватель тумана"),
+        AgentModifier.GlowstickEffect => Lang.T("Glow sticks", "Химсвет"),
+        AgentModifier.BioscanSpeed => Lang.T("Scan speed", "Скорость сканов"),
+        AgentModifier.MovementSpeed => Lang.T("Movement speed", "Скорость бега"),
+        AgentModifier.MovementAcceleration => Lang.T("Acceleration", "Ускорение"),
+        _ => m.ToString(),
+    };
+
+    private static string EffectLine(AgentModifier m, float delta)
+    {
+        bool good = AgentModifierManager.ModifierHasInvertedMeaning(m) ? delta < 0f : delta > 0f;
+        return $"<color={(good ? "#8fe08f" : "#e08f8f")}>{EffectName(m)} {delta * 100f:+0;-0}%</color>";
     }
 
     private static readonly List<Boost> _active = new();
@@ -197,15 +238,13 @@ public class Syringes : ModuleBase
             if (!good && !_downsides.Value) continue;
             uint id = AgentModifierManager.AddSyncedModifierValue(agent, eff.Effect, delta);
             boost.Ids.Add(id);
-            string name = (string)eff.PublicShortName;
-            if (string.IsNullOrWhiteSpace(name)) name = eff.Effect.ToString();
-            boost.Lines.Add($"<color={(good ? "#8fe08f" : "#e08f8f")}>{name} {delta * 100f:+0;-0}%</color>");
+            boost.Effects.Add((eff.Effect, delta, good));
             ModInfo.Log.LogInfo($"[Syringes] {eff.Effect}: value {value:0.###} → change {delta:+0.###;-0.###} (id {id})");
         }
         if (boost.Ids.Count == 0) return;
         _active.Add(boost);
         ModInfo.Log.LogInfo($"[Syringes] injected '{boost.Name}' for {_minutes.Value:0.#} min");
-        try { PlayerChatManager.PostChatMessageLocaly(SNet.LocalPlayer, $"<color=#ffd34f>{Lang.T("Booster syringe", "Шприц-усилитель")}:</color> {string.Join(", ", boost.Lines)}"); } catch { }
+        try { PlayerChatManager.PostChatMessageLocaly(SNet.LocalPlayer, $"<color=#ffd34f>{Lang.T("Booster syringe", "Шприц-усилитель")}:</color> {string.Join(", ", boost.Effects.Select(e => EffectLine(e.Mod, e.Delta)))}"); } catch { }
     }
 
     private static void Expire(Boost b)
@@ -243,7 +282,10 @@ public class Syringes : ModuleBase
 
     private static TMPro.TextMeshPro _map;
 
-    /// <summary>A copy of the map's expedition time text, under it: active syringe effects and infection.</summary>
+    /// <summary>
+    /// Map screen, left, above the legend: "BOOSTER" and one line per effect — name, total change, time left.
+    /// Effects of several syringes add up (opposite ones cancel out); each keeps its own time.
+    /// </summary>
     private static void UpdateMap()
     {
         var page = CellMenu.CM_PageMap.Current;
@@ -251,27 +293,50 @@ public class Syringes : ModuleBase
         if (_map == null)
         {
             var src = page.m_expeditionTime;
-            if (src == null) return;
-            var go = UnityEngine.Object.Instantiate(src.gameObject, src.transform.parent, false);
+            var legend = page.m_mapLegend;
+            if (src == null || legend == null) return;
+            var go = UnityEngine.Object.Instantiate(src.gameObject, legend.transform.parent, false);
             go.name = "GtfoPunk_MapEffects";
-            go.transform.localPosition = src.transform.localPosition + new Vector3(0f, -45f, 0f);
             _map = go.GetComponent<TMPro.TextMeshPro>();
             if (_map == null) { UnityEngine.Object.Destroy(go); return; }
-            var a = src.alignment.ToString();
-            _map.alignment = a.Contains("Left") ? TMPro.TextAlignmentOptions.TopLeft : a.Contains("Right") ? TMPro.TextAlignmentOptions.TopRight : TMPro.TextAlignmentOptions.Top;
+            _map.alignment = TMPro.TextAlignmentOptions.BottomLeft;
             _map.enableWordWrapping = false;
-            _map.fontSize = src.fontSize * 0.8f;
-            ModInfo.Log.LogInfo($"[Syringes] map effects text added (alignment {a})");
+            _map.rectTransform.pivot = new Vector2(0f, 0f);
+            // Bottom-left corner just above the legend's top-left.
+            float top = float.MinValue, left = float.MaxValue, z = legend.transform.position.z;
+            foreach (var r in legend.GetComponentsInChildren<Renderer>(false))
+            {
+                if (r == null || !r.enabled) continue;
+                top = Math.Max(top, r.bounds.max.y);
+                left = Math.Min(left, r.bounds.min.x);
+            }
+            if (top == float.MinValue) { top = legend.transform.position.y; left = legend.transform.position.x; }
+            float gap = (top - legend.transform.position.y) * 0.15f;
+            go.transform.position = new Vector3(left, top + Math.Max(0f, gap), z);
+            ModInfo.Log.LogInfo($"[Syringes] map effects text added above the legend");
         }
         var sb = new System.Text.StringBuilder();
-        foreach (var b in _active)
+        if (_active.Count > 0)
         {
-            int left = Mathf.CeilToInt(b.Until - Time.time);
-            sb.Append($"<color=#ffd34f>{b.Name} {left / 60}:{left % 60:00}</color>  ").Append(string.Join("  ", b.Lines)).Append('\n');
+            sb.Append("<color=#ffd34f>").Append(Lang.T("BOOSTER", "БУСТЕР")).Append("</color>\n");
+            var sum = new Dictionary<AgentModifier, (float Delta, float Until)>();
+            foreach (var b in _active)
+                foreach (var e in b.Effects)
+                {
+                    sum.TryGetValue(e.Mod, out var cur);
+                    sum[e.Mod] = (cur.Delta + e.Delta, Math.Max(cur.Until, b.Until));
+                }
+            foreach (var kv in sum.OrderBy(k => EffectName(k.Key)))
+            {
+                int left = Mathf.CeilToInt(kv.Value.Until - Time.time);
+                if (Math.Abs(kv.Value.Delta) < 0.005f) sb.Append($"<color=#9a9a9a>{EffectName(kv.Key)} 0%</color>");
+                else sb.Append(EffectLine(kv.Key, kv.Value.Delta));
+                sb.Append($"  <color=#cfcfcf>{left / 60}:{left % 60:00}</color>\n");
+            }
         }
         float infection = 0f;
         try { infection = PlayerManager.GetLocalPlayerAgent()?.Damage?.Infection ?? 0f; } catch { }
-        if (infection > 0.005f) sb.Append($"<color=#9fe07a>{Lang.T("Infection", "Инфекция")} {infection * 100f:0}%</color>");
+        if (infection > 0.005f) sb.Append($"<color=#9fe07a>{Lang.T("INFECTION", "ИНФЕКЦИЯ")} {infection * 100f:0}%</color>");
         string text = sb.ToString().TrimEnd('\n');
         if (_map.text != text) _map.SetText(text);
     }
@@ -299,7 +364,7 @@ public class Syringes : ModuleBase
             foreach (var b in _active)
             {
                 int left = Mathf.CeilToInt(b.Until - Time.time);
-                sb.Append($"<color=#ffd34f>{left / 60}:{left % 60:00}</color> ").Append(string.Join("  ", b.Lines)).Append('\n');
+                sb.Append($"<color=#ffd34f>{left / 60}:{left % 60:00}</color> ").Append(string.Join("  ", b.Effects.Select(e => EffectLine(e.Mod, e.Delta)))).Append('\n');
             }
             text = sb.ToString().TrimEnd('\n');
         }

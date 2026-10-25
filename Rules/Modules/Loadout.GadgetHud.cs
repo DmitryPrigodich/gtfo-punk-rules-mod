@@ -3,27 +3,28 @@ using UnityEngine;
 namespace GtfoPunk.Rules.Modules;
 
 /// <summary>
-/// A semi-transparent line above the health readout: which gadget you carry and its state —
-/// "BIO-TRACKER [N] ready / 5 s / 3 found", "THERMAL [N] on ×0.5 / off".
+/// The gadget line above the health readout, in the HUD's own font: "BIO-TRACKER [N] on ||||||···· 63%".
+/// Sized to a fixed share of the screen height (the HUD's own scale doesn't matter). The stock booster icons
+/// that used to sit there are hidden; the bio-tracker screen stands on this line.
 /// </summary>
 public partial class Loadout
 {
-    private static ConfigEntry<bool> _gadgetHud;
-    private static ConfigEntry<float> _gadgetHudAlpha;
+    private static ConfigEntry<bool> _gadgetHud, _hideBoosterIcons;
+    private static ConfigEntry<float> _gadgetHudAlpha, _gadgetHudHeight;
     private static ConfigEntry<string> _gadgetHudOffset;
-    private static ConfigEntry<float> _gadgetHudSize;
-    private static ConfigEntry<bool> _hideBoosterIcons;
 
     private void BindGadgetHud()
     {
-        _gadgetHud = Bind("GadgetHud", true, "Show the gadget and its state (ready / recharging / found, on / off) above the health readout.");
-        _gadgetHudAlpha = Bind("GadgetHudOpacity", 0.6f, "Opacity of the gadget line (0–1).");
-        _gadgetHudOffset = Bind("GadgetHudShift", "0,0", "Shift of the gadget line from its place (where the stock booster icons were, above health), x,y in HUD units; up is +y.");
-        _gadgetHudSize = Bind("GadgetHudSize", 0.8f, "Gadget line text size, relative to the health readout.");
-        _hideBoosterIcons = Bind("HideBoosterIcons", true, "Hide the stock booster icons above health (boosters are replaced by the loadout); the gadget line takes their place.");
+        _gadgetHud = Bind("GadgetHud", true, "Show the gadget, on/off and its battery above the health readout.");
+        _gadgetHudAlpha = Bind("GadgetHudOpacity", 0.85f, "Opacity of the gadget line (0–1).");
+        _gadgetHudHeight = Bind("GadgetHudHeight", 0.02f, "Height of the gadget line text, as a fraction of the screen height.");
+        _gadgetHudOffset = Bind("GadgetHudShift", "0,0", "Shift of the gadget line (x right, y up; fractions of the screen height).");
+        _hideBoosterIcons = Bind("HideBoosterIcons", true, "Hide the stock booster icons above health (boosters are replaced by the loadout).");
     }
 
     private static TMPro.TextMeshPro _gadgetText;
+    private static PUI_LocalPlayerStatus _status;
+    private static float _nextGadgetFind, _nextGadgetFit, _nextBoosterHide;
 
     private static void GadgetHudTick(bool inLevel, PerkKind perk)
     {
@@ -35,22 +36,20 @@ public partial class Loadout
         string key = _gadgetKey.Value.ToUpperInvariant();
         bool on = GadgetOn(perk);
         string name = perk == PerkKind.BioTracker ? Lang.T("BIO-TRACKER", "БИОТРЕКЕР") : Lang.T("THERMAL", "ТЕПЛОВИЗОР");
-        string state = on ? $"<color=#ffb347>{Lang.T("on", "вкл")}</color>" : Lang.T("off", "выкл");
+        string state = on ? $"<color=#ffb347>{Lang.T("ON", "ВКЛ")}</color>" : Lang.T("OFF", "ВЫКЛ");
         if (on && perk == PerkKind.Thermal && _zoom > 0.01f) state += $" ×{1f / (1f - _zoom):0.#}";
         if (_batterySeconds.Value > 0f)
         {
             // Battery as a bar of ten segments + percent: ||||||····  63%
-            int pct = Mathf.CeilToInt(_charge * 100f), seg = Mathf.CeilToInt(_charge * 10f - 0.001f);
+            int pct = Mathf.CeilToInt(_charge * 100f), seg = Mathf.Clamp(Mathf.CeilToInt(_charge * 10f - 0.001f), 0, 10);
             string col = _charge < Mathf.Clamp01(_minCharge.Value) ? "#e05a4f" : _charge < 0.35f ? "#e0c04f" : "#8fe08f";
             state += $"  <color={col}>{new string('|', seg)}</color><color=#ffffff40>{new string('|', 10 - seg)}</color> <color={col}>{pct}%</color>";
         }
         state = $"{name} [{key}]  {state}";
         if (_gadgetText.text != state) _gadgetText.SetText(state);
+        if (Time.time >= _nextGadgetFit) { _nextGadgetFit = Time.time + 1f; PlaceGadgetText(); }
         if (Time.time >= _nextBoosterHide) { _nextBoosterHide = Time.time + 0.5f; HideBoosters(); }
     }
-
-    private static float _nextBoosterHide;
-    private static PUI_LocalPlayerStatus _status;
 
     /// <summary>The stock booster icons stay hidden (the game may switch them back on).</summary>
     private static void HideBoosters()
@@ -59,8 +58,6 @@ public partial class Loadout
         var d = _status.m_boosterIconActiveDisplay;
         if (d != null && d.gameObject.activeSelf) d.gameObject.SetActive(false);
     }
-
-    private static float _nextGadgetFind;
 
     private static bool MakeGadgetText()
     {
@@ -72,22 +69,48 @@ public partial class Loadout
         _status = status;
         var go = UnityEngine.Object.Instantiate(src.gameObject, src.transform.parent, false);
         go.name = "GtfoPunk_GadgetHud";
-        var off = TurretVariants.Vec(_gadgetHudOffset.Value);
-        // In place of the stock booster icons (above health); without them — a line above the health readout.
-        var boosters = status.m_boosterIconActiveDisplay;
-        if (boosters != null)
-        {
-            go.transform.position = boosters.transform.position;
-            go.transform.localPosition += new Vector3(off.x, off.y, 0f);
-        }
-        else go.transform.localPosition = src.transform.localPosition + new Vector3(off.x, 40f + off.y, 0f);
         _gadgetText = go.GetComponent<TMPro.TextMeshPro>();
         if (_gadgetText == null) { UnityEngine.Object.Destroy(go); return false; }
         _gadgetText.enableWordWrapping = false;
-        _gadgetText.fontSize = src.fontSize * Mathf.Clamp(_gadgetHudSize.Value, 0.2f, 2f);
+        _gadgetText.alignment = TMPro.TextAlignmentOptions.Center;
         _gadgetText.alpha = Mathf.Clamp01(_gadgetHudAlpha.Value);
+        _nextGadgetFit = 0f;
         HideBoosters();
-        ModInfo.Log.LogInfo($"[Loadout] gadget line added {(boosters != null ? "in place of the booster icons" : "above health")} (font {src.fontSize:0.#} → {_gadgetText.fontSize:0.#}, alignment {src.alignment})");
+        ModInfo.Log.LogInfo($"[Loadout] gadget line added above health (font {src.fontSize:0.#})");
         return true;
+    }
+
+    private static int _fitLogs;
+
+    /// <summary>Centered just above the health readout; font scaled until the text is GadgetHudHeight of the screen tall.</summary>
+    private static void PlaceGadgetText()
+    {
+        var health = _status?.m_healthText;
+        var cam = UiCamera.For(_gadgetText.gameObject.layer);
+        if (health == null || cam == null) return;
+        var hr = health.GetComponent<Renderer>();
+        var gr = _gadgetText.GetComponent<Renderer>();
+        if (hr == null || gr == null) return;
+
+        // Size: measure on screen, scale the font towards the wanted height.
+        _gadgetText.ForceMeshUpdate();
+        float want = Screen.height * Mathf.Clamp(_gadgetHudHeight.Value, 0.005f, 0.1f);
+        float have = UiCamera.ScreenRect(cam, gr.bounds).height;
+        if (have > 0.5f && Math.Abs(have - want) > want * 0.08f)
+        {
+            _gadgetText.fontSize *= Mathf.Clamp(want / have, 0.25f, 4f);
+            _gadgetText.ForceMeshUpdate();
+            if (_fitLogs++ < 4) ModInfo.Log.LogInfo($"[Loadout] gadget line: {have:0} px → {want:0} px tall, font {_gadgetText.fontSize:0.#}");
+        }
+
+        // Place: centered over the health readout, its bottom a little above the readout's top.
+        var hs = UiCamera.ScreenRect(cam, hr.bounds);
+        var gs = UiCamera.ScreenRect(cam, gr.bounds);
+        var shift = TurretVariants.Vec(_gadgetHudOffset.Value) * Screen.height;
+        var targetCenter = new Vector2(hs.center.x + shift.x, hs.yMax + want * 0.6f + gs.height * 0.5f + shift.y);
+        float depth = cam.WorldToScreenPoint(gr.bounds.center).z;
+        var worldNow = cam.ScreenToWorldPoint(new Vector3(gs.center.x, gs.center.y, depth));
+        var worldWant = cam.ScreenToWorldPoint(new Vector3(targetCenter.x, targetCenter.y, depth));
+        _gadgetText.transform.position += worldWant - worldNow;
     }
 }

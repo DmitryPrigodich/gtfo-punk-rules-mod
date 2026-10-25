@@ -129,7 +129,26 @@ public partial class Loadout
         _thermalQuad = null; _thermalCam = null; _thermalOn = false; _closing = false; _thermalPrewarming = false;
     }
 
-    private static float _nextTune, _zoom;
+    private static float _nextTune, _zoom, _thermalRetryAt;
+    private static bool _thermalLobbyDone;
+
+    /// <summary>
+    /// In the lobby (weapon parts are loaded there): keep a copy of a thermal sight part, so its lens material stays
+    /// in memory, and make our thermal material from it — no search in the level, works on any level.
+    /// </summary>
+    internal static void ThermalLobbyPrep()
+    {
+        if (_thermalLobbyDone || _thermalMat != null) return;
+        _thermalLobbyDone = true;
+        try
+        {
+            var part = TurretVariants.KeptModel("Sight_19_t,Sight_10_t");
+            _thermalSearched = false;
+            var m = ThermalMaterial();
+            ModInfo.Log.LogInfo($"[Thermal] lobby: sight part {(part != null ? "kept" : "not loaded")}, material {(m != null ? m.name : "not found")}");
+        }
+        catch (Exception e) { ModInfo.Log.LogWarning($"[Thermal] lobby: {e.Message}"); }
+    }
     private static float _baseDistMin = -1f, _baseDistMax, _baseDistShadowMin, _baseDistShadowMax;
 
     /// <summary>Turn the sight lens material into a full-view filter: no magnification, no reticle, no round border.</summary>
@@ -242,8 +261,9 @@ public partial class Loadout
     private static Material ThermalMaterial()
     {
         if (_thermalMat != null) return _thermalMat;
-        if (_thermalSearched) return null;
+        if (_thermalSearched && Time.time < _thermalRetryAt) return null; // the search is a scene-wide scan — not too often
         _thermalSearched = true;
+        _thermalRetryAt = Time.time + 20f;
         string want = _thermalMaterial.Value.Trim();
         Material pick = null;
 

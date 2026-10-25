@@ -51,7 +51,7 @@ public partial class Loadout
     // ---------- where to draw: above the health readout (in GUI pixels) ----------
 
     private static bool _anchorOk;
-    private static Vector2 _anchor; // GUI space (y from the top): left end of the line the screen stands on
+    private static Vector2 _anchor; // GUI space (y from the top): middle of the line the screen stands on
     private static Camera _hudCam;
     private static PUI_LocalPlayerStatus _radarStatus;
 
@@ -67,17 +67,12 @@ public partial class Loadout
             t = _radarStatus?.m_healthText;
         }
         if (t == null) return;
-        int layer = t.gameObject.layer;
-        if (_hudCam == null || (_hudCam.cullingMask & (1 << layer)) == 0)
-        {
-            _hudCam = null;
-            foreach (var c in Camera.allCameras) if (c != null && (c.cullingMask & (1 << layer)) != 0) { _hudCam = c; break; }
-            if (_hudCam == null) return;
-        }
+        _hudCam = UiCamera.For(t.gameObject.layer);
+        if (_hudCam == null) return;
         var r = t.GetComponent<Renderer>();
         if (r == null) return;
         var b = r.bounds;
-        var top = _hudCam.WorldToScreenPoint(new Vector3(b.min.x, b.max.y, b.center.z));
+        var top = _hudCam.WorldToScreenPoint(new Vector3(b.center.x, b.max.y, b.center.z));
         if (top.z < 0f) return;
         _anchor = new Vector2(top.x, Screen.height - top.y);
         _anchorOk = true;
@@ -141,7 +136,7 @@ public partial class Loadout
 
         float R = Screen.height * Mathf.Clamp(_radarSize.Value, 0.03f, 0.5f);
         float cx = Screen.width * 0.5f, by = Screen.height * (1f - Mathf.Clamp(_radarBottom.Value, 0f, 0.5f));
-        if (_anchorOk) { cx = _anchor.x + R; by = _anchor.y - R * 0.1f; } // above health, left edges lined up
+        if (_anchorOk) { cx = _anchor.x; by = _anchor.y - R * 0.12f; } // above the gadget line, centered
         var shift = TurretVariants.Vec(_radarShift.Value);
         cx += shift.x * Screen.height;
         by -= shift.y * Screen.height;
