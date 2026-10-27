@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.11
+- **Loadout handed out again**: in 0.9.9–0.9.10 the pack and item were put "straight into the backpack" — the game ignored that, nobody got anything. Back to spawning a pickup and picking it up for the player; the hitches that way came from the checkpoint / migration capture asking those items for their state — handed-out items are now left out of the capture (log: `[Loadout] capture: skipped a handed-out item`). The backpack way stays as an experiment (Loadout.GiveIntoBackpack, off).
+- DoorAlarms.KeepScriptedDoors was reset to the default on every start (cleanup ran before the key was read).
+
 ## 0.9.10
 - Lobby loadout icons twice as big again (Loadout.LobbyIconSize = 12; a changed ItemIconSize is carried over).
 

@@ -44,7 +44,7 @@ public partial class Loadout : ModuleBase
     private static ConfigEntry<string> _pack, _perk, _itemChoices, _botPack;
     private static ConfigEntry<uint> _item, _botItem;
     private static ConfigEntry<int> _packCharges, _itemAmount;
-    private static ConfigEntry<bool> _blockBoosters, _givePickup;
+    private static ConfigEntry<bool> _blockBoosters, _giveBackpack;
     private static ConfigEntry<string> _gadgetKey;
     private static ConfigEntry<float> _giveDelay;
 
@@ -61,7 +61,7 @@ public partial class Loadout : ModuleBase
         _botPack = Bind("BotPack", "None", "Pack the host gives each bot: None, Ammo, Medi, Tool, Disinfection.");
         _botItem = Bind("BotItem", 0u, "Extra item the host gives each bot (item ID, 0 — none).");
         _giveDelay = Bind("GiveDelay", 3f, "Seconds after drop-in before the host hands out the loadout.");
-        _givePickup = Bind("GiveAsPickup", false, "Old way of handing out (spawn a pickup next to the player and pick it up). false — straight into the backpack (the old way broke checkpoint captures).");
+        _giveBackpack = Bind("GiveIntoBackpack", false, "EXPERIMENT: hand out straight into the backpack instead of spawning a pickup and picking it up. In 0.9.10 this gave nothing — leave it off.");
         _blockBoosters = Bind("BlockStockBoosters", true, "Stock boosters can't be selected (already selected ones are unselected, not used up).");
         BindBattery();
         BindRadar();
@@ -76,6 +76,7 @@ public partial class Loadout : ModuleBase
         Net.On(Net.LoadoutChoice, OnChoiceReceived);
         Net.On(Net.AmmoFix, OnAmmoFixReceived);
         FrameTicker.OnUpdate += Tick;
+        FrameTicker.OnLevelExit += () => _given.Clear();
     }
 
     /// <summary>Your choice. Nothing is ever left empty: unknown / "None" values fall back to the first option.</summary>
@@ -492,7 +493,7 @@ public partial class Loadout : ModuleBase
         var custom = new pItemData_Custom { ammo = ammo };
         var data = new pItemData { itemID_gearCRC = itemId, slot = block.inventorySlot, custom = custom };
         var target = player;
-        if (!_givePickup.Value)
+        if (_giveBackpack.Value)
         {
             // Straight into the backpack, the way the game hands items out at drop-in. Spawning a level pickup and
             // picking it up left a broken item replicator behind: every checkpoint / migration capture then threw a
@@ -507,8 +508,40 @@ public partial class Loadout : ModuleBase
             catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] backpack add failed ({e.Message}) — spawning a pickup instead"); }
         }
         var cb = DelegateSupport.ConvertDelegate<ItemReplicationManager.delItemCallback>(
-            new Action<ISyncedItem, PlayerAgent>((item, _) => PickUpFor(item, target, custom, itemId)));
+            new Action<ISyncedItem, PlayerAgent>((item, _) =>
+            {
+                try { var it = item?.TryCast<Item>(); if (it != null) _given.Add(it.Pointer); } catch { }
+                PickUpFor(item, target, custom, itemId);
+            }));
         ItemReplicationManager.SpawnItem(data, cb, ItemMode.Pickup, agent.Position + Vector3.up * 0.3f, Quaternion.identity, agent.CourseNode, agent);
+    }
+
+    /// <summary>Level items spawned for the loadout (picked up at once into a backpack).</summary>
+    private static readonly HashSet<IntPtr> _given = new();
+    private static int _captureSkips;
+
+    /// <summary>
+    /// Host: the game's checkpoint / migration capture asks every spawned level item for its state. Items handed out
+    /// by the loadout are already in a backpack — asking them threw a NullReferenceException each time (thousands per
+    /// level: a huge log and hitches). Leave them out of the capture (the backpacks are captured on their own).
+    /// </summary>
+    [HarmonyPatch(typeof(ReplicatedItemWrapper), nameof(ReplicatedItemWrapper.TryCollectCaptureData))]
+    private static class Patch_Capture
+    {
+        private static bool Prefix(ReplicatedItemWrapper __instance, ref bool __result, ref SNetwork.eCapturePass captureType)
+        {
+            try
+            {
+                var item = __instance.Item;
+                bool skip = item == null || _given.Contains(item.Pointer);
+                if (!skip) return true;
+                captureType = default;
+                __result = false;
+                if (_captureSkips++ < 3) ModInfo.Log.LogInfo($"[Loadout] capture: skipped a handed-out item ({(item == null ? "no item" : item.name)})");
+                return false;
+            }
+            catch { return true; }
+        }
     }
 
     /// <summary>The pack / consumable ammo lives in the owner's ammo storage — make sure it's filled (owner-side).</summary>
