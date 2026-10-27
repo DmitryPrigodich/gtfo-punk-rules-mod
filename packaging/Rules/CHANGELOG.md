@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.13
+- Lobby loadout icons twice as big again (Loadout.SlotIconSize = 24; a changed LobbyIconSize is carried over).
+- Soft boots icon (`soft_boots.png`).
+- New package icon.
+
 ## 0.9.12
 - Difficulty: **alarm shift** (Difficulty.AlarmMode = 1, the new default; the host's setting is used by everyone). Instead of a cap, every alarm loses scans: I −4, II −3, III −2, IV −1, V as in the game, VI +1 (the last scan once more) — a Class V door stays harder than a Class II one. No scans left — one plain scan without a wave. The class in the name follows. AlarmMode = 0 — the cap as before.
 - New gadget **Soft boots** (always on, no battery): running, jumping and hard landings sound like walking to the enemies — sleepers don't hear you run past. The price: falls hurt from a lower height and harder (×1.5 from 70% of the height), running 8% slower (Loadout.BootsFallDamage / BootsFallHeight / BootsRunSpeed). Icon file `soft_boots.png` if you draw one.
