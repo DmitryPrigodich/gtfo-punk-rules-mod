@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.12
+- Difficulty: **alarm shift** (Difficulty.AlarmMode = 1, the new default; the host's setting is used by everyone). Instead of a cap, every alarm loses scans: I −4, II −3, III −2, IV −1, V as in the game, VI +1 (the last scan once more) — a Class V door stays harder than a Class II one. No scans left — one plain scan without a wave. The class in the name follows. AlarmMode = 0 — the cap as before.
+- New gadget **Soft boots** (always on, no battery): running, jumping and hard landings sound like walking to the enemies — sleepers don't hear you run past. The price: falls hurt from a lower height and harder (×1.5 from 70% of the height), running 8% slower (Loadout.BootsFallDamage / BootsFallHeight / BootsRunSpeed). Icon file `soft_boots.png` if you draw one.
+- Thermal goggles:
+  - the picture breaks up when you take damage (a drop-out, then heavy noise) and gets noisier as the battery runs low; below 15% the signal drops out now and then (ThermalGlitch);
+  - palettes: X steps through the thermal palettes found in the game (the log lists them: `[Thermal] palettes: …`); ThermalPalette picks one by name;
+  - TEST: ThermalMarksEnemies (off by default) — tags enemies in view like the bio-tracker, every 1.5 s, within 25 m.
+
 ## 0.9.11
 - **Loadout handed out again**: in 0.9.9–0.9.10 the pack and item were put "straight into the backpack" — the game ignored that, nobody got anything. Back to spawning a pickup and picking it up for the player; the hitches that way came from the checkpoint / migration capture asking those items for their state — handed-out items are now left out of the capture (log: `[Loadout] capture: skipped a handed-out item`). The backpack way stays as an experiment (Loadout.GiveIntoBackpack, off).
 - DoorAlarms.KeepScriptedDoors was reset to the default on every start (cleanup ran before the key was read).

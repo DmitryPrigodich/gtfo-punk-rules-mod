@@ -31,20 +31,29 @@ public class Difficulty : ModuleBase
     public static float Share => Vanilla ? 1f : (Max - Level) / 5f;
     /// <summary>Most scans an alarm door asks for: 0..5 for I..VI; -1 — as in the game.</summary>
     public static int AlarmCap => Vanilla ? -1 : Level - 1;
+    /// <summary>Alarm mode: false — a cap on the scans (AlarmCap); true — every alarm shifted by AlarmShift scans.</summary>
+    public static bool ShiftMode { get; private set; } = true;
+    /// <summary>Scans added to every alarm in shift mode: −4, −3, −2, −1, 0, +1 for I..VI.</summary>
+    public static int AlarmShift => Vanilla ? 0 : Level - 5;
 
     public static event Action<int> Changed;
 
-    private static ConfigEntry<int> _level;
+    private static ConfigEntry<int> _level, _mode;
 
     protected override void OnBindConfig()
     {
         _level = Bind("Level", 3, "Difficulty the host plays with: 1–6 (I WARDEN'S PET … VI GET THE F*** OUT), 0 — DEFAULT (the game's rules). Changed with the DIFFICULTY button in the lobby.");
         Level = Math.Clamp(_level.Value, Default, Max);
+        _mode = Bind("AlarmMode", 1, "How the difficulty changes alarm doors (the host's setting is used by everyone): "
+            + "0 — a cap: at most N scans (I — one plain scan, II — 1 … VI — 5); "
+            + "1 — a shift: every alarm loses scans (I −4, II −3, III −2, IV −1, V as in the game, VI +1), so a Class V door stays harder than a Class II one; 0 scans or fewer — one plain scan without a wave.");
+        ShiftMode = _mode.Value != 0;
     }
 
     protected override void OnEnable()
     {
         PartyRules.Register("Difficulty.Level", () => Lang.T("Difficulty", "Сложность"), Name, Default, Max, _level, Apply, Describe);
+        PartyRules.Register("Difficulty.AlarmMode", () => "Alarm mode", v => v == 0 ? "cap" : "shift", 0, 1, _mode, ApplyMode, hidden: true);
     }
 
     private static void Apply(int level)
@@ -55,6 +64,16 @@ public class Difficulty : ModuleBase
         ModInfo.Log.LogInfo($"[Difficulty] {Name(level)}: alarm cap {AlarmCap}, share {Share:0.##}");
         foreach (Action<int> h in Changed?.GetInvocationList() ?? Array.Empty<Delegate>())
             try { h(level); } catch (Exception e) { ModInfo.Log.LogWarning($"[Difficulty] {h.Method.DeclaringType?.Name}: {e.Message}"); }
+    }
+
+    private static void ApplyMode(int mode)
+    {
+        bool shift = mode != 0;
+        if (shift == ShiftMode) return;
+        ShiftMode = shift;
+        ModInfo.Log.LogInfo($"[Difficulty] alarm mode: {(shift ? "shift" : "cap")}");
+        foreach (Action<int> h in Changed?.GetInvocationList() ?? Array.Empty<Delegate>())
+            try { h(Level); } catch (Exception e) { ModInfo.Log.LogWarning($"[Difficulty] {h.Method.DeclaringType?.Name}: {e.Message}"); }
     }
 
     public static string Name(int level) => level switch
@@ -72,9 +91,13 @@ public class Difficulty : ModuleBase
     public static string Describe(int level)
     {
         if (level <= Default) return Lang.T("Alarms and ammo as in the game\nNo loadout, no gadgets", "Тревоги и патроны как в игре\nБез снаряжения и гаджетов");
-        int scans = level - 1, pct = (Max - level) * 20;
-        string alarm = scans == 0 ? Lang.T("Alarms: one plain scan, no wave", "Тревоги: один обычный скан, без волны")
-                                  : Lang.T($"Alarm doors: up to {scans} scan{(scans > 1 ? "s" : "")}", $"Двери с тревогой: до {scans} скан{(scans == 1 ? "а" : "ов")}");
+        int scans = level - 1, pct = (Max - level) * 20, shift = level - 5;
+        string alarm = ShiftMode
+            ? shift == 0 ? Lang.T("Alarms as in the game", "Тревоги как в игре")
+              : shift > 0 ? Lang.T($"Alarms: +{shift} scan", $"Тревоги: +{shift} скан")
+              : Lang.T($"Alarms: {shift} scans (none left — plain scan)", $"Тревоги: {shift} скана (не осталось — обычный скан)")
+            : scans == 0 ? Lang.T("Alarms: one plain scan, no wave", "Тревоги: один обычный скан, без волны")
+                         : Lang.T($"Alarm doors: up to {scans} scan{(scans > 1 ? "s" : "")}", $"Двери с тревогой: до {scans} скан{(scans == 1 ? "а" : "ов")}");
         string res = pct == 0 ? Lang.T("No ammo, packs or items — melee only", "Без патронов, пачек и предметов — только милишка")
                               : Lang.T($"Ammo, pack and items: {pct}%", $"Патроны, пачка и предметы: {pct}%");
         return alarm + "\n" + res;

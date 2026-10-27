@@ -15,7 +15,9 @@ public partial class Loadout
     private static ConfigEntry<string> _thermalZoomKey, _thermalZoomLevels, _thermalMaterial, _thermalSearch;
     private static ConfigEntry<float> _thermalDistance;
     private static ConfigEntry<bool> _thermalItemCamera, _thermalDump, _thermalReticle;
-    private static ConfigEntry<float> _thermalZoom, _thermalNoise;
+    private static ConfigEntry<float> _thermalZoom, _thermalNoise, _thermalMarkRange;
+    private static ConfigEntry<string> _thermalPalette, _thermalPaletteKey;
+    private static ConfigEntry<bool> _thermalGlitch, _thermalMark;
 
     private void BindThermal()
     {
@@ -29,6 +31,11 @@ public partial class Loadout
         _thermalNoise = Bind("ThermalNoise", 1f, "Thermal goggles: amount of scanline / signal distortion (1 — like the sight, 2–3 — predator-style noise, 0 — clean). Applied live.");
         _thermalReticle = Bind("ThermalReticle", false, "Thermal goggles: keep the sight's reticle drawn over the whole view.");
         _thermalDump = Bind("ThermalDiagnostics", false, "Write GtfoPunk.ThermalDump.txt (thermal materials and shader settings) in the first level. Causes a hitch.");
+        _thermalPalette = Bind("ThermalPalette", "", "Thermal goggles: color palette — part of a palette texture's name (the log lists the ones found: '[Thermal] palettes: …'). Empty — the sight's own.");
+        _thermalPaletteKey = Bind("ThermalPaletteKey", "X", "Thermal goggles: key that steps through the palettes found (Unity KeyCode name; empty — off).");
+        _thermalGlitch = Bind("ThermalGlitch", true, "Thermal goggles: the picture breaks up when you take damage and gets noisier as the battery runs low (signal drop-outs below 15%).");
+        _thermalMark = Bind("ThermalMarksEnemies", false, "Thermal goggles: TEST — tag enemies in view like the bio-tracker does (gadgets don't tag by design; off by default).");
+        _thermalMarkRange = Bind("ThermalMarkRange", 25f, "Thermal goggles: how far tagging reaches (m), with ThermalMarksEnemies.");
         _thermalItemCamera = Bind("ThermalOnItemCamera", true, "Thermal goggles: put the screen on the camera that draws the weapon (like the sight lens). false — on the world camera.");
     }
 
@@ -78,6 +85,118 @@ public partial class Loadout
         }
 
         if (_thermalOn && Time.time >= _nextTune) { _nextTune = Time.time + 0.5f; Tune(_thermalMat); }
+        if (_thermalOn) { PaletteKey(); GlitchTick(); MarkTick(); }
+        else _lastHealth = -1f;
+    }
+
+    // ---------- palettes ----------
+
+    private static readonly List<Texture> _palettes = new();
+    private static bool _palettesFound;
+    private static int _palette = -1; // -1 — the sight's own
+
+    private static void FindPalettes()
+    {
+        if (_palettesFound) return;
+        _palettesFound = true;
+        try
+        {
+            var own = _thermalMat != null ? _thermalMat.GetTexture("_HeatTex") : null;
+            if (own != null) _palettes.Add(own);
+            foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<Texture2D>()))
+            {
+                var t = o?.TryCast<Texture2D>();
+                string n = t?.name?.ToLowerInvariant() ?? "";
+                if (t == null || !n.Contains("gradient") || !(n.Contains("therm") || n.Contains("threm") || n.Contains("heat") || n.Contains("flir"))) continue;
+                if (!_palettes.Any(p => p.name == t.name)) _palettes.Add(t);
+            }
+            ModInfo.Log.LogInfo($"[Thermal] palettes: {string.Join(", ", _palettes.Select(p => p.name))}");
+            string want = _thermalPalette.Value.Trim().ToLowerInvariant();
+            if (want.Length > 0) _palette = _palettes.FindIndex(p => p.name.ToLowerInvariant().Contains(want));
+        }
+        catch (Exception e) { ModInfo.Log.LogWarning($"[Thermal] palettes: {e.Message}"); }
+    }
+
+    private static void PaletteKey()
+    {
+        FindPalettes();
+        if (_palettes.Count > 1 && Enum.TryParse<KeyCode>(_thermalPaletteKey.Value, true, out var k) && Input.GetKeyDown(k))
+        {
+            _palette = (_palette + 1) % _palettes.Count;
+            ModInfo.Log.LogInfo($"[Thermal] palette {_palettes[_palette].name}");
+            try { CellSound.Post(AK.EVENTS.BIOTRACKER_TAG, GameUtil.LocalAgent.Position); } catch { }
+        }
+        if (_palette >= 0 && _palette < _palettes.Count && _thermalMat != null) _thermalMat.SetTexture("_HeatTex", _palettes[_palette]);
+    }
+
+    // ---------- glitches: damage and a dying battery ----------
+
+    private static float _lastHealth = -1f, _dropUntil, _noiseUntil, _nextRandomDrop;
+
+    private static void GlitchTick()
+    {
+        if (!_thermalGlitch.Value || _thermalMat == null) return;
+        var agent = GameUtil.LocalAgent;
+        float hp = agent?.Damage != null ? agent.Damage.Health : -1f;
+        if (_lastHealth >= 0f && hp >= 0f && hp < _lastHealth - 0.01f)
+        {
+            float hit = Mathf.Clamp01((_lastHealth - hp) / Math.Max(1f, agent.Damage.HealthMax) * 4f); // bigger hit — longer
+            _dropUntil = Time.time + 0.06f + 0.12f * hit;
+            _noiseUntil = Time.time + 0.4f + 0.6f * hit;
+        }
+        _lastHealth = hp;
+        // A dying battery: below 15% the signal drops out now and then.
+        if (_batterySeconds.Value > 0f && _charge < 0.15f && Time.time >= _nextRandomDrop)
+        {
+            _nextRandomDrop = Time.time + UnityEngine.Random.Range(1f, 4f) * Mathf.Lerp(0.3f, 1f, _charge / 0.15f);
+            _dropUntil = Time.time + UnityEngine.Random.Range(0.05f, 0.15f);
+            _noiseUntil = Math.Max(_noiseUntil, Time.time + 0.3f);
+        }
+        // Noise: more as the battery runs low (×1 above 30%, ×3 at 0), ×4 right after a hit.
+        float k = Math.Max(0f, _thermalNoise.Value);
+        if (_batterySeconds.Value > 0f && _charge < 0.3f) k *= Mathf.Lerp(3f, 1f, _charge / 0.3f);
+        if (Time.time < _noiseUntil) k *= 4f;
+        SetNoise(_thermalMat, k);
+    }
+
+    private static void SetNoise(Material m, float k)
+    {
+        if (_baseDistMin < 0f) return;
+        m.SetFloat("_DistortionMin", Mathf.Clamp01(_baseDistMin * k));
+        m.SetFloat("_DistortionMax", Mathf.Clamp01(_baseDistMax * k));
+        m.SetFloat("_DistortionMinShadowEnemies", Mathf.Clamp01(_baseDistShadowMin * k));
+        m.SetFloat("_DistortionMaxShadowEnemies", Mathf.Clamp01(_baseDistShadowMax * k));
+    }
+
+    // ---------- TEST: tagging what you see (off by default) ----------
+
+    private static float _nextMark;
+    private static int _markLogs;
+
+    private static void MarkTick()
+    {
+        if (!_thermalMark.Value || Time.time < _nextMark) return;
+        _nextMark = Time.time + 1.5f;
+        var agent = GameUtil.LocalAgent;
+        var cam = _thermalCam;
+        if (agent == null || cam == null) return;
+        var origin = cam.transform.position;
+        float half = cam.fieldOfView * 0.5f * Math.Max(1f, cam.aspect);
+        var seen = new HashSet<IntPtr>();
+        int tagged = 0;
+        foreach (var col in Physics.OverlapSphere(origin, _thermalMarkRange.Value, LayerManager.MASK_ENEMY_DAMAGABLE))
+        {
+            var e = col == null ? null : col.GetComponent<Dam_EnemyDamageLimb>()?.GlueTargetEnemyAgent;
+            if (e == null || !e.Alive || !seen.Add(e.Pointer) || e.IsTagged) continue;
+            if (Vector3.Angle(cam.transform.forward, e.EyePosition - origin) > half) continue;
+            if (Physics.Linecast(origin, e.EyePosition, LayerManager.MASK_WORLD)) continue;
+            try { ToolSyncManager.WantToTagEnemy(e); tagged++; } catch { }
+        }
+        if (tagged > 0)
+        {
+            try { CellSound.Post(AK.EVENTS.BIOTRACKER_TAG, agent.Position); } catch { }
+            if (_markLogs++ < 5) ModInfo.Log.LogInfo($"[Thermal] tagged {tagged} in view");
+        }
     }
 
     // ---------- prewarm: find the material and draw it once, hidden, soon after the drop (no hitch on first use) ----------
@@ -146,6 +265,7 @@ public partial class Loadout
             _thermalSearched = false;
             var m = ThermalMaterial();
             ModInfo.Log.LogInfo($"[Thermal] lobby: sight part {(part != null ? "kept" : "not loaded")}, material {(m != null ? m.name : "not found")}");
+            if (m != null) FindPalettes(); // the texture search once, here in the lobby (not in the level)
         }
         catch (Exception e) { ModInfo.Log.LogWarning($"[Thermal] lobby: {e.Message}"); }
     }
@@ -235,6 +355,7 @@ public partial class Loadout
         _thermalQuad.transform.localRotation = Quaternion.identity;
         var a = AnimScale();
         if (_thermalQuad == null) return; // closed just now
+        if (_thermalOn && Time.time < _dropUntil) a = new Vector2(a.x, a.y * 0.02f); // signal drop: the picture snaps to a line
         _thermalQuad.transform.localScale = new Vector3(w * a.x, h * a.y, 1f);
     }
 

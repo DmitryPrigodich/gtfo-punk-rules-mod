@@ -29,7 +29,7 @@ public partial class Loadout : ModuleBase
     // ---------- choices ----------
 
     private enum PackKind : byte { None, Ammo, Medi, Tool, Disinfection }
-    private enum PerkKind : byte { None, BioTracker, Thermal, Hacker } // values travel over the network — never renumber
+    private enum PerkKind : byte { None, BioTracker, Thermal, Hacker, SoftBoots } // values travel over the network — never renumber
 
     private static readonly uint[] PackItemIds = { 0, 101, 102, 127, 132 };
 
@@ -52,7 +52,7 @@ public partial class Loadout : ModuleBase
     {
         _pack = Bind("Pack", "Ammo", "Your resource pack (also set by clicking the 1st booster slot in the lobby): None, Ammo, Medi, Tool, Disinfection.");
         _item = Bind("Item", 136u, "Your extra item, an item ID (also set by clicking the 2nd booster slot). 0 — none.");
-        _perk = Bind("Perk", "BioTracker", "Your gadget (also set by clicking the 3rd booster slot): BioTracker, Thermal.");
+        _perk = Bind("Perk", "BioTracker", "Your gadget (also set by clicking the 3rd booster slot): BioTracker, Thermal, Hacker, SoftBoots.");
         _gadgetKey = Bind("GadgetKey", "N", "Key that switches the gadget on/off: thermal goggles or the bio-tracker screen (Unity KeyCode name).");
         _itemChoices = Bind("ItemChoices", "136,115,139,144,117,114,116,140",
             "Items the 2nd slot cycles through (item IDs): 136 grenade, 115 C-foam grenade, 139 explosive trip mine, 144 C-foam trip mine, 117 fog repeller, 114 glow sticks, 116 lock melter, 140 I2-LP syringe.");
@@ -68,6 +68,7 @@ public partial class Loadout : ModuleBase
         BindThermal();
         BindIcons();
         BindGadgetHud();
+        BindBoots();
         ConfigMigration.DropOrphans(Config, Id); // PerkScanInterval, BioTrackerAuto … (the pulse is gone)
     }
 
@@ -333,6 +334,7 @@ public partial class Loadout : ModuleBase
         PerkKind.BioTracker => Lang.T("Bio-tracker", "Биотрекер"),
         PerkKind.Thermal => Lang.T("Thermal goggles", "Тепловизор"),
         PerkKind.Hacker => Lang.T("Hacking tool", "Инструмент взлома"),
+        PerkKind.SoftBoots => Lang.T("Soft boots", "Мягкие ботинки"),
         _ => "—",
     };
 
@@ -428,6 +430,7 @@ public partial class Loadout : ModuleBase
         try { GadgetHudTick(inLevel, perk); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] gadget line: {e.Message}"); }
         try { RadarTick(inLevel, perk == PerkKind.BioTracker); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] bio-tracker: {e.Message}"); }
         try { HackerTick(inLevel, perk == PerkKind.Hacker); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] hacking tool: {e.Message}"); }
+        try { BootsTick(inLevel, perk); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] soft boots: {e.Message}"); }
         BatteryTick(inLevel, perk);
     }
 

@@ -23,7 +23,7 @@ public partial class Loadout
     }
 
     /// <summary>Picture keys of the gadgets (no item IDs of their own).</summary>
-    private const uint BioIconId = 0xF0000001, ThermalIconId = 0xF0000002, HackerIconId = 0xF0000003;
+    private const uint BioIconId = 0xF0000001, ThermalIconId = 0xF0000002, HackerIconId = 0xF0000003, BootsIconId = 0xF0000004;
     private const int PhotoRes = 256, PhotoSuper = 2;
 
     private static readonly Dictionary<uint, Texture2D> _photoTex = new();
@@ -31,7 +31,7 @@ public partial class Loadout
     private static readonly Dictionary<uint, int> _photoTries = new();
     private static float _photoPpu = -1f;
 
-    private static uint GadgetIconId(PerkKind k) => k switch { PerkKind.BioTracker => BioIconId, PerkKind.Thermal => ThermalIconId, PerkKind.Hacker => HackerIconId, _ => 0 };
+    private static uint GadgetIconId(PerkKind k) => k switch { PerkKind.BioTracker => BioIconId, PerkKind.Thermal => ThermalIconId, PerkKind.Hacker => HackerIconId, PerkKind.SoftBoots => BootsIconId, _ => 0 };
 
     // ---------- drawn icons (icons/*.png next to the mod's DLL) ----------
 
@@ -43,7 +43,7 @@ public partial class Loadout
         [101] = "ammopack", [102] = "medipack", [127] = "toolpak", [132] = "disinfection_pack",
         [136] = "frag_grenade", [115] = "cfoam_grenade", [139] = "explosive_trip_mine", [144] = "cfoam_trip_mine",
         [117] = "fog_repeller", [114] = "glow_sticks", [116] = "lock_melter", [140] = "i2_lp_syringe",
-        [BioIconId] = "bio_tracker", [ThermalIconId] = "thermal_goggles", [HackerIconId] = "hacking_tool",
+        [BioIconId] = "bio_tracker", [ThermalIconId] = "thermal_goggles", [HackerIconId] = "hacking_tool", [BootsIconId] = "soft_boots",
     };
 
     private static readonly Dictionary<uint, Sprite> _iconSprites = new();

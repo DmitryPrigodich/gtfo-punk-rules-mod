@@ -27,17 +27,20 @@ public class PartyRules : ModuleBase
         public ConfigEntry<int> Config;
         public Action<int> Apply;
         public Func<int, string> Describe; // optional: what the current value means, shown next to the button
+        public bool Hidden;                 // synced like the others, but no lobby button (set in the config)
         public int Value;
     }
 
     private static readonly List<Rule> _rules = new();
+    /// <summary>The rules that have a lobby button (in order).</summary>
+    private static List<Rule> Shown => _rules.Where(r => !r.Hidden).ToList();
     private static ConfigEntry<bool> _panel;
     private static ConfigEntry<float> _infoSize;
 
     /// <summary>Adds a rule (call from a module's OnEnable). Its current value is applied right away.</summary>
-    public static Rule Register(string key, Func<string> title, Func<int, string> format, int min, int max, ConfigEntry<int> config, Action<int> apply, Func<int, string> describe = null)
+    public static Rule Register(string key, Func<string> title, Func<int, string> format, int min, int max, ConfigEntry<int> config, Action<int> apply, Func<int, string> describe = null, bool hidden = false)
     {
-        var r = new Rule { Key = key, Title = title, Format = format, Min = min, Max = max, Config = config, Apply = apply, Describe = describe };
+        var r = new Rule { Key = key, Title = title, Format = format, Min = min, Max = max, Config = config, Apply = apply, Describe = describe, Hidden = hidden };
         r.Value = Mathf.Clamp(config.Value, min, max);
         _rules.Add(r);
         return r;
@@ -111,7 +114,7 @@ public class PartyRules : ModuleBase
 
     private static bool Visible()
     {
-        if (!_panel.Value || _rules.Count == 0 || GameStateManager.CurrentStateName != eGameStateName.Lobby) return false;
+        if (!_panel.Value || Shown.Count == 0 || GameStateManager.CurrentStateName != eGameStateName.Lobby) return false;
         var page = CellMenu.CM_PageLoadout.Current;
         return page != null && page.m_isActive;
     }
@@ -126,9 +129,10 @@ public class PartyRules : ModuleBase
         if (SNet.IsMaster && preGame && Time.time >= _nextBroadcast && SNet.HasMaster) Broadcast();
 
         if (!Visible() || !EnsureViews()) return;
-        for (int i = 0; i < _views.Count && i < _rules.Count; i++)
+        var shown = Shown;
+        for (int i = 0; i < _views.Count && i < shown.Count; i++)
         {
-            var r = _rules[i];
+            var r = shown[i];
             string text = $"{r.Title()}\n{r.Format(r.Value)}".ToUpperInvariant();
             var tmp = _views[i].Item.m_texts != null && _views[i].Item.m_texts.Length > 0 ? _views[i].Item.m_texts[0] : null;
             if (tmp != null && tmp.text != text) tmp.SetText(text);
@@ -147,9 +151,10 @@ public class PartyRules : ModuleBase
 
     private static void Step(int index, int dir)
     {
-        if (index < 0 || index >= _rules.Count) return;
+        var shown = Shown;
+        if (index < 0 || index >= shown.Count) return;
         if (!(SNet.IsMaster || !SNet.HasMaster)) { ModInfo.Log.LogInfo("[PartyRules] only the host changes the rules"); return; }
-        var r = _rules[index];
+        var r = shown[index];
         int next = r.Value + dir;
         if (next > r.Max) next = r.Min;
         if (next < r.Min) next = r.Max;
@@ -162,7 +167,8 @@ public class PartyRules : ModuleBase
     private static bool EnsureViews()
     {
         var page = CellMenu.CM_PageLoadout.Current;
-        if (_viewPage == page && _views.Count == _rules.Count && _views.All(v => v.Go != null)) return true;
+        var shown = Shown;
+        if (_viewPage == page && _views.Count == shown.Count && _views.All(v => v.Go != null)) return true;
         if (Time.time < _nextViewTry) return false;
         _nextViewTry = Time.time + 2f;
         foreach (var v in _views) { if (v.Go != null) UnityEngine.Object.Destroy(v.Go); if (v.Info != null) UnityEngine.Object.Destroy(v.Info.gameObject); }
@@ -176,10 +182,10 @@ public class PartyRules : ModuleBase
         if (readyBox.size == Vector3.zero) return false;
 
         float x = readyBox.max.x;
-        for (int i = 0; i < _rules.Count; i++)
+        for (int i = 0; i < shown.Count; i++)
         {
             var go = UnityEngine.Object.Instantiate(src.gameObject, parent, false);
-            go.name = "GtfoPunk_PartyRule_" + _rules[i].Key;
+            go.name = "GtfoPunk_PartyRule_" + shown[i].Key;
             go.SetActive(true);
             var item = go.GetComponent<CellMenu.CM_Item>();
             if (item == null) { UnityEngine.Object.Destroy(go); return false; }
@@ -203,7 +209,7 @@ public class PartyRules : ModuleBase
             catch (Exception e) { ModInfo.Log.LogWarning($"[PartyRules] hover: {e.Message}"); }
 
             // What the value means: a small plain text to the right of the button (not part of the button).
-            if (_rules[i].Describe != null && item.m_texts != null && item.m_texts.Length > 0 && item.m_texts[0] != null)
+            if (shown[i].Describe != null && item.m_texts != null && item.m_texts.Length > 0 && item.m_texts[0] != null)
             {
                 var src0 = item.m_texts[0];
                 var infoGo = UnityEngine.Object.Instantiate(src0.gameObject, src0.transform.parent, false);
@@ -217,7 +223,7 @@ public class PartyRules : ModuleBase
                 info.alignment = TMPro.TextAlignmentOptions.MidlineLeft;
                 info.rectTransform.pivot = new Vector2(0f, 0.5f);
                 info.color = new Color(info.color.r, info.color.g, info.color.b, 0.75f);
-                info.SetText(_rules[i].Describe(_rules[i].Value));
+                info.SetText(shown[i].Describe(shown[i].Value));
                 var bb = LocalBox(go, parent);
                 infoGo.transform.localPosition = new Vector3(bb.max.x + bb.size.y * 0.25f, bb.center.y, infoGo.transform.localPosition.z);
                 view.Info = info;
