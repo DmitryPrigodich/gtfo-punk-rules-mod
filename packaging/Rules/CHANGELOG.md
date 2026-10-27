@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.10
+- Lobby loadout icons twice as big again (Loadout.LobbyIconSize = 12; a changed ItemIconSize is carried over).
+
 ## 0.9.9
 - **Loadout handout fixed at the root of the hitches**: packs and items now go straight into the backpack (as the game does at drop-in). The old way (spawn a pickup and pick it up) left a broken item replicator: every checkpoint / migration capture threw an error — thousands per level, a log of 150+ MB and hitches. Loadout.GiveAsPickup brings the old way back.
 - Difficulty I: an alarm becomes **one plain scan without a wave** (alarm doors no longer lose their scan — some scripted doors never opened). Doors with scripted scans (events on scan start / done), apex and checkpoint doors keep the game's own alarm at every level (DoorAlarms.KeepScriptedDoors).

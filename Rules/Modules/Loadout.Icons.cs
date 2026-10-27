@@ -18,7 +18,7 @@ public partial class Loadout
         _photos = Bind("ItemPictures", false, "Lobby slots show silhouettes of the pack / item / gadget models. false — text only.");
         _photoSize = BindMigrated(Id, "ItemPictureSize", 3f, "Size of the item pictures in the lobby slots, relative to the slot's \"+\" symbol.", (Id, "ItemPhotoSize", "2.5"));
         _photoTilt = Bind("ItemPictureTilt", 12f, "Tilt of the item models in the pictures (degrees; 0 — flat side view).");
-        _iconSize = Bind("ItemIconSize", 6f, "Size of the drawn icons in the lobby slots, relative to the slot's \"+\" symbol (they're shown upright).");
+        _iconSize = BindMigrated(Id, "LobbyIconSize", 12f, "Size of the drawn icons in the lobby slots, relative to the slot's \"+\" symbol (they're shown upright).", (Id, "ItemIconSize", "6"));
         _iconFiles = Bind("ItemIcons", true, "Lobby slots show the drawn icons from the mod's icons folder (icons/<name>.png, 256×256, white on transparent). They come before the model pictures.");
     }
 
