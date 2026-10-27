@@ -15,9 +15,9 @@ public partial class Loadout
     private static ConfigEntry<string> _thermalZoomKey, _thermalZoomLevels, _thermalMaterial, _thermalSearch;
     private static ConfigEntry<float> _thermalDistance;
     private static ConfigEntry<bool> _thermalItemCamera, _thermalDump, _thermalReticle;
-    private static ConfigEntry<float> _thermalZoom, _thermalNoise, _thermalMarkRange;
+    private static ConfigEntry<float> _thermalZoom, _thermalNoise;
     private static ConfigEntry<string> _thermalPalette, _thermalPaletteKey;
-    private static ConfigEntry<bool> _thermalGlitch, _thermalMark;
+    private static ConfigEntry<bool> _thermalGlitch;
 
     private void BindThermal()
     {
@@ -34,8 +34,6 @@ public partial class Loadout
         _thermalPalette = Bind("ThermalPalette", "", "Thermal goggles: color palette — part of a palette texture's name (the log lists the ones found: '[Thermal] palettes: …'). Empty — the sight's own.");
         _thermalPaletteKey = Bind("ThermalPaletteKey", "X", "Thermal goggles: key that steps through the palettes found (Unity KeyCode name; empty — off).");
         _thermalGlitch = Bind("ThermalGlitch", true, "Thermal goggles: the picture breaks up when you take damage and gets noisier as the battery runs low (signal drop-outs below 15%).");
-        _thermalMark = Bind("ThermalMarksEnemies", false, "Thermal goggles: TEST — tag enemies in view like the bio-tracker does (gadgets don't tag by design; off by default).");
-        _thermalMarkRange = Bind("ThermalMarkRange", 25f, "Thermal goggles: how far tagging reaches (m), with ThermalMarksEnemies.");
         _thermalItemCamera = Bind("ThermalOnItemCamera", true, "Thermal goggles: put the screen on the camera that draws the weapon (like the sight lens). false — on the world camera.");
     }
 
@@ -85,7 +83,7 @@ public partial class Loadout
         }
 
         if (_thermalOn && Time.time >= _nextTune) { _nextTune = Time.time + 0.5f; Tune(_thermalMat); }
-        if (_thermalOn) { PaletteKey(); GlitchTick(); MarkTick(); }
+        if (_thermalOn) { PaletteKey(); GlitchTick(); }
         else _lastHealth = -1f;
     }
 
@@ -166,37 +164,6 @@ public partial class Loadout
         m.SetFloat("_DistortionMax", Mathf.Clamp01(_baseDistMax * k));
         m.SetFloat("_DistortionMinShadowEnemies", Mathf.Clamp01(_baseDistShadowMin * k));
         m.SetFloat("_DistortionMaxShadowEnemies", Mathf.Clamp01(_baseDistShadowMax * k));
-    }
-
-    // ---------- TEST: tagging what you see (off by default) ----------
-
-    private static float _nextMark;
-    private static int _markLogs;
-
-    private static void MarkTick()
-    {
-        if (!_thermalMark.Value || Time.time < _nextMark) return;
-        _nextMark = Time.time + 1.5f;
-        var agent = GameUtil.LocalAgent;
-        var cam = _thermalCam;
-        if (agent == null || cam == null) return;
-        var origin = cam.transform.position;
-        float half = cam.fieldOfView * 0.5f * Math.Max(1f, cam.aspect);
-        var seen = new HashSet<IntPtr>();
-        int tagged = 0;
-        foreach (var col in Physics.OverlapSphere(origin, _thermalMarkRange.Value, LayerManager.MASK_ENEMY_DAMAGABLE))
-        {
-            var e = col == null ? null : col.GetComponent<Dam_EnemyDamageLimb>()?.GlueTargetEnemyAgent;
-            if (e == null || !e.Alive || !seen.Add(e.Pointer) || e.IsTagged) continue;
-            if (Vector3.Angle(cam.transform.forward, e.EyePosition - origin) > half) continue;
-            if (Physics.Linecast(origin, e.EyePosition, LayerManager.MASK_WORLD)) continue;
-            try { ToolSyncManager.WantToTagEnemy(e); tagged++; } catch { }
-        }
-        if (tagged > 0)
-        {
-            try { CellSound.Post(AK.EVENTS.BIOTRACKER_TAG, agent.Position); } catch { }
-            if (_markLogs++ < 5) ModInfo.Log.LogInfo($"[Thermal] tagged {tagged} in view");
-        }
     }
 
     // ---------- prewarm: find the material and draw it once, hidden, soon after the drop (no hitch on first use) ----------

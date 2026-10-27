@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.14
+- Thermal goggles: the test tagging of enemies is removed (ThermalMarksEnemies / ThermalMarkRange are dropped from the config).
+
 ## 0.9.13
 - Lobby loadout icons twice as big again (Loadout.SlotIconSize = 24; a changed LobbyIconSize is carried over).
 - Soft boots icon (`soft_boots.png`).
