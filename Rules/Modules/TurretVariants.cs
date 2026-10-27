@@ -106,6 +106,7 @@ public partial class TurretVariants : ModuleBase
     {
         if (!kind.Enabled.Value) return;
         uint catId = GearFactory.CloneCategory(SentryCategoryId, key, kind.Name.Value, desc);
+        GearFactory.OwnArchetypes(catId, key, kind.Type.Value); // "Burst Sentry" → e.g. "Fog Repeller Sentry" in the weapon list
         GearFactory.AddGear(baseGear, key, kind.Name.Value, new Dictionary<int, uint?> { [(int)eGearComponent.Category] = catId });
         _modeByCategory[catId] = kind.Mode;
     }

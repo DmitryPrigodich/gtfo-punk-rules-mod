@@ -60,7 +60,7 @@ public static class GearFactory
     };
 
     /// <summary>ID for a key: from the fixed table, otherwise a hash of the name in 4300–9999 (probing on collision).</summary>
-    private static uint StableId<T>(string key) where T : GameDataBlockBase<T>
+    public static uint StableId<T>(string key) where T : GameDataBlockBase<T>
     {
         if (FixedIds.TryGetValue(key, out var fixedId)) return fixedId;
         uint h = 2166136261;
@@ -221,6 +221,32 @@ public static class GearFactory
         a.name = key;
         GameDataBlockBase<ArchetypeDataBlock>.AddBlock(a);
         return a.persistentID;
+    }
+
+    /// <summary>
+    /// Gives a (cloned) category its own copies of its fire-mode archetypes, named <paramref name="publicName"/> (the
+    /// in-game weapon list shows the archetype's name above the gear's), with an optional tweak of each copy.
+    /// </summary>
+    public static void OwnArchetypes(uint catId, string keyPrefix, string publicName, Action<string, ArchetypeDataBlock> tweak = null)
+    {
+        var cat = GameDataBlockBase<GearCategoryDataBlock>.GetBlock(catId);
+        if (cat == null) return;
+        uint Own(uint src, string mode)
+        {
+            if (src == 0) return 0;
+            uint id = CloneArchetype(src, keyPrefix + "_Arch_" + mode);
+            var a = GameDataBlockBase<ArchetypeDataBlock>.GetBlock(id);
+            if (a != null)
+            {
+                if (!string.IsNullOrEmpty(publicName)) a.PublicName = Text(publicName);
+                tweak?.Invoke(mode, a);
+            }
+            return id;
+        }
+        cat.SemiArchetype = Own(cat.SemiArchetype, "Semi");
+        cat.BurstArchetype = Own(cat.BurstArchetype, "Burst");
+        cat.AutoArchetype = Own(cat.AutoArchetype, "Auto");
+        cat.SemiBurstArchetype = Own(cat.SemiBurstArchetype, "SemiBurst");
     }
 
     /// <summary>

@@ -5,7 +5,7 @@ namespace GtfoPunk.Rules.Modules;
 ///
 /// | Level | Alarm doors (most scans) | Starting ammo, pack fill, items |
 /// |---|---|---|
-/// | I WARDEN'S PET | 0 — alarm doors just open | 100% |
+/// | I WARDEN'S PET | 0 — alarms become one plain scan, no wave | 100% |
 /// | II EXPENDABLE ASSET | 1 | 80% |
 /// | III PRISONER | 2 | 60% |
 /// | IV SURVIVAL ODDS: LOW | 3 | 40% |
@@ -73,7 +73,7 @@ public class Difficulty : ModuleBase
     {
         if (level <= Default) return Lang.T("Alarms and ammo as in the game\nNo loadout, no gadgets", "Тревоги и патроны как в игре\nБез снаряжения и гаджетов");
         int scans = level - 1, pct = (Max - level) * 20;
-        string alarm = scans == 0 ? Lang.T("Alarm doors open without a scan", "Двери с тревогой — без скана")
+        string alarm = scans == 0 ? Lang.T("Alarms: one plain scan, no wave", "Тревоги: один обычный скан, без волны")
                                   : Lang.T($"Alarm doors: up to {scans} scan{(scans > 1 ? "s" : "")}", $"Двери с тревогой: до {scans} скан{(scans == 1 ? "а" : "ов")}");
         string res = pct == 0 ? Lang.T("No ammo, packs or items — melee only", "Без патронов, пачек и предметов — только милишка")
                               : Lang.T($"Ammo, pack and items: {pct}%", $"Патроны, пачка и предметы: {pct}%");

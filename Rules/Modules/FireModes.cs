@@ -23,6 +23,7 @@ public class FireModes : ModuleBase
     private static ConfigEntry<int> _burstCount;
     private static ConfigEntry<float> _burstDelay;
     private static ConfigEntry<bool> _burstForAll;
+    private static ConfigEntry<float> _semiSpread, _autoSpread;
 
     protected override void OnBindConfig()
     {
@@ -30,6 +31,8 @@ public class FireModes : ModuleBase
         _modes = Bind("Modes", "Semi,Burst,Auto", "Available modes in order (Semi, Burst, Auto). The weapon's native mode is always included.");
         _burstCount = Bind("BurstShots", 3, "Shots per burst (for weapons without their own burst).");
         _burstDelay = Bind("BurstDelay", 0.3f, "Pause between bursts, s (for weapons without their own burst).");
+        _semiSpread = Bind("SemiSpread", 0.7f, "Spread when switched to semi from the weapon's own auto / burst (0.7 — 30% tighter). 1 — no change.");
+        _autoSpread = Bind("AutoSpread", 1.3f, "Spread when switched to auto from the weapon's own semi / burst (1.3 — 30% wider). 1 — no change. Burst and the weapon's own mode keep its spread.");
         _burstForAll = Bind("BurstForAll", false, "Give burst to weapons that don't have it natively. Off: burst only for native-burst weapons, others get semi/auto.");
     }
 
@@ -107,13 +110,23 @@ public class FireModes : ModuleBase
         arch.m_readyToFire = old.m_readyToFire;
         gun.m_archeType = arch;
 
-        ShowMode(mode);
+        float sk = mode == wm.Original.m_archetypeData.FireMode ? 1f : mode == eWeaponFireMode.Semi ? _semiSpread.Value : mode == eWeaponFireMode.Auto ? _autoSpread.Value : 1f;
+        ShowMode(mode, sk);
     }
 
     private static BulletWeaponArchetype Create(BulletWeapon gun, ArchetypeDataBlock src, eWeaponFireMode mode)
     {
         var data = Clone(src);
         data.FireMode = mode;
+        // Aimed fire is steadier, spray is wilder — only for a mode the weapon doesn't have natively.
+        float k = mode == src.FireMode ? 1f : mode == eWeaponFireMode.Semi ? _semiSpread.Value : mode == eWeaponFireMode.Auto ? _autoSpread.Value : 1f;
+        k = Mathf.Clamp(k, 0.1f, 5f);
+        if (Math.Abs(k - 1f) > 0.001f)
+        {
+            data.HipFireSpread = src.HipFireSpread * k;
+            data.AimSpread = src.AimSpread * k;
+            ModInfo.Log.LogInfo($"[FireModes] {mode}: spread ×{k:0.##} (hip {src.HipFireSpread:0.##} → {data.HipFireSpread:0.##}, aim {src.AimSpread:0.##} → {data.AimSpread:0.##})");
+        }
         if (mode == eWeaponFireMode.Burst && src.FireMode != eWeaponFireMode.Burst)
         {
             data.BurstShotCount = Math.Max(2, _burstCount.Value);
@@ -144,7 +157,7 @@ public class FireModes : ModuleBase
         return dst;
     }
 
-    private static void ShowMode(eWeaponFireMode mode)
+    private static void ShowMode(eWeaponFireMode mode, float spread)
     {
         string name = mode switch
         {
@@ -153,6 +166,8 @@ public class FireModes : ModuleBase
             _ => Lang.T("AUTO", "АВТО"),
         };
         var gui = GuiManager.InteractionLayer;
+        int acc = Mathf.RoundToInt((1f - spread) * 100f);
+        if (acc != 0) name += acc > 0 ? Lang.T($"  (accuracy +{acc}%)", $"  (точность +{acc}%)") : Lang.T($"  (accuracy {acc}%)", $"  (точность {acc}%)");
         gui.SetMessage(Lang.T("FIRE MODE: ", "РЕЖИМ ОГНЯ: ") + name, ePUIMessageStyle.Default, 10);
         gui.MessageVisible = true;
         _hideMsgAt = Time.time + 1.5f;

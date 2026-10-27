@@ -11,13 +11,14 @@ namespace GtfoPunk.Rules.Modules;
 public partial class Loadout
 {
     private static ConfigEntry<bool> _photos;
-    private static ConfigEntry<float> _photoSize, _photoTilt;
+    private static ConfigEntry<float> _photoSize, _photoTilt, _iconSize;
 
     private void BindIcons()
     {
         _photos = Bind("ItemPictures", false, "Lobby slots show silhouettes of the pack / item / gadget models. false — text only.");
         _photoSize = BindMigrated(Id, "ItemPictureSize", 3f, "Size of the item pictures in the lobby slots, relative to the slot's \"+\" symbol.", (Id, "ItemPhotoSize", "2.5"));
         _photoTilt = Bind("ItemPictureTilt", 12f, "Tilt of the item models in the pictures (degrees; 0 — flat side view).");
+        _iconSize = Bind("ItemIconSize", 6f, "Size of the drawn icons in the lobby slots, relative to the slot's \"+\" symbol (they're shown upright).");
         _iconFiles = Bind("ItemIcons", true, "Lobby slots show the drawn icons from the mod's icons folder (icons/<name>.png, 256×256, white on transparent). They come before the model pictures.");
     }
 
@@ -67,7 +68,7 @@ public partial class Loadout
         var tex = Png.Load(path);
         if (tex == null) return null;
         float refWidth = reference != null ? reference.bounds.size.x : 1f;
-        float ppu = tex.width / Math.Max(0.0001f, refWidth * Math.Max(0.1f, _photoSize.Value));
+        float ppu = tex.width / Math.Max(0.0001f, refWidth * Math.Max(0.1f, _iconSize.Value));
         s = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), ppu);
         s.hideFlags = HideFlags.DontUnloadUnusedAsset;
         ModInfo.Log.LogInfo($"[Loadout] icon {name}.png loaded ({tex.width}x{tex.height})");

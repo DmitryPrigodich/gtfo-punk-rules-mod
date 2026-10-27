@@ -106,6 +106,8 @@ public class Syringes : ModuleBase
             {
                 if (!_onPickup.Value || status != ePickupItemStatus.PickedUp || isRecall) return true;
                 if ((__instance.ItemDataBlock?.persistentID ?? 0) != SyringeItemId) return true;
+                // The level's culling / shadow system keeps drawing a registered item even when its object is off.
+                try { var cull = __instance.m_itemCuller; if (cull != null) { cull.Hide(); cull.RemoveFromCurrentNode(); } } catch { }
                 __instance.gameObject.SetActive(false);
                 ModInfo.Log.LogInfo("[Syringes] used syringe removed from the level");
                 return false;
@@ -375,7 +377,9 @@ public class Syringes : ModuleBase
         if (_map.text != text) _map.SetText(text);
     }
 
-    /// <summary>A copy of the watermark text, a bit higher, listing the active syringe effects and time left.</summary>
+    private static TMPro.TextMeshPro _hudSrc;
+
+    /// <summary>A copy of the watermark text right above it (bottom right): per syringe the time left, then one effect per line.</summary>
     private static void UpdateHud()
     {
         if (_hud == null)
@@ -387,9 +391,12 @@ public class Syringes : ModuleBase
             if (src == null) return;
             var go = UnityEngine.Object.Instantiate(src.gameObject, src.transform.parent, false);
             go.name = "GtfoPunk_SyringeHud";
-            go.transform.localPosition = src.transform.localPosition + new Vector3(0f, 60f, 0f);
             _hud = go.GetComponent<TMPro.TextMeshPro>();
             if (_hud == null) { UnityEngine.Object.Destroy(go); return; }
+            _hud.alignment = TMPro.TextAlignmentOptions.BottomRight;
+            _hud.enableWordWrapping = false;
+            _hud.rectTransform.pivot = new Vector2(1f, 0f);
+            _hudSrc = src;
         }
         string text = "";
         if (_active.Count > 0)
@@ -398,10 +405,23 @@ public class Syringes : ModuleBase
             foreach (var b in _active)
             {
                 int left = Mathf.CeilToInt(b.Until - Time.time);
-                sb.Append($"<color=#ffd34f>{left / 60}:{left % 60:00}</color> ").Append(string.Join("  ", b.Effects.Select(e => EffectLine(e.Mod, e.Delta)))).Append('\n');
+                sb.Append($"<color=#ffd34f>{Lang.T("BOOSTER", "БУСТЕР")} {left / 60}:{left % 60:00}</color>\n");
+                foreach (var e in b.Effects) sb.Append(EffectLine(e.Mod, e.Delta)).Append('\n');
             }
             text = sb.ToString().TrimEnd('\n');
         }
         if (_hud.text != text) _hud.SetText(text);
+        // Just above the watermark's visible text (it has our version lines too, so its height changes).
+        try
+        {
+            var r = _hudSrc != null ? _hudSrc.GetComponent<MeshRenderer>() : null;
+            if (r != null && r.bounds.size.y > 0f)
+            {
+                var b = r.bounds;
+                var p = _hud.transform.position;
+                _hud.transform.position = new Vector3(b.max.x, b.max.y + b.size.y * 0.15f, p.z);
+            }
+        }
+        catch { }
     }
 }

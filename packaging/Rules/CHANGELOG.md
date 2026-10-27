@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.9
+- **Loadout handout fixed at the root of the hitches**: packs and items now go straight into the backpack (as the game does at drop-in). The old way (spawn a pickup and pick it up) left a broken item replicator: every checkpoint / migration capture threw an error — thousands per level, a log of 150+ MB and hitches. Loadout.GiveAsPickup brings the old way back.
+- Difficulty I: an alarm becomes **one plain scan without a wave** (alarm doors no longer lose their scan — some scripted doors never opened). Doors with scripted scans (events on scan start / done), apex and checkpoint doors keep the game's own alarm at every level (DoorAlarms.KeepScriptedDoors).
+- Hacking tool: the restriction holds only while a human player in the party has the gadget; otherwise (solo without it, nobody picked it) everyone hacks as in the game — no more softlocks. Looking at a hackable lock without the tool: "HACKING TOOL NEEDED — <who> has it (or a lock melter)".
+- Lobby: the loadout icons are upright and twice as big (Loadout.ItemIconSize); right click on a loadout slot — one step back. The text next to DIFFICULTY is smaller and no longer part of the button (PartyRules.DescriptionSize).
+- Names in the weapon list: the silenced pistol is a "Silenced Pistol" (SilencedGun.WeaponType), the new sentries have their own type (Fog Repeller Sentry, Searchlight Sentry, … — TurretVariants.<kind>.Type) instead of "High Caliber Pistol" / "Burst Sentry".
+- FireModes: semi switched to from an auto / burst weapon is 30% more accurate, auto switched to from a semi / burst weapon is 30% less (SemiSpread / AutoSpread); burst and the weapon's own mode keep its spread. The mode message shows the change.
+- Booster syringe: the picked-up syringe no longer leaves a shadow (taken out of the level's culling too). Its effects at the bottom right: the time on its own line, then one effect per line, right above the watermark.
+- ScoutKill: logs which state other scout kinds are in when hit outside the window (for the crawling scouts).
+
 ## 0.9.8
 - Lobby: next to the DIFFICULTY button — what the chosen level means (alarm doors, ammo / pack / items). **Right click** on a lobby rule button steps back.
 - Lobby icons: also found next to the DLL (r2modman puts the `icons` folder's files there).

@@ -39,6 +39,7 @@ public class ScoutKill : ModuleBase
     }
 
     private static int _logs;
+    private static readonly HashSet<string> _outLogs = new();
 
     /// <summary>Host side: all damage to an enemy ends up here.</summary>
     [HarmonyPatch(typeof(Dam_EnemyDamageBase), nameof(Dam_EnemyDamageBase.ProcessReceivedDamage))]
@@ -59,7 +60,15 @@ public class ScoutKill : ModuleBase
                     var scream = loco.ScoutScream;
                     window = scream != null && (scream.m_state == ES_ScoutScream.ScoutScreamState.Setup || scream.m_state == ES_ScoutScream.ScoutScreamState.Chargeup);
                 }
-                if (!window) return;
+                if (!window)
+                {
+                    // Diagnostics: other scout kinds (e.g. the crawling ones) — which state are they in when hit?
+                    var owner = __instance.Owner;
+                    if (owner != null && owner.IsScout && _outLogs.Add(owner.EnemyDataID + ":" + st))
+                        ModInfo.Log.LogInfo($"[ScoutKill] scout '{owner.EnemyData?.name}' ({owner.EnemyDataID}) hit outside the window: state {st}"
+                            + (loco.ScoutScream != null ? $", scream {loco.ScoutScream.m_state}" : ""));
+                    return;
+                }
                 damage *= _damage.Value;
                 if (_logs++ < 5) ModInfo.Log.LogInfo($"[ScoutKill] hit in the window ({st}): ×{_damage.Value:0.#} → {damage:0.#}");
             }

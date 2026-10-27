@@ -10,12 +10,18 @@ namespace GtfoPunk.Rules.Modules;
 public partial class TurretVariants
 {
     /// <summary>Settings every sentry kind has.</summary>
+    private static readonly Dictionary<Mode, string> TypeNames = new()
+    {
+        [Mode.Light] = "Searchlight Sentry", [Mode.Fog] = "Fog Repeller Sentry", [Mode.FogTurbine] = "Fog Turbine Sentry",
+        [Mode.Tracker] = "Bio-tracker Sentry", [Mode.Foam] = "Foam Sentry", [Mode.Grenade] = "Grenade Sentry",
+    };
+
     private class Kind
     {
         public Mode Mode;
         public string Section;
         public ConfigEntry<bool> Enabled;
-        public ConfigEntry<string> Name, Label;
+        public ConfigEntry<string> Name, Label, Type;
         public ConfigEntry<string> ModelOffset, ModelRotation;
         public ConfigEntry<float> ModelScale;
         public ConfigEntry<float> BatterySeconds; // null for kinds that shoot (they use ammo as ammo)
@@ -187,6 +193,7 @@ public partial class TurretVariants
         k.Enabled = K(k, "Enabled", true, $"Add this sentry ({name}) to the tool choices. Takes effect after a game restart.", oldEnabledKey);
         k.Name = BindIn(section, "Name", name, "Name in the loadout (after a game restart).");
         k.Label = BindIn(section, "Label", label, "Short name on the sentry's screen.");
+        k.Type = BindIn(section, "Type", TypeNames[mode], "Sentry type shown above its name in the weapon list (after a game restart).");
         k.ModelOffset = K(k, "ModelOffset", offset, "Model position in the barrel cradle: x — sideways, y — up, z — forward (m).", oldOffsetKey, oldOffsetDefault);
         k.ModelRotation = K(k, "ModelRotation", rotation, "Model rotation (degrees x,y,z).", oldRotationKey, oldRotationDefault);
         k.ModelScale = K(k, "ModelScale", scale, "Model size (1 — as is).", oldScaleKey);

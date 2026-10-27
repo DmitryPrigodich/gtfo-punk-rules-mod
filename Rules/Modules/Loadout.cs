@@ -44,7 +44,7 @@ public partial class Loadout : ModuleBase
     private static ConfigEntry<string> _pack, _perk, _itemChoices, _botPack;
     private static ConfigEntry<uint> _item, _botItem;
     private static ConfigEntry<int> _packCharges, _itemAmount;
-    private static ConfigEntry<bool> _blockBoosters;
+    private static ConfigEntry<bool> _blockBoosters, _givePickup;
     private static ConfigEntry<string> _gadgetKey;
     private static ConfigEntry<float> _giveDelay;
 
@@ -61,6 +61,7 @@ public partial class Loadout : ModuleBase
         _botPack = Bind("BotPack", "None", "Pack the host gives each bot: None, Ammo, Medi, Tool, Disinfection.");
         _botItem = Bind("BotItem", 0u, "Extra item the host gives each bot (item ID, 0 — none).");
         _giveDelay = Bind("GiveDelay", 3f, "Seconds after drop-in before the host hands out the loadout.");
+        _givePickup = Bind("GiveAsPickup", false, "Old way of handing out (spawn a pickup next to the player and pick it up). false — straight into the backpack (the old way broke checkpoint captures).");
         _blockBoosters = Bind("BlockStockBoosters", true, "Stock boosters can't be selected (already selected ones are unselected, not used up).");
         BindBattery();
         BindRadar();
@@ -142,14 +143,16 @@ public partial class Loadout : ModuleBase
 
     // ---------- lobby UI: the booster slots ----------
 
-    private static void Cycle(BoosterImplantCategory category)
+    private static int Wrap(int i, int dir, int n) => ((i + dir) % n + n) % n;
+
+    private static void Cycle(BoosterImplantCategory category, int dir = 1)
     {
         switch (category)
         {
             case BoosterImplantCategory.Muted:
             {
                 int n = Enum.GetValues(typeof(PackKind)).Length; // 0 = None is skipped
-                var next = (PackKind)((int)Local().Pack % (n - 1) + 1);
+                var next = (PackKind)(Wrap(Math.Max(0, (int)Local().Pack - 1), dir, n - 1) + 1);
                 _pack.Value = next.ToString();
                 break;
             }
@@ -158,13 +161,13 @@ public partial class Loadout : ModuleBase
                 var list = ItemChoices();
                 if (list.Count == 0) break;
                 int i = list.IndexOf(Local().Item);
-                _item.Value = list[(i + 1) % list.Count];
+                _item.Value = list[Wrap(Math.Max(i, dir > 0 ? -1 : 0), dir, list.Count)];
                 break;
             }
             case BoosterImplantCategory.Aggressive:
             {
                 int n = Enum.GetValues(typeof(PerkKind)).Length; // 0 = None is skipped
-                var next = (PerkKind)((int)Local().Perk % (n - 1) + 1);
+                var next = (PerkKind)(Wrap(Math.Max(0, (int)Local().Perk - 1), dir, n - 1) + 1);
                 _perk.Value = next.ToString();
                 break;
             }
@@ -216,6 +219,30 @@ public partial class Loadout : ModuleBase
     }
 
     private static readonly Dictionary<IntPtr, Sprite> _origEmptyIcon = new();
+    private static readonly Dictionary<IntPtr, (Quaternion, Vector3)> _origEmptyTf = new();
+
+    /// <summary>Right click on one of your loadout slots — one step back.</summary>
+    private static void SlotRightClick()
+    {
+        if (!Input.GetMouseButtonDown(1) || GameStateManager.CurrentStateName != eGameStateName.Lobby) return;
+        try
+        {
+            var bars = CM_PlayerLobbyBar.instances;
+            if (bars == null) return;
+            foreach (var bar in bars)
+            {
+                var holder = bar?.m_boosterImplantSlotHolder;
+                if (holder == null) continue;
+                foreach (var slot in holder.GetComponentsInChildren<CM_BoosterImplantSlot>(false))
+                {
+                    if (slot == null || !slot.m_isHovering || slot.m_player == null || !slot.m_player.IsLocal) continue;
+                    Cycle(slot.m_category, -1);
+                    return;
+                }
+            }
+        }
+        catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] right click: {e.Message}"); }
+    }
     private static int _paintLogs;
 
     private static void Paint(CM_BoosterImplantSlot slot)
@@ -259,6 +286,13 @@ public partial class Loadout : ModuleBase
             var icon = iconItem == 0 ? null
                 : IconFile(iconItem, reference) ?? (_photos.Value ? Photo(iconItem, reference) ?? (iconItem < BioIconId ? Icon(iconItem) : null) : null);
             empty.sprite = icon ?? _origEmptyIcon[slot.Pointer];
+            // The stock empty-slot mark is a tilted diamond: our pictures go upright and bigger.
+            var et = empty.transform;
+            if (!_origEmptyTf.ContainsKey(slot.Pointer)) _origEmptyTf[slot.Pointer] = (et.localRotation, et.localScale);
+            var (rot0, scale0) = _origEmptyTf[slot.Pointer];
+            if (icon != null) et.rotation = slot.m_categoryText != null ? slot.m_categoryText.transform.rotation : slot.transform.rotation; // upright like the text
+            else et.localRotation = rot0;
+            et.localScale = scale0;
             empty.gameObject.SetActive(icon != null || c == null); // text only when there's no picture
         }
         if (_paintLogs++ < 6)
@@ -353,6 +387,7 @@ public partial class Loadout : ModuleBase
 
     private static void Tick()
     {
+        SlotRightClick();
         var state = GameStateManager.CurrentStateName;
         if (state != _lastState)
         {
@@ -457,9 +492,34 @@ public partial class Loadout : ModuleBase
         var custom = new pItemData_Custom { ammo = ammo };
         var data = new pItemData { itemID_gearCRC = itemId, slot = block.inventorySlot, custom = custom };
         var target = player;
+        if (!_givePickup.Value)
+        {
+            // Straight into the backpack, the way the game hands items out at drop-in. Spawning a level pickup and
+            // picking it up left a broken item replicator behind: every checkpoint / migration capture then threw a
+            // NullReferenceException (thousands of them — a huge log and hitches).
+            try
+            {
+                PlayerBackpackManager.MasterAddItem(data, player);
+                ModInfo.Log.LogInfo($"[Loadout] item {itemId} put into {player.NickName}'s backpack");
+                FixAmmo(player, block.inventorySlot, ammo, itemId);
+                return;
+            }
+            catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] backpack add failed ({e.Message}) — spawning a pickup instead"); }
+        }
         var cb = DelegateSupport.ConvertDelegate<ItemReplicationManager.delItemCallback>(
             new Action<ISyncedItem, PlayerAgent>((item, _) => PickUpFor(item, target, custom, itemId)));
         ItemReplicationManager.SpawnItem(data, cb, ItemMode.Pickup, agent.Position + Vector3.up * 0.3f, Quaternion.identity, agent.CourseNode, agent);
+    }
+
+    /// <summary>The pack / consumable ammo lives in the owner's ammo storage — make sure it's filled (owner-side).</summary>
+    private static void FixAmmo(SNet_Player player, InventorySlot slot, float ammo, uint itemId)
+    {
+        if (player.IsLocal || player.IsBot) { QueueAmmoFix(player, slot, ammo, itemId); return; }
+        var b = new byte[9];
+        b[0] = (byte)slot;
+        BitConverter.GetBytes(ammo).CopyTo(b, 1);
+        BitConverter.GetBytes(itemId).CopyTo(b, 5);
+        Net.SendTo(player, Net.AmmoFix, b);
     }
 
     private static void PickUpFor(ISyncedItem item, SNet_Player player, pItemData_Custom custom, uint itemId)
@@ -474,17 +534,7 @@ public partial class Loadout : ModuleBase
             try { inLevel.SetCustomData(custom, true); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] set item data: {e.Message}"); }
             sync.AttemptPickupInteraction(ePickupItemInteractionType.Pickup, player, custom);
             ModInfo.Log.LogInfo($"[Loadout] item {itemId} picked up for {player.NickName} (item ammo now {SafeAmmo(inLevel)})");
-            // The pack / consumable ammo lives in the owner's ammo storage — make sure it's filled (owner-side).
-            var slot = GameDataBlockBase<ItemDataBlock>.GetBlock(itemId)?.inventorySlot ?? InventorySlot.None;
-            if (player.IsLocal || player.IsBot) QueueAmmoFix(player, slot, custom.ammo, itemId);
-            else
-            {
-                var b = new byte[9];
-                b[0] = (byte)slot;
-                BitConverter.GetBytes(custom.ammo).CopyTo(b, 1);
-                BitConverter.GetBytes(itemId).CopyTo(b, 5);
-                Net.SendTo(player, Net.AmmoFix, b);
-            }
+            FixAmmo(player, GameDataBlockBase<ItemDataBlock>.GetBlock(itemId)?.inventorySlot ?? InventorySlot.None, custom.ammo, itemId);
         }
         catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] pick up for {player?.NickName}: {e.Message} — the item stays on the floor next to them"); }
     }

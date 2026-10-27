@@ -32,6 +32,7 @@ public class PartyRules : ModuleBase
 
     private static readonly List<Rule> _rules = new();
     private static ConfigEntry<bool> _panel;
+    private static ConfigEntry<float> _infoSize;
 
     /// <summary>Adds a rule (call from a module's OnEnable). Its current value is applied right away.</summary>
     public static Rule Register(string key, Func<string> title, Func<int, string> format, int min, int max, ConfigEntry<int> config, Action<int> apply, Func<int, string> describe = null)
@@ -45,6 +46,7 @@ public class PartyRules : ModuleBase
     protected override void OnBindConfig()
     {
         _panel = Bind("LobbyPanel", true, "Show the rules panel in the lobby (the host changes the rules there).");
+        _infoSize = Bind("DescriptionSize", 0.42f, "Size of the text next to a rule button (what the value means), relative to the button's text.");
         ConfigMigration.DropOrphans(Config, Id); // PanelPosition (0.9.2) had a broken default
     }
 
@@ -200,23 +202,24 @@ public class PartyRules : ModuleBase
             }
             catch (Exception e) { ModInfo.Log.LogWarning($"[PartyRules] hover: {e.Message}"); }
 
-            // What the value means: a smaller text to the right of the button.
+            // What the value means: a small plain text to the right of the button (not part of the button).
             if (_rules[i].Describe != null && item.m_texts != null && item.m_texts.Length > 0 && item.m_texts[0] != null)
             {
                 var src0 = item.m_texts[0];
-                var tp = src0.transform.parent; // same space as the button's own text (same scale)
-                var infoGo = UnityEngine.Object.Instantiate(src0.gameObject, tp, false);
+                var infoGo = UnityEngine.Object.Instantiate(src0.gameObject, src0.transform.parent, false);
                 infoGo.name = go.name + "_Info";
+                infoGo.transform.SetParent(parent, true); // out of the button: no hover / click look
+                for (int c = infoGo.transform.childCount - 1; c >= 0; c--) UnityEngine.Object.Destroy(infoGo.transform.GetChild(c).gameObject);
                 var info = infoGo.GetComponent<TMPro.TextMeshPro>();
                 info.enableAutoSizing = false;
                 info.enableWordWrapping = false;
-                info.fontSize = src0.fontSize * 0.6f;
+                info.fontSize = src0.fontSize * Mathf.Clamp(_infoSize.Value, 0.2f, 1f);
                 info.alignment = TMPro.TextAlignmentOptions.MidlineLeft;
                 info.rectTransform.pivot = new Vector2(0f, 0.5f);
+                info.color = new Color(info.color.r, info.color.g, info.color.b, 0.75f);
                 info.SetText(_rules[i].Describe(_rules[i].Value));
-                var b2 = LocalBox(go, tp);
                 var bb = LocalBox(go, parent);
-                infoGo.transform.localPosition = new Vector3(b2.max.x + (b2.size.y * 0.3f), b2.center.y, infoGo.transform.localPosition.z);
+                infoGo.transform.localPosition = new Vector3(bb.max.x + bb.size.y * 0.25f, bb.center.y, infoGo.transform.localPosition.z);
                 view.Info = info;
                 x += gap + bb.size.x * 1.3f; // room for the text before the next button
             }

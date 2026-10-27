@@ -35,6 +35,7 @@ public class SilencedGun : ModuleBase
             "Silenced guns separated by ';': 'Name: Body + part=from, …'. Body — the weapon whose parts are the base; 12 — barrel/top. Parts and IDs are in GtfoPunk.GearList.txt.");
         _hard = Bind("HardRadius", 10f, "Radius (m) within which a shot wakes enemies.");
         _damage = Bind("Damage", 15f, "Damage per shot. 15: a headshot kills a striker or a shooter, a body shot doesn't (Arid 5 itself does far more). 0 — Arid 5's own.");
+        _archName = Bind("WeaponType", "Silenced Pistol", "Weapon type shown above the gun's name in the weapon list (the gun's own name is in SilencedGuns).");
         _soft = Bind("SoftRadius", 25f, "Radius (m) within which a shot only disturbs (pulse) without waking. 0 — don't disturb.");
         _softPulse = Bind("SoftIsPulseOnly", true, "true — distant enemies only pulse; false — they get regular noise (may wake up after repeated shots).");
     }
@@ -113,29 +114,17 @@ public class SilencedGun : ModuleBase
     }
 
     private static ConfigEntry<float> _damage;
+    private static ConfigEntry<string> _archName;
 
-    /// <summary>The cloned category still points at Arid 5's archetypes: give it its own copies with our damage.</summary>
+    /// <summary>The cloned category still points at Arid 5's archetypes: give it its own copies, named and with our damage.</summary>
     private static void OwnArchetypes(uint catId)
     {
-        if (_damage.Value <= 0f) return;
-        var cat = GameDataBlockBase<GearCategoryDataBlock>.GetBlock(catId);
-        if (cat == null) return;
-        uint Own(uint src, string mode)
+        GearFactory.OwnArchetypes(catId, "GtfoPunk_SilencedGun", _archName.Value, (mode, a) =>
         {
-            if (src == 0) return 0;
-            uint id = GearFactory.CloneArchetype(src, "GtfoPunk_SilencedGun_Arch_" + mode);
-            var a = GameDataBlockBase<ArchetypeDataBlock>.GetBlock(id);
-            if (a != null)
-            {
-                ModInfo.Log.LogInfo($"[SilencedGun] {mode} archetype {src} → {id}: damage {a.Damage:0.#} → {_damage.Value:0.#} (precision ×{a.PrecisionDamageMulti:0.##})");
-                a.Damage = _damage.Value;
-            }
-            return id;
-        }
-        cat.SemiArchetype = Own(cat.SemiArchetype, "Semi");
-        cat.BurstArchetype = Own(cat.BurstArchetype, "Burst");
-        cat.AutoArchetype = Own(cat.AutoArchetype, "Auto");
-        cat.SemiBurstArchetype = Own(cat.SemiBurstArchetype, "SemiBurst");
+            if (_damage.Value <= 0f) return;
+            ModInfo.Log.LogInfo($"[SilencedGun] {mode} archetype {a.persistentID}: damage {a.Damage:0.#} → {_damage.Value:0.#} (precision ×{a.PrecisionDamageMulti:0.##})");
+            a.Damage = _damage.Value;
+        });
     }
 
     private static bool IsOurs(BulletWeapon w)
