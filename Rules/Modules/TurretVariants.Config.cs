@@ -145,14 +145,15 @@ public partial class TurretVariants
         _foam = MakeKind(Mode.Foam, "Foam", "DRED GARAGE TCF3", "TCF3", "FoamTurret",
             "0,0.12,0.1", "FoamGunOffset2", "0,0,0.1",
             "0,0,180", "FoamGunRotation", "0,0,0",
-            0.75f, "FoamGunScale", null);
+            0.75f, "FoamGunScale", null, bulb: 0.2f);
         _foamParts = K(_foam, "Parts", "33=4/4", "C-foam launcher parts in the cradle instead of the barrel ('type=ID[/subtype]'). Empty — keep the barrel.", "FoamGunParts2");
         // The tank: one model now (0.9.17) — new keys, the old mirrored-grenade ones (TankModel, TankOffset …) are dropped.
-        _tankItem = BindIn("Foam", "Tank", "Fog Turbine", "The foam tank: an item whose model is used (name or part of it; 'Fog Turbine' — the turbine's barrel; empty — no tank).");
+        // Defaults: one C-Foam Grenade as the tank, as tuned in play (29.10).
+        _tankItem = BindIn("Foam", "Tank", "C-Foam Grenade", "The foam tank: an item whose model is used (name or part of it; 'Fog Turbine' — the turbine's barrel; empty — no tank).");
         _tankMirror = BindIn("Foam", "TankMirror", false, "Two tanks, mirrored left and right (x of TankModelOffset on both sides). false — one tank.");
-        _tankOffset = BindIn("Foam", "TankModelOffset", "0,0.05,-0.15", "Tank position, from the barrel cradle (x — sideways, y — up, z — forward; m).");
-        _tankRotation = BindIn("Foam", "TankModelRotation", "0,0,0", "Tank rotation (degrees x,y,z).");
-        _tankScale = BindIn("Foam", "TankModelScale", 0.12f, "Tank size (1 — as is).");
+        _tankOffset = BindIn("Foam", "TankModelOffset", "0.035,0.025,0.125", "Tank position, from the barrel cradle (x — sideways, y — up, z — forward; m).");
+        _tankRotation = BindIn("Foam", "TankModelRotation", "79,90,177", "Tank rotation (degrees x,y,z).");
+        _tankScale = BindIn("Foam", "TankModelScale", 1.1f, "Tank size (1 — as is).");
         _foamRange = K(_foam, "Range", 20f, "Doesn't fire beyond this distance (m).", "FoamRange");
         _foamInterval = K(_foam, "Interval", 1.5f, "Pause between bursts (s).", "FoamInterval2");
         _foamBurst = K(_foam, "Burst", 3, "Globs per burst.", "FoamBurst");

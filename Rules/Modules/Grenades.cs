@@ -290,7 +290,7 @@ public class Grenades : ModuleBase
     }
 
     /// <summary>A new glue grenade: ours if it carries our ID, or it appeared right where and when a frag grenade was thrown.</summary>
-    private static bool ClaimFrag(GlueGrenadeInstance g)
+    private static bool ClaimFrag(Item g)
     {
         bool frag = IsFrag(g);
         Vector3 pos = g.transform.position;
@@ -310,59 +310,83 @@ public class Grenades : ModuleBase
             uint block = 0, data = 0;
             try { block = g.ItemDataBlock?.persistentID ?? 0; } catch { }
             try { data = g.Get_pItemData().itemID_gearCRC; } catch { }
-            ModInfo.Log.LogInfo($"[Grenades] glue grenade thrown: item block {block}, data {data} → {(frag ? "frag grenade" : "foam")}");
+            ModInfo.Log.LogInfo($"[Grenades] {g.GetIl2CppType().Name} thrown: item block {block}, data {data} → {(frag ? "frag grenade" : "foam")}");
         }
         if (frag) _fragKeys.Add(g.Pointer);
         return frag;
     }
 
     /// <summary>
-    /// The foam grenade's own detonation (after its fuse): no glue globs for ours — a blast instead. The rest of the
-    /// sequence runs as usual (the grenade disappears like a foam grenade does). Runs on every machine (the throw is
-    /// synced); the thrower's machine deals the damage, like with bullets.
+    /// The frag grenade explodes instead of foaming: no glue globs, the model hidden, a blast. Runs on every machine (the
+    /// throw is synced); the thrower's machine deals the damage, like with bullets.
     /// </summary>
-    [HarmonyPatch(typeof(GlueGrenadeInstance), nameof(GlueGrenadeInstance.ExplosionSequence))]
-    private static class Patch_FragDetonate
+    private static void FragBlast(Item g, Vector3 pos, Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<MeshRenderer> graphics, string how)
     {
-        private static void Prefix(GlueGrenadeInstance __instance, ref int projectiles, Vector3 pos)
+        try
         {
-            if (!IsFrag(__instance)) return;
-            projectiles = 0;
-            try
-            {
-                if (__instance.m_graphics != null) foreach (var r in __instance.m_graphics) if (r != null) r.enabled = false;
-                if (!_exploded.Add(__instance.Pointer)) return;
-                PlayerAgent owner = null;
-                try { owner = __instance.Owner; } catch { }
-                bool dealDamage = owner != null ? owner.IsLocallyOwned : SNetwork.SNet.IsMaster;
-                if (dealDamage)
-                    DamageUtil.DoExplosionDamage(pos, _handRadius.Value, _handDamage.Value, LayerManager.MASK_EXPLOSION_TARGETS, LayerManager.MASK_EXPLOSION_BLOCKERS, true, 1000f);
-                Bang(__instance.Pointer, pos, _handRadius.Value, (int)_handDamage.Value, owner, dealDamage ? "fuse, damage dealt here" : "fuse");
-            }
+            if (graphics != null) foreach (var r in graphics) if (r != null) r.enabled = false;
+            if (!_exploded.Add(g.Pointer)) return;
+            PlayerAgent owner = null;
+            try { owner = g.Owner; } catch { }
+            bool dealDamage = owner != null ? owner.IsLocallyOwned : SNetwork.SNet.IsMaster;
+            if (dealDamage)
+                DamageUtil.DoExplosionDamage(pos, _handRadius.Value, _handDamage.Value, LayerManager.MASK_EXPLOSION_TARGETS, LayerManager.MASK_EXPLOSION_BLOCKERS, true, 1000f);
+            Bang(g.Pointer, pos, _handRadius.Value, (int)_handDamage.Value, owner, dealDamage ? how + ", damage dealt here" : how);
+        }
+        catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] frag grenade: {e.Message}"); }
+    }
+
+    // The C-Foam Grenade's thrown model is a GlueClusterGrenadeInstance (0.9.17 only hooked GlueGrenadeInstance — so the
+    // frag grenade went on foaming); both are handled.
+
+    [HarmonyPatch(typeof(GlueClusterGrenadeInstance), nameof(GlueClusterGrenadeInstance.Start))]
+    private static class Patch_ClusterStart
+    {
+        private static void Postfix(GlueClusterGrenadeInstance __instance)
+        {
+            if (__instance == null || !ClaimFrag(__instance)) return;
+            try { __instance.m_projCount = 0; Watch(__instance, () => false); }
             catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] frag grenade: {e.Message}"); }
         }
     }
 
-    private class Frag { public GlueGrenadeInstance G; public IntPtr Key; public Vector3 Pos; public PlayerAgent Owner; }
-    private static readonly List<Frag> _frags = new();
+    [HarmonyPatch(typeof(GlueClusterGrenadeInstance), nameof(GlueClusterGrenadeInstance.ExplosionSequence))]
+    private static class Patch_ClusterDetonate
+    {
+        private static void Prefix(GlueClusterGrenadeInstance __instance)
+        {
+            if (__instance == null || !IsFrag(__instance)) return;
+            try { __instance.m_projCount = 0; } catch { }
+            FragBlast(__instance, __instance.transform.position, __instance.m_graphics, "fuse");
+        }
+    }
 
-    /// <summary>Thrown frag grenades: no glue globs, and watched in case the detonation call is inlined by the game.</summary>
     [HarmonyPatch(typeof(GlueGrenadeInstance), nameof(GlueGrenadeInstance.Start))]
     private static class Patch_FragStart
     {
         private static void Postfix(GlueGrenadeInstance __instance)
         {
             if (__instance == null || !ClaimFrag(__instance)) return;
-            try
-            {
-                __instance.m_projCount = 0;
-                PlayerAgent owner = null;
-                try { owner = __instance.Owner; } catch { }
-                _frags.Add(new Frag { G = __instance, Key = __instance.Pointer, Pos = __instance.transform.position, Owner = owner });
-            }
+            try { __instance.m_projCount = 0; var g = __instance; Watch(__instance, () => g.m_exploded); }
             catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] frag grenade: {e.Message}"); }
         }
     }
+
+    [HarmonyPatch(typeof(GlueGrenadeInstance), nameof(GlueGrenadeInstance.ExplosionSequence))]
+    private static class Patch_FragDetonate
+    {
+        private static void Prefix(GlueGrenadeInstance __instance, ref int projectiles, Vector3 pos)
+        {
+            if (__instance == null || !IsFrag(__instance)) return;
+            projectiles = 0;
+            FragBlast(__instance, pos, __instance.m_graphics, "fuse");
+        }
+    }
+
+    private class Frag { public Item G; public IntPtr Key; public Vector3 Pos; public Func<bool> Fired; }
+    private static readonly List<Frag> _frags = new();
+
+    private static void Watch(Item g, Func<bool> fired) => _frags.Add(new Frag { G = g, Key = g.Pointer, Pos = g.transform.position, Fired = fired });
 
     /// <summary>A frag grenade that went off (or vanished) without our detonation hook firing — explode it here.</summary>
     private static void FragTick()
@@ -374,21 +398,22 @@ public class Grenades : ModuleBase
             try
             {
                 gone = f.G == null || f.G.gameObject == null || !f.G.gameObject.activeInHierarchy;
-                if (!gone) { f.Pos = f.G.transform.position; fired = f.G.m_exploded; }
+                if (!gone) { f.Pos = f.G.transform.position; fired = f.Fired(); }
             }
             catch { }
             if (!gone && !fired) continue;
             _frags.RemoveAt(i);
             _fragKeys.Remove(f.Key);
             // Done with this grenade either way: forget its pointer (a new object may get the same address later).
-            if (!_exploded.Add(f.Key)) { _exploded.Remove(f.Key); continue; } // the detonation hook did it
-            _exploded.Remove(f.Key);
+            if (_exploded.Contains(f.Key)) { _exploded.Remove(f.Key); continue; } // the detonation hook did it
             try
             {
-                bool dealDamage = f.Owner != null ? f.Owner.IsLocallyOwned : SNetwork.SNet.IsMaster;
+                PlayerAgent owner = null;
+                try { owner = f.G?.Owner; } catch { }
+                bool dealDamage = owner != null ? owner.IsLocallyOwned : SNetwork.SNet.IsMaster;
                 if (dealDamage)
                     DamageUtil.DoExplosionDamage(f.Pos, _handRadius.Value, _handDamage.Value, LayerManager.MASK_EXPLOSION_TARGETS, LayerManager.MASK_EXPLOSION_BLOCKERS, true, 1000f);
-                Bang(f.Key, f.Pos, _handRadius.Value, (int)_handDamage.Value, f.Owner, gone ? "gone" : "exploded");
+                Bang(f.Key, f.Pos, _handRadius.Value, (int)_handDamage.Value, owner, gone ? "gone" : "exploded");
             }
             catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] frag grenade: {e.Message}"); }
         }

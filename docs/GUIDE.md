@@ -127,9 +127,12 @@ Advanced: `SilencedGuns` assembles guns from parts (IDs in `BepInEx/config/GtfoP
 
 **Silenced main-slot guns** (testing, type "Silenced SMG"): Van Auken LTC5's rate of fire, a 3-shot burst by default
 (two headshots kill a striker at mid range, a body burst doesn't; B — semi / auto), Raptus Treffen 2's sound, a weaker
-flashlight. Variants: SMG-S A (one per sight), C (short-range burst on Golok DA's stats), D (Rifle_3 receiver).
+flashlight. Variants: SMG-S A HXC / A ARBALIST (the magazine differs), Hanaway's ammo.
 `MainGuns`: 'Name: Body + part=ID, … | stats=…, burst=…, damage=…, precision=…, falloff=from-to, delay=…, clip=…, spread=…'.
-Flashlight strength: `Flashlight` (GP6-S), `MainFlashlight`.
+Flashlight strength: `Flashlight` (GP6-S), `MainFlashlight`. Option `ammo=<gun>` takes that gun's ammo (reserve and magazine).
+
+**Garage guns** (`[GarageGuns] Guns`, same format, plus `type=`): ordinary loud guns. **DRED BULL GOLORAT-2** — a bullpup
+rifle, an alternative to the Accrat Golok DA: a hard 3-shot burst up close (7 damage, full to 8 m, gone by 18 m).
 
 ## Booster syringes
 
@@ -173,7 +176,8 @@ The crawling "zoomer" scouts get a window too (while they charge the scream) —
 | `[Grenades]` | `NameEn`, `NameRu`, `InLevels`, `SpawnWeight`, `Stack`, `BlastRadius`, `BlastDamage`, `BlastEffect`, `BlastShake`, `BlastNoiseRadius`, `TurretRadius`, `TurretDamage`, `TurretFuse`, `TurretProximity`, `BounceOffEnemies` |
 | `[TurretVariants]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
 | `[TurretVariants.<Kind>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — see the descriptions in the file |
-| `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly` |
+| `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `Flashlight`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly`, `MainStatsFrom`, `MainSoundFrom`, `MainFlashlight`, `MainGuns`, `MainWeaponType` |
+| `[GarageGuns]` | `Guns` |
 | `[Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
 | `[Infection]` | `Growth*`, `Cough*`, `Breath*`, `Tremor*`, `Disinfection*` |
 | `[ScoutKill]` | `ScreamChargeup`, `ChargeupDamage` |

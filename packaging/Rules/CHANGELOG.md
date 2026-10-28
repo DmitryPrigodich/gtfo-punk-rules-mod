@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.20
+- **Frag grenade, fix two**: the C-Foam Grenade's thrown model is a *GlueClusterGrenadeInstance*, not the GlueGrenadeInstance that 0.9.16–0.9.19 hooked — so the frag grenade went on foaming. Both kinds are handled now: no foam, a mine's blast. Log: `GlueClusterGrenadeInstance thrown: … → frag grenade`, `grenade exploded at …`.
+- Silenced main-slot guns, round three: only **DS SMG-S A** stays, with Sight_14, in two versions — HXC's straight magazine (**A HXC**) and Arbalist V's (**A ARBALIST**); TR22 Hanaway's ammo (rounds in reserve and magazine — option `ammo=`). The other test guns are gone.
+- New module **GarageGuns** — ordinary (loud) garage guns: **DRED BULL GOLORAT-2**, a bullpup rifle, an alternative to the Accrat Golok DA (the old SMG-S C): 3-shot burst, 7 damage, full damage only to 8 m (falls off to 18 m), quick bursts, a bit wider spread; Golok's own sound and flashlight. `[GarageGuns] Guns`, same format as `MainGuns` (+ `type=`).
+- TCF3: the tank as tuned in play is the default — one C-Foam Grenade (`Tank = C-Foam Grenade`, offset 0.035,0.025,0.125, rotation 79,90,177, size 1.1); bulb 0.2.
+
 ## 0.9.19
 - Silenced main-slot guns, round two (picked: SMG-S A; B dropped):
   - **burst by default** — 3 shots, 6 damage, ×0.95 on the head, full damage up to 25 m (falls off to 45 m): two headshots kill a striker at mid range (like one from GP6-S), a body burst doesn't. B switches to semi / auto (FireModes: semi tighter, auto wider);
