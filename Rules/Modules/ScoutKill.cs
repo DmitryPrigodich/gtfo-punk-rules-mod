@@ -21,7 +21,11 @@ public class ScoutKill : ModuleBase
         _damage = Bind("ChargeupDamage", 3f, "Damage multiplier on a scout from the moment it catches you until the scream goes off. 1 — normal.");
     }
 
-    protected override void OnEnable() => FrameTicker.OnUpdate += Tick;
+    protected override void OnEnable()
+    {
+        FrameTicker.OnUpdate += Tick;
+        FrameTicker.OnLevelExit += () => { _transitions = 0; _outLogs.Clear(); };
+    }
 
     private static bool _applied;
 
@@ -54,23 +58,49 @@ public class ScoutKill : ModuleBase
                 if (loco == null) return;
                 // From the moment it catches you (its feelers) until the scream goes off.
                 var st = loco.CurrentStateEnum;
-                bool window = st == ES_StateEnum.ScoutDetection;
-                if (st == ES_StateEnum.ScoutScream)
+                var scream = loco.ScoutScream;
+                var ss = scream != null ? scream.m_state : ES_ScoutScream.ScoutScreamState.Done;
+                bool window = st == ES_StateEnum.ScoutDetection
+                    || ss == ES_ScoutScream.ScoutScreamState.Chargeup                                  // charging, whatever it's doing
+                    || st == ES_StateEnum.ScoutScream && ss == ES_ScoutScream.ScoutScreamState.Setup;
+                // Zoomers (the crawling ones) rush at you before they scream: alerted, scream not used yet.
+                if (!window && __instance.Owner.IsScout && ss == ES_ScoutScream.ScoutScreamState.Setup)
                 {
-                    var scream = loco.ScoutScream;
-                    window = scream != null && (scream.m_state == ES_ScoutScream.ScoutScreamState.Setup || scream.m_state == ES_ScoutScream.ScoutScreamState.Chargeup);
+                    try { window = __instance.Owner.AI != null && __instance.Owner.AI.Mode == Agents.AgentMode.Agressive; } catch { }
                 }
                 if (!window)
                 {
                     // Diagnostics: other scout kinds (e.g. the crawling ones) — which state are they in when hit?
                     var owner = __instance.Owner;
                     if (owner != null && owner.IsScout && _outLogs.Add(owner.EnemyDataID + ":" + st))
-                        ModInfo.Log.LogInfo($"[ScoutKill] scout '{owner.EnemyData?.name}' ({owner.EnemyDataID}) hit outside the window: state {st}"
-                            + (loco.ScoutScream != null ? $", scream {loco.ScoutScream.m_state}" : ""));
+                        ModInfo.Log.LogInfo($"[ScoutKill] scout '{owner.EnemyData?.name}' ({owner.EnemyDataID}) hit outside the window: state {st}, scream {ss}, mode {Mode(owner)}");
                     return;
                 }
                 damage *= _damage.Value;
-                if (_logs++ < 5) ModInfo.Log.LogInfo($"[ScoutKill] hit in the window ({st}): ×{_damage.Value:0.#} → {damage:0.#}");
+                if (_logs++ < 8) ModInfo.Log.LogInfo($"[ScoutKill] {__instance.Owner.EnemyData?.name} hit in the window ({st}, scream {ss}): ×{_damage.Value:0.#} → {damage:0.#}");
+            }
+            catch { }
+        }
+    }
+
+    private static string Mode(Enemies.EnemyAgent e) { try { return e.AI != null ? e.AI.Mode.ToString() : "?"; } catch { return "?"; } }
+
+    private static int _transitions;
+
+    /// <summary>Diagnostics: what scouts do, state by state (the first few per level) — to see the zoomers' order.</summary>
+    [HarmonyPatch(typeof(EnemyLocomotion), nameof(EnemyLocomotion.ChangeState))]
+    private static class Patch_State
+    {
+        private static void Prefix(EnemyLocomotion __instance, ES_StateEnum state)
+        {
+            if (_transitions >= 60) return;
+            try
+            {
+                var a = __instance.m_agent;
+                if (a == null || !a.IsScout || __instance.CurrentStateEnum == state) return;
+                _transitions++;
+                var ss = __instance.ScoutScream != null ? __instance.ScoutScream.m_state.ToString() : "-";
+                ModInfo.Log.LogInfo($"[ScoutKill] {a.EnemyData?.name}#{a.GlobalID}: {__instance.CurrentStateEnum} → {state} (mode {Mode(a)}, scream {ss})");
             }
             catch { }
         }

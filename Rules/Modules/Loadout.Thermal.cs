@@ -31,7 +31,7 @@ public partial class Loadout
         _thermalNoise = Bind("ThermalNoise", 1f, "Thermal goggles: amount of scanline / signal distortion (1 — like the sight, 2–3 — predator-style noise, 0 — clean). Applied live.");
         _thermalReticle = Bind("ThermalReticle", false, "Thermal goggles: keep the sight's reticle drawn over the whole view.");
         _thermalDump = Bind("ThermalDiagnostics", false, "Write GtfoPunk.ThermalDump.txt (thermal materials and shader settings) in the first level. Causes a hitch.");
-        _thermalPalette = Bind("ThermalPalette", "", "Thermal goggles: color palette — part of a palette texture's name (the log lists the ones found: '[Thermal] palettes: …'). Empty — the sight's own.");
+        _thermalPalette = Bind("ThermalPalette", "", "Thermal goggles: color palette — part of a palette texture's name (the log lists the ones found: '[Thermal] palettes: …'). Empty — the sight's own. The key below changes it and the choice is remembered here.");
         _thermalPaletteKey = Bind("ThermalPaletteKey", "X", "Thermal goggles: key that steps through the palettes found (Unity KeyCode name; empty — off).");
         _thermalGlitch = Bind("ThermalGlitch", true, "Thermal goggles: the picture breaks up when you take damage and gets noisier as the battery runs low (signal drop-outs below 15%).");
         _thermalItemCamera = Bind("ThermalOnItemCamera", true, "Thermal goggles: put the screen on the camera that draws the weapon (like the sight lens). false — on the world camera.");
@@ -121,6 +121,7 @@ public partial class Loadout
         if (_palettes.Count > 1 && Enum.TryParse<KeyCode>(_thermalPaletteKey.Value, true, out var k) && Input.GetKeyDown(k))
         {
             _palette = (_palette + 1) % _palettes.Count;
+            _thermalPalette.Value = _palettes[_palette].name; // remembered for the next time
             ModInfo.Log.LogInfo($"[Thermal] palette {_palettes[_palette].name}");
             try { CellSound.Post(AK.EVENTS.BIOTRACKER_TAG, GameUtil.LocalAgent.Position); } catch { }
         }

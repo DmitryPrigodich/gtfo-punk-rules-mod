@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.15
+- ScoutKill covers the zoomers (the crawling scouts): the ×3 window is now also any moment a scout charges its scream, and a scout that's alerted (rushing at you) but hasn't screamed yet. Diagnostics: the first scout state changes of each level go to the log (`[ScoutKill] Scout_zoomer#…: A → B (mode …, scream …)`).
+- Thermal goggles: the palette picked with X is remembered (ThermalPalette).
+
 ## 0.9.14
 - Thermal goggles: the test tagging of enemies is removed (ThermalMarksEnemies / ThermalMarkRange are dropped from the config).
 
