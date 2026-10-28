@@ -10,6 +10,9 @@ mkdir -p dist
 targets=${1:-"Rules"}
 for t in $targets; do
   proj="$t/GtfoPunk.$t.csproj"
+  # The plugin's VERSION follows the manifest (one place to bump).
+  ver=$(python3 -c "import json;print(json.load(open('packaging/$t/manifest.json'))['version_number'])")
+  sed -i -E "s/(const string VERSION = \")[^\"]*(\")/\1$ver\2/" "$t/Plugin.cs"
   dotnet build "$proj" -c Release -nologo -v q | grep -E "error|warn|Build succeeded" || true
   dll="$t/bin/Release/net6.0/GtfoPunk.$t.dll"
   # Don't package a project without modules.

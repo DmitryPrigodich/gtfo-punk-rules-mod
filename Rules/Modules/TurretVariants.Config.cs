@@ -4,8 +4,9 @@ namespace GtfoPunk.Rules.Modules;
 
 /// <summary>
 /// Settings. General ones live in [TurretVariants]; each sentry kind has its own section [TurretVariants.&lt;Kind&gt;]
-/// with the same core keys — Enabled, Name, Label, ModelOffset / ModelRotation / ModelScale (the model in the cradle),
-/// BatterySeconds — plus its own. Values from the old flat keys (before 0.9.0) are carried over once.
+/// with the same core keys — Enabled, Name, Label, Type, ModelOffset / ModelRotation / ModelScale (the model in the
+/// cradle), Bulb / BulbOffset, BatterySeconds (non-shooting kinds), Parts (kinds with gear parts in the cradle) —
+/// plus its own. Values from the old flat keys (before 0.9.0) are carried over once.
 /// </summary>
 public partial class TurretVariants
 {
@@ -25,6 +26,8 @@ public partial class TurretVariants
         public ConfigEntry<string> ModelOffset, ModelRotation;
         public ConfigEntry<float> ModelScale;
         public ConfigEntry<float> BatterySeconds; // null for kinds that shoot (they use ammo as ammo)
+        public ConfigEntry<float> Bulb;
+        public ConfigEntry<string> BulbOffset;
 
         public Vector3 Offset => Vec(ModelOffset.Value);
         public Quaternion Rotation => Quaternion.Euler(Vec(RotationText));
@@ -60,7 +63,7 @@ public partial class TurretVariants
     private static ConfigEntry<string> _lampItem, _lightNoise;
     private static ConfigEntry<float> _lightRange, _lightAngle, _lightIntensity, _lightForward, _lensGlow, _lensGlowForward, _lightInterval, _lightWakeAfter;
     // TF I / TF II fog repellers
-    private static ConfigEntry<float> _fogRadius, _turbineRadius, _fogBulb;
+    private static ConfigEntry<float> _fogRadius, _turbineRadius;
     /// <summary>If the turbine item has no model: loaded meshes whose name contains this.</summary>
     private const string TurbineModelSearch = "defoggerbig";
     private static ConfigEntry<string> _fogHum, _turbineHum;
@@ -71,6 +74,7 @@ public partial class TurretVariants
     private static ConfigEntry<bool> _trackerSound, _trackerWalls;
     // TCF3 foam
     private static ConfigEntry<string> _foamParts, _tankItem, _tankOffset, _tankRotation;
+    private static ConfigEntry<bool> _tankMirror;
     private static ConfigEntry<float> _tankScale, _foamRange, _foamInterval, _foamBurstDelay, _foamSpeed, _foamGravity, _foamAmmo, _foamExpand;
     private static ConfigEntry<float> _foamMaxGlue, _foamAcid, _foamStagger, _foamStaggerInterval;
     private static ConfigEntry<int> _foamBurst;
@@ -87,7 +91,7 @@ public partial class TurretVariants
         _hideGun = Bind("HideGun", true, "Hide the autocannon barrel on sentries that don't shoot bullets (the tripod and body stay).");
         _hideSensor = Bind("HideSensor", false, "Also hide the targeting sensor on those sentries (it may float in the air). The scan beam stays.");
         _battery = Bind("Battery", true, "Non-shooting sentries run on their ammo as a battery (see BatterySeconds of each kind); at zero they switch off. Recharge: pick up, tool refill, place again.");
-        _tagDamage = Bind("TaggedDamageBonus2", 1f, "Combat sentries vs tagged enemies (TB1, bio-tracker): extra damage and stagger multiplier (1 — as in the game).");
+        _tagDamage = BindMigrated(Id, "TaggedDamageBonus", 1f, "Combat sentries vs tagged enemies (TB1, bio-tracker): extra damage and stagger multiplier (1 — as in the game).", (Id, "TaggedDamageBonus2", null));
         _tagTurn = Bind("TaggedTurnBonus", 1.5f, "Combat sentries vs tagged enemies: turning speed multiplier (they lock on faster).");
         _tagDelay = Bind("TaggedStartDelay", 0.5f, "Combat sentries vs tagged enemies: multiplier of the delay before opening fire (less — quicker).");
         _tagPrio = Bind("TaggedPriority", true, "Combat sentries prefer tagged enemies.");
@@ -111,24 +115,23 @@ public partial class TurretVariants
 
         // ----- TF I fog repeller -----
         _fog = MakeKind(Mode.Fog, "FogRepeller", "DRED GARAGE TF I", "TF I", "FogTurret",
-            "0,0.3,-0.06", "FogModelOffset2", "0,0.3,-0.05",
+            "0,0.29,-0.07", "FogModelOffset2", "0,0.3,-0.05",
             "0,0,0", "FogModelRotation", "0,0,0",
-            0.75f, "FogModelScale", "BatterySecondsFT1");
+            0.75f, "FogModelScale", "BatterySecondsFT1", bulb: 0.3f);
         _fogRadius = K(_fog, "Radius", 10f, "Radius of the fog-free sphere (m). 10 — like the real fog repeller.", "FogRange2");
-        _fogBulb = K(_fog, "Bulb", 0.5f, "Brightness of the dim warm bulb on top. 0 — none.", "FogLamp");
         (_fogHum, _fogHumRadius, _fogHumInterval, _fogHumWake) = BindHum(_fog);
 
         // ----- TF II fog repeller with a turbine -----
         _turbine = MakeKind(Mode.FogTurbine, "FogTurbine", "DRED GARAGE TF II", "TF II", "FogTurbineTurret",
-            "0.15,-0.6,-0.07", "TurbineSeat3", "0.15,-0.6,-0.05",
+            "0.02,-0.31,-0.18", "TurbineSeat3", "0.15,-0.6,-0.05",
             "0,0,0", null, null,
-            0.3f, "TurbineScale", null);
+            0.3f, "TurbineScale", null, bulb: 0.3f);
         _turbineRadius = K(_turbine, "Radius", 10f, "Radius of the fog-free sphere (m).", "TurbineRange2");
         (_turbineHum, _turbineHumRadius, _turbineHumInterval, _turbineHumWake) = BindHum(_turbine);
 
         // ----- TB1 bio-tracker -----
         _tracker = MakeKind(Mode.Tracker, "BioTracker", "DRED GARAGE TB1", "TB1", "TrackerTurret",
-            "0,0,0", "TrackerPartsOffset", "0,0,0",
+            "0.015,0.05,0.075", "TrackerPartsOffset", "0,0,0",
             "0,0,0", "TrackerPartsRotation", "0,0,0",
             1f, "TrackerPartsScale", "BatterySecondsBT3");
         _trackerParts = K(_tracker, "Parts", "33=3", "Tool parts in the cradle instead of the barrel ('type=ID[/subtype]', comma-separated; see GtfoPunk.GearParts.txt). Empty — keep the barrel.", "TrackerParts");
@@ -140,14 +143,16 @@ public partial class TurretVariants
 
         // ----- TCF3 foam -----
         _foam = MakeKind(Mode.Foam, "Foam", "DRED GARAGE TCF3", "TCF3", "FoamTurret",
-            "0,0,0.1", "FoamGunOffset2", "0,0,0.1",
-            "0,0,0", "FoamGunRotation", "0,0,0",
-            1f, "FoamGunScale", null);
+            "0,0.12,0.1", "FoamGunOffset2", "0,0,0.1",
+            "0,0,180", "FoamGunRotation", "0,0,0",
+            0.75f, "FoamGunScale", null);
         _foamParts = K(_foam, "Parts", "33=4/4", "C-foam launcher parts in the cradle instead of the barrel ('type=ID[/subtype]'). Empty — keep the barrel.", "FoamGunParts2");
-        _tankItem = K(_foam, "TankModel", "C-Foam Grenade", "Item whose model hangs on both sides as foam tanks (empty — none).", "FoamModel");
-        _tankOffset = K(_foam, "TankOffset", "0.09,0.02,0.05", "Where the tanks hang (x mirrored on both sides, y up, z forward; m).", "FoamModelOffset");
-        _tankRotation = K(_foam, "TankRotation", "90,0,0", "Tank rotation (degrees x,y,z).", "FoamModelRotation");
-        _tankScale = K(_foam, "TankScale", 1f, "Tank scale.", "FoamModelScale");
+        // The tank: one model now (0.9.17) — new keys, the old mirrored-grenade ones (TankModel, TankOffset …) are dropped.
+        _tankItem = BindIn("Foam", "Tank", "Fog Turbine", "The foam tank: an item whose model is used (name or part of it; 'Fog Turbine' — the turbine's barrel; empty — no tank).");
+        _tankMirror = BindIn("Foam", "TankMirror", false, "Two tanks, mirrored left and right (x of TankModelOffset on both sides). false — one tank.");
+        _tankOffset = BindIn("Foam", "TankModelOffset", "0,0.05,-0.15", "Tank position, from the barrel cradle (x — sideways, y — up, z — forward; m).");
+        _tankRotation = BindIn("Foam", "TankModelRotation", "0,0,0", "Tank rotation (degrees x,y,z).");
+        _tankScale = BindIn("Foam", "TankModelScale", 0.12f, "Tank size (1 — as is).");
         _foamRange = K(_foam, "Range", 20f, "Doesn't fire beyond this distance (m).", "FoamRange");
         _foamInterval = K(_foam, "Interval", 1.5f, "Pause between bursts (s).", "FoamInterval2");
         _foamBurst = K(_foam, "Burst", 3, "Globs per burst.", "FoamBurst");
@@ -165,16 +170,16 @@ public partial class TurretVariants
 
         // ----- TGL3 grenade launcher -----
         _grenade = MakeKind(Mode.Grenade, "Grenade", "DRED GARAGE TGL3", "TGL3", "GrenadeTurret",
-            "0,0,0", "GrenadePartsOffset", "0,0,0",
+            "0,0.035,0.085", "GrenadePartsOffset", "0,0,0",
             "0,0,0", "GrenadePartsRotation", "0,0,0",
-            0.8f, "GrenadePartsScale2", null);
+            0.7f, "GrenadePartsScale2", null);
         _glParts = K(_grenade, "Parts", "33=2,37=1", "Mine deployer parts in the cradle ('type=ID[/subtype]'). Empty — keep the barrel.", "GrenadeParts");
         _glBurst = K(_grenade, "Burst", 3, "Grenades per burst.", "GrenadeMagazine2");
         _glShotDelay = K(_grenade, "ShotDelay", 0.35f, "Pause between grenades in a burst (s).", "GrenadeShotDelay");
         _glReload = K(_grenade, "Reload", 2.5f, "Reload after a burst (s); a partly used burst also reloads after this long without a target.", "GrenadeReload2");
         _glSpeed = K(_grenade, "Speed", 16f, "Launch speed (m/s).", "GrenadeSpeed");
-        _glRange = K(_grenade, "Range", 25f, "Doesn't fire beyond this distance (m).", "GrenadeRange");
-        _glMinRange = K(_grenade, "MinRange", 4f, "Doesn't fire closer than this (m).", "GrenadeMinRange");
+        _glRange = K(_grenade, "Range", 20f, "Doesn't fire beyond this distance (m).", "GrenadeRange", "25");
+        _glMinRange = K(_grenade, "MinRange", 3f, "Doesn't fire closer than this (m).", "GrenadeMinRange", "4");
         _glSafe = K(_grenade, "PlayerSafe", 4f, "Doesn't fire if a player is within this distance of the impact point (m).", "GrenadePlayerSafe");
         _glAmmo = K(_grenade, "AmmoPerShot", 12f, "Sentry 'bullets' per grenade.", "GrenadeAmmoPerShot");
 
@@ -186,7 +191,7 @@ public partial class TurretVariants
     private Kind MakeKind(Mode mode, string section, string name, string label, string oldEnabledKey,
         string offset, string oldOffsetKey, string oldOffsetDefault,
         string rotation, string oldRotationKey, string oldRotationDefault,
-        float scale, string oldScaleKey, string oldBatteryKey)
+        float scale, string oldScaleKey, string oldBatteryKey, float bulb = 0f)
     {
         var k = new Kind { Mode = mode, Section = section };
         k.Enabled = K(k, "Enabled", true, $"Add this sentry ({name}) to the tool choices. Takes effect after a game restart.", oldEnabledKey);
@@ -198,6 +203,9 @@ public partial class TurretVariants
         k.ModelScale = K(k, "ModelScale", scale, "Model size (1 — as is).", oldScaleKey);
         if (oldBatteryKey != null || mode == Mode.FogTurbine)
             k.BatterySeconds = K(k, "BatterySeconds", 300f, "How long a full battery lasts (s).", oldBatteryKey ?? "BatterySecondsFT1");
+        k.Bulb = mode == Mode.Fog ? K(k, "Bulb", bulb, "Brightness of a dim warm bulb on the sentry (off with the battery). 0 — none.", "FogLamp", "0.5")
+                                  : BindIn(section, "Bulb", bulb, "Brightness of a dim warm bulb on the sentry (off with the battery). 0 — none.");
+        k.BulbOffset = BindIn(section, "BulbOffset", "0,0.45,-0.06", "Where the bulb sits, from the barrel cradle (x — sideways, y — up, z — forward; m).");
         return k;
     }
 

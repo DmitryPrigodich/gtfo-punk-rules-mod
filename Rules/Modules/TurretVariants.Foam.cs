@@ -14,12 +14,12 @@ public partial class TurretVariants
         var head = MakeHead(t, out _, out _);
         if (head == null) return Time.time - t.SpawnedAt > 4f; // no barrel — shoot without models
         AttachParts(t, head.transform, _foamParts.Value);
-        uint tankId = FindItemId(_tankItem.Value);
-        if (tankId == 0) return true;
+        var prefab = TankPrefab();
+        if (prefab == null) return true;
         try
         {
-            var right = AttachItemModel(head.transform, tankId, "GtfoPunk_FoamTankR");
-            var left = AttachItemModel(head.transform, tankId, "GtfoPunk_FoamTankL");
+            var right = CopyModel(prefab, head.transform, "GtfoPunk_FoamTankR");
+            var left = CopyModel(prefab, head.transform, "GtfoPunk_FoamTankL");
             void Place()
             {
                 var off = Vec(_tankOffset.Value);
@@ -28,7 +28,7 @@ public partial class TurretVariants
                 if (right != null) { right.transform.localPosition = off; right.transform.localRotation = rot; right.transform.localScale = scale; }
                 if (left != null)
                 {
-                    left.SetActive(Math.Abs(off.x) > 0.001f); // mirrored; one tank if x = 0
+                    left.SetActive(_tankMirror.Value); // the mirrored second tank
                     left.transform.localPosition = new Vector3(-off.x, off.y, off.z);
                     left.transform.localRotation = rot;
                     left.transform.localScale = scale;
@@ -39,6 +39,15 @@ public partial class TurretVariants
         }
         catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] {t.Kind.Label.Value} tanks: {e.Message}"); }
         return true;
+    }
+
+    /// <summary>The tank model: the fog turbine (its item has no meshes of its own — found in memory) or an item's model.</summary>
+    private static GameObject TankPrefab()
+    {
+        string name = _tankItem.Value?.Trim() ?? "";
+        if (name.Length == 0) return null;
+        if (name.ToLowerInvariant().Contains("turbine")) return ItemModel(FogTurbineItemId) ?? FindLoadedModel(TurbineModelSearch);
+        return ItemModel(FindItemId(name));
     }
 
     // ---------- shooting (host) ----------

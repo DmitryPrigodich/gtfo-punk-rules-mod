@@ -109,8 +109,11 @@
 - Нестреляющие турели работают от своих патронов как от батареи; на нуле выключаются. Зарядка: поднять, заправить
   пачкой инструмента, поставить снова (`[TurretVariants] Battery`).
 - Боевые турели (и штатные, и наши) предпочитают меченых врагов, быстрее к ним поворачиваются и раньше открывают огонь.
-- У каждой турели свой раздел `[TurretVariants.<Вид>]`: `Enabled`, `Name`, `Label`, `Type`, положение модели
-  (`ModelOffset`, `ModelRotation`, `ModelScale`, `Parts`) и свои числа. `LiveReload = true` перечитывает конфиг на ходу —
+- У каждой турели свой раздел `[TurretVariants.<Вид>]` с одинаковыми основными ключами: `Enabled`, `Name`, `Label`,
+  `Type`, положение модели (`ModelOffset`, `ModelRotation`, `ModelScale`; `Parts` — где в люльке детали снаряжения),
+  тёплая лампочка (`Bulb`, `BulbOffset`; гаснет вместе с батареей), `BatterySeconds` у нестреляющих — и свои числа.
+  Бак пенотурели TCF3: `Tank` (модель предмета, "Fog Turbine" — бочка турбины), `TankMirror`, `TankModelOffset`,
+  `TankModelRotation`, `TankModelScale`. `LiveReload = true` перечитывает конфиг на ходу —
   положение модели можно подгонять прямо в игре.
 
 ## Бесшумный пистолет
@@ -159,7 +162,7 @@
 | `[Loadout.Thermal]` | `Zoom`, `ZoomLevels`, `ZoomKey`, `Palette`, `PaletteKey`, `Noise`, `Glitch`, `Reticle`, `Distance` |
 | `[Loadout.SoftBoots]` | `FallDamage`, `FallHeight`, `RunSpeed` |
 | `[Grenades]` | `NameEn`, `NameRu`, `InLevels`, `SpawnWeight`, `Stack`, `BlastRadius`, `BlastDamage`, `BlastEffect`, `BlastShake`, `BlastNoiseRadius`, `TurretRadius`, `TurretDamage`, `TurretFuse`, `TurretProximity`, `BounceOffEnemies` |
-| `[TurretVariants]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
+| `[TurretVariants]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
 | `[TurretVariants.<Вид>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — описания в самом файле |
 | `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly` |
 | `[Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |

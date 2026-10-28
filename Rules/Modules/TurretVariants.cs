@@ -43,7 +43,7 @@ public partial class TurretVariants : ModuleBase
         public bool Ready;
         public float GiveUpAt, SpawnedAt, NextHide;
         public GameObject Extra;                                     // destroyed with the sentry
-        public Light Light, Glow, FogBulb;
+        public Light Light, Glow, Bulb;
         public FogRepeller_Sphere Sphere;
         public bool Flat;                                            // battery empty: switched off
         public bool PartsAttached;
@@ -263,11 +263,37 @@ public partial class TurretVariants : ModuleBase
             Mode.Grenade => SetupGrenade(t),
             _ => SetupFog(t),
         };
-        if (t.Ready) ModInfo.Log.LogInfo($"[TurretVariants] {t.Kind.Label.Value} set up");
+        if (t.Ready)
+        {
+            try { AddBulb(t); } catch (Exception e) { ModInfo.Log.LogWarning($"[TurretVariants] {t.Kind.Label.Value} bulb: {e.Message}"); }
+            ModInfo.Log.LogInfo($"[TurretVariants] {t.Kind.Label.Value} set up");
+        }
         else if (Time.time > t.GiveUpAt) { ModInfo.Log.LogWarning($"[TurretVariants] failed to set up {t.Kind.Label.Value}"); t.Ready = true; }
     }
 
     // ---------- shared helpers ----------
+
+    /// <summary>A dim warm bulb (Bulb / BulbOffset of the kind), placed from the barrel cradle, upright, turned with the
+    /// sentry's heading; follows the config live and goes out with the battery.</summary>
+    private static void AddBulb(Turret t)
+    {
+        var muzzle = Firing(t)?.MuzzleAlign;
+        var anchor = new GameObject("GtfoPunk_BulbAnchor");
+        anchor.transform.SetParent(t.Inst.transform, false);
+        anchor.transform.position = muzzle != null ? muzzle.position : t.Inst.transform.position + Vector3.up * 0.6f;
+        anchor.transform.rotation = Quaternion.Euler(0f, t.Inst.transform.eulerAngles.y, 0f);
+        var go = new GameObject("GtfoPunk_Bulb");
+        go.transform.SetParent(anchor.transform, false);
+        void Apply()
+        {
+            go.transform.localPosition = Vec(t.Kind.BulbOffset.Value);
+            float b = t.Kind.Bulb.Value;
+            if (b > 0f && t.Bulb == null) t.Bulb = MakeLight(go, LightType.Point, 5f, b, new Color(1f, 0.75f, 0.45f)); // warm incandescent
+            if (t.Bulb != null) { t.Bulb.intensity = b; t.Bulb.enabled = b > 0f && !t.Flat; }
+        }
+        Apply();
+        t.Reapply.Add(Apply);
+    }
 
     /// <summary>The sentry owner as a noise maker. Il2Cpp: interfaces need Cast — TryCast returns null.</summary>
     private static INM_NoiseMaker NoiseMaker(Turret t)

@@ -111,8 +111,11 @@ green — full, yellow — half used, red — not working.
 - Non-shooting sentries run on their ammo as a battery; at zero they switch off. Recharge: pick up, refill with a tool
   pack, place again (`[TurretVariants] Battery`).
 - Combat sentries (stock and ours) prefer tagged enemies, turn to them faster and open fire sooner.
-- Every sentry has its own section `[TurretVariants.<Kind>]`: `Enabled`, `Name`, `Label`, `Type`, model position
-  (`ModelOffset`, `ModelRotation`, `ModelScale`, `Parts`) and its own numbers. `LiveReload = true` re-reads the config while
+- Every sentry has its own section `[TurretVariants.<Kind>]` with the same core keys: `Enabled`, `Name`, `Label`, `Type`,
+  model position (`ModelOffset`, `ModelRotation`, `ModelScale`; `Parts` where gear parts sit in the cradle), a dim warm
+  bulb (`Bulb`, `BulbOffset`; goes out with the battery), `BatterySeconds` for non-shooting kinds — plus its own numbers.
+  TCF3's foam tank: `Tank` (an item's model, "Fog Turbine" — the turbine's barrel), `TankMirror`, `TankModelOffset`,
+  `TankModelRotation`, `TankModelScale`. `LiveReload = true` re-reads the config while
   the game runs, so model positions can be tuned live.
 
 ## Silenced pistol
@@ -162,7 +165,7 @@ The crawling "zoomer" scouts get a window too (while they charge the scream) —
 | `[Loadout.Thermal]` | `Zoom`, `ZoomLevels`, `ZoomKey`, `Palette`, `PaletteKey`, `Noise`, `Glitch`, `Reticle`, `Distance` |
 | `[Loadout.SoftBoots]` | `FallDamage`, `FallHeight`, `RunSpeed` |
 | `[Grenades]` | `NameEn`, `NameRu`, `InLevels`, `SpawnWeight`, `Stack`, `BlastRadius`, `BlastDamage`, `BlastEffect`, `BlastShake`, `BlastNoiseRadius`, `TurretRadius`, `TurretDamage`, `TurretFuse`, `TurretProximity`, `BounceOffEnemies` |
-| `[TurretVariants]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
+| `[TurretVariants]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
 | `[TurretVariants.<Kind>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — see the descriptions in the file |
 | `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly` |
 | `[Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |

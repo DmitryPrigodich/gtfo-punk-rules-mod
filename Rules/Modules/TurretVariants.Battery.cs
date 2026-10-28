@@ -41,7 +41,7 @@ public partial class TurretVariants
     {
         if (t.Light != null) t.Light.enabled = on;
         if (t.Glow != null) t.Glow.enabled = on;
-        if (t.FogBulb != null) t.FogBulb.enabled = on;
+        if (t.Bulb != null) t.Bulb.enabled = on && t.Kind.Bulb.Value > 0f;
     }
 
     private static void UpdateScreen(Turret t)

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.17
+- **Frag grenade fix**: 0.9.16 threw a plain foam grenade — the thrown grenade didn't carry our item ID. It's now recognised by its throw (where and when a frag grenade was thrown) as well as by its ID, and explodes like a mine. Log: `[Grenades] thrown: item …` and `glue grenade thrown: … → frag grenade`.
+- **TCF3 foam tank**: one tank instead of two mirrored foam grenades; by default the fog turbine's barrel. New keys `[TurretVariants.Foam] Tank` (item name, "Fog Turbine" — the turbine), `TankMirror` (two mirrored tanks), `TankModelOffset`, `TankModelRotation`, `TankModelScale` (the old TankModel / TankOffset / TankRotation / TankScale are dropped).
+- **Bulb on every new sentry**: `Bulb` (brightness, 0 — none) and `BulbOffset` (from the barrel cradle) in each `[TurretVariants.<Kind>]`; the bulb goes out with the battery and follows the config live. On by default on TF I and TF II (0.3).
+- Sentry models: the positions tuned in play are the new defaults — TF I, TF II, TB1, TCF3 (launcher), TGL3 (also Range 20, MinRange 3); sentry grenade radius 5 m.
+- `TaggedDamageBonus2` → `TaggedDamageBonus` (value carried over).
+- The plugin's version (log, watermark) now always matches the package (0.9.16 still reported 0.9.15).
+
 ## 0.9.16
 - **Frag grenade reworked**: now a copy of the C-Foam Grenade under its own item 4252 ("Frag Grenade" / "Граната") — the foam grenade's model, throw and pickup, a separate item that no longer merges with glow sticks. Explodes after the foam grenade's fuse: 8 m, 120 damage, mine fire and smoke, shake, 30 m noise. The loadout's grenade choice (136) gives it too. Config: `HandBlastRadius` / `HandBlastDamage` → `BlastRadius` / `BlastDamage` (changed values carried over); `HandModels`, `HandDelay`, `DiagnosticDump` removed.
 - **Alarm shift from −5**: `Difficulty.AlarmShifts` (default `-5,-4,-3,-2,-1,0` for I…VI) — level I turns even Class V alarms into a plain scan, VI is as in the game. The host's shifts are sent to everyone.

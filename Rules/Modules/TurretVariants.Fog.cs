@@ -101,13 +101,6 @@ public partial class TurretVariants
             Place();
             t.Reapply.Add(Place);
         }
-        if (_fogBulb.Value > 0f)
-        {
-            var bulb = new GameObject("GtfoPunk_FogLamp");
-            bulb.transform.SetParent(anchor.transform, false);
-            bulb.transform.localPosition = _fog.Offset + Vector3.up * 0.15f;
-            t.FogBulb = MakeLight(bulb, LightType.Point, 5f, _fogBulb.Value, new Color(1f, 0.75f, 0.45f)); // warm incandescent
-        }
     }
 
     private static int _humLogs;

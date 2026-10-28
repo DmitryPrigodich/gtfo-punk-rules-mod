@@ -50,7 +50,7 @@ public class Grenades : ModuleBase
         _blastFx = Bind("BlastEffect", true, "Explosions look and sound like a mine going off (fire, smoke, light, sound).");
         _shake = Bind("BlastShake", 1f, "Camera shake from a grenade explosion (0 — none; sentry grenades shake half as much).");
         _noiseRadius = Bind("BlastNoiseRadius", 30f, "A grenade explosion wakes and alerts enemies within this radius (m; sentry grenades — half). 0 — no extra noise.");
-        _turretRadius = Bind("TurretRadius", 3.5f, "Blast radius of the grenade launcher sentry's grenades (m).");
+        _turretRadius = Bind("TurretRadius", 5f, "Blast radius of the grenade launcher sentry's grenades (m).");
         _turretDamage = Bind("TurretDamage", 40f, "Sentry grenade damage at the blast center.");
         _turretFuse = Bind("TurretFuse", 0f, "Sentry grenade fuse after impact (s). 0 — on contact.");
         _proximity = Bind("TurretProximity", 0.8f, "Sentry grenades explode when they fly within this distance of an enemy (m). 0 — off.");
@@ -62,7 +62,7 @@ public class Grenades : ModuleBase
     {
         GearFactory.OnInject += Inject;
         FrameTicker.OnUpdate += Tick;
-        FrameTicker.OnLevelExit += () => { _pending.Clear(); _calib.Clear(); _armed.Clear(); _turretGrenades.Clear(); _exploded.Clear(); _live.Clear(); _frags.Clear(); _boomPool = null; _flashPool = null; };
+        FrameTicker.OnLevelExit += () => { _pending.Clear(); _calib.Clear(); _armed.Clear(); _turretGrenades.Clear(); _exploded.Clear(); _live.Clear(); _frags.Clear(); _fragThrows.Clear(); _fragKeys.Clear(); _boomPool = null; _flashPool = null; };
     }
 
     // ---------- data: name and distribution ----------
@@ -243,7 +243,78 @@ public class Grenades : ModuleBase
 
     // ---------- the frag grenade: a foam grenade that explodes ----------
 
-    private static bool IsFrag(Item i) { try { return i != null && i.ItemDataBlock != null && i.ItemDataBlock.persistentID == FragItemId; } catch { return false; } }
+    /// <summary>Thrown frag grenades not matched to their instance yet: where and when (the instance may not carry our
+    /// item ID — matched by place and time then).</summary>
+    private static readonly List<(Vector3 Pos, float At)> _fragThrows = new();
+    private static readonly HashSet<IntPtr> _fragKeys = new();
+    private static int _glueLogs, _throwLogs;
+
+    private static bool IsFrag(Item i)
+    {
+        if (i == null) return false;
+        if (_fragKeys.Contains(i.Pointer)) return true;
+        try { if (i.ItemDataBlock != null && i.ItemDataBlock.persistentID == FragItemId) return true; } catch { }
+        try { if (i.Get_pItemData().itemID_gearCRC == FragItemId) return true; } catch { }
+        return false;
+    }
+
+    /// <summary>Every thrown item goes through here (on the thrower's machine): note the frag grenade's throw.</summary>
+    [HarmonyPatch(typeof(ItemReplicationManager), nameof(ItemReplicationManager.ThrowItem))]
+    private static class Patch_Throw
+    {
+        private static void Prefix(pItemData data, Vector3 position)
+        {
+            try
+            {
+                if (_throwLogs++ < 6) ModInfo.Log.LogInfo($"[Grenades] thrown: item {data.itemID_gearCRC} at {position}");
+                if (data.itemID_gearCRC == FragItemId) _fragThrows.Add((position, Time.time));
+            }
+            catch { }
+        }
+    }
+
+    /// <summary>The held frag grenade is thrown — note it too (in case the throw sends another item ID).</summary>
+    [HarmonyPatch(typeof(ThrowingWeapon), nameof(ThrowingWeapon.Throw))]
+    private static class Patch_ThrowingWeapon
+    {
+        private static void Prefix(ThrowingWeapon __instance)
+        {
+            try
+            {
+                if (__instance?.ItemDataBlock == null || __instance.ItemDataBlock.persistentID != FragItemId) return;
+                var owner = __instance.Owner;
+                _fragThrows.Add((owner != null ? owner.FPSCamera.Position : __instance.transform.position, Time.time));
+            }
+            catch { }
+        }
+    }
+
+    /// <summary>A new glue grenade: ours if it carries our ID, or it appeared right where and when a frag grenade was thrown.</summary>
+    private static bool ClaimFrag(GlueGrenadeInstance g)
+    {
+        bool frag = IsFrag(g);
+        Vector3 pos = g.transform.position;
+        _fragThrows.RemoveAll(t => Time.time - t.At > 2f);
+        if (!frag)
+        {
+            int best = -1; float bestD = 4f;
+            for (int i = 0; i < _fragThrows.Count; i++)
+            {
+                float d = Vector3.Distance(_fragThrows[i].Pos, pos);
+                if (d < bestD) { bestD = d; best = i; }
+            }
+            if (best >= 0) { frag = true; _fragThrows.RemoveAt(best); }
+        }
+        if (_glueLogs++ < 6)
+        {
+            uint block = 0, data = 0;
+            try { block = g.ItemDataBlock?.persistentID ?? 0; } catch { }
+            try { data = g.Get_pItemData().itemID_gearCRC; } catch { }
+            ModInfo.Log.LogInfo($"[Grenades] glue grenade thrown: item block {block}, data {data} → {(frag ? "frag grenade" : "foam")}");
+        }
+        if (frag) _fragKeys.Add(g.Pointer);
+        return frag;
+    }
 
     /// <summary>
     /// The foam grenade's own detonation (after its fuse): no glue globs for ours — a blast instead. The rest of the
@@ -281,7 +352,7 @@ public class Grenades : ModuleBase
     {
         private static void Postfix(GlueGrenadeInstance __instance)
         {
-            if (!IsFrag(__instance)) return;
+            if (__instance == null || !ClaimFrag(__instance)) return;
             try
             {
                 __instance.m_projCount = 0;
@@ -308,6 +379,7 @@ public class Grenades : ModuleBase
             catch { }
             if (!gone && !fired) continue;
             _frags.RemoveAt(i);
+            _fragKeys.Remove(f.Key);
             // Done with this grenade either way: forget its pointer (a new object may get the same address later).
             if (!_exploded.Add(f.Key)) { _exploded.Remove(f.Key); continue; } // the detonation hook did it
             _exploded.Remove(f.Key);
