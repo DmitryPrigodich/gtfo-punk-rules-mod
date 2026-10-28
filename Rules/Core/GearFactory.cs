@@ -383,6 +383,53 @@ public static class GearFactory
         File.WriteAllText(Path.Combine(BepInEx.Paths.ConfigPath, "GtfoPunk.GearParts.txt"), sb.ToString());
     }
 
+    private static bool _flashlightsDumped;
+
+    /// <summary>
+    /// Once, in the lobby (gear part models are loaded there): BepInEx/config/GtfoPunk.Flashlights.txt — every flashlight
+    /// setting (range, angle, brightness, colour), which flashlight part model uses which setting, and which gun has which part.
+    /// </summary>
+    public static void DumpFlashlights()
+    {
+        if (_flashlightsDumped) return;
+        _flashlightsDumped = true;
+        try
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("# Flashlight settings (FlashlightSettingsDataBlock): ID  name  range m  angle °  intensity  colour  cookie");
+            foreach (var f in GameDataBlockBase<FlashlightSettingsDataBlock>.GetAllBlocks())
+                if (f != null) sb.AppendLine($"{f.persistentID,5}  {f.name,-32} {f.range,6:0.##} {f.angle,6:0.#} {f.intensity,7:0.###}  ({f.color.r:0.##},{f.color.g:0.##},{f.color.b:0.##})  {f.cookie}");
+
+            // Flashlight part models → their setting.
+            var settingOf = new Dictionary<string, uint>(StringComparer.OrdinalIgnoreCase);
+            sb.AppendLine().AppendLine("# Flashlight part models in memory: model  → setting ID");
+            foreach (var o in UnityEngine.Resources.FindObjectsOfTypeAll(Il2CppInterop.Runtime.Il2CppType.Of<Gear.GearPartFlashlight>()))
+            {
+                var fp = o?.TryCast<Gear.GearPartFlashlight>();
+                if (fp == null) continue;
+                string n = fp.gameObject.name.Replace("(Clone)", "").Trim();
+                if (settingOf.ContainsKey(n)) continue;
+                settingOf[n] = fp.m_settingsID;
+                sb.AppendLine($"  {n,-24} → {fp.m_settingsID}");
+            }
+
+            sb.AppendLine().AppendLine("# Guns: name  → flashlight part (25)  → setting");
+            foreach (var b in GameDataBlockBase<PlayerOfflineGearDataBlock>.GetAllBlocks())
+            {
+                if (b == null || string.IsNullOrEmpty(b.GearJSON)) continue;
+                var comps = GetComps(b.GearJSON);
+                if (!comps.TryGetValue((int)eGearComponent.FlashlightPart, out var part)) continue;
+                var pb = GameDataBlockBase<GearFlashlightPartDataBlock>.GetBlock(part);
+                string model = pb?.General?.Model == null ? "?" : Path.GetFileNameWithoutExtension(pb.General.Model);
+                string set = settingOf.TryGetValue(model, out var sid) ? sid.ToString() : "?";
+                sb.AppendLine($"  {NameOf(b),-28} part {part} ({pb?.name}, model {model}) → setting {set}");
+            }
+            File.WriteAllText(Path.Combine(BepInEx.Paths.ConfigPath, "GtfoPunk.Flashlights.txt"), sb.ToString());
+            ModInfo.Log.LogInfo($"[Garage] flashlights written: {settingOf.Count} part models → GtfoPunk.Flashlights.txt");
+        }
+        catch (Exception e) { ModInfo.Log.LogWarning($"[Garage] flashlights dump: {e.Message}"); }
+    }
+
     private static void DumpTyped<T, TItem>(StringBuilder sb, string title, Func<T, Il2CppSystem.Collections.Generic.List<TItem>> list, Func<TItem, (int type, GearPartGeneralData data)> get) where T : GameDataBlockBase<T>
     {
         sb.AppendLine().AppendLine("## " + title);

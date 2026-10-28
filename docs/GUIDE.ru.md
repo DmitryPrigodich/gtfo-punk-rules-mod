@@ -125,7 +125,7 @@
 
 **Тихострелы для основного слота** (на пробу, тип "Silenced SMG"): темп Van Auken LTC5, по умолчанию очередь по 3
 (два попадания в голову убивают страйкера на средней дистанции, очередь в тело — нет; B — одиночный / авто), звук Raptus
-Treffen 2, фонарик слабее. Варианты: SMG-S A HXC / A ARBALIST (разный магазин), патроны как у Hanaway. `MainGuns`: 'Имя: Основа + деталь=ID, … | stats=…, burst=…, damage=…, precision=…, falloff=от-до,
+Treffen 2, фонарик слабее. SMG-S A: нос и магазин Hanaway, приклад HXC, Sight_14, патроны как у Hanaway. `MainGuns`: 'Имя: Основа + деталь=ID, … | stats=…, burst=…, damage=…, precision=…, falloff=от-до,
 delay=…, clip=…, spread=…'. Сила фонарика: `Flashlight` (GP6-S), `MainFlashlight`. Опция `ammo=<ствол>` — патроны как у того ствола (запас и магазин).
 
 **Стволы гаража** (`[GarageGuns] Guns`, тот же формат плюс `type=`): обычные, громкие. **DRED BULL GOLORAT-2** — буллпап,
@@ -196,5 +196,5 @@ delay=…, clip=…, spread=…'. Сила фонарика: `Flashlight` (GP6-S
 ## Если что-то не так
 
 - Логи: `BepInEx/LogOutput.log` (строки с `[Loadout]`, `[Grenades]`, `[Difficulty]` …).
-- Справочные списки, которые пишутся при запуске: `BepInEx/config/GtfoPunk.GearList.txt`, `GtfoPunk.GearParts.txt`.
+- Справочные списки, которые пишутся при запуске: `BepInEx/config/GtfoPunk.GearList.txt`, `GtfoPunk.GearParts.txt`; в лобби — `GtfoPunk.Flashlights.txt` (фонарики: настройки и у какого ствола какой).
 - Уровень «застрял» за дверью с тревогой: проверьте `KeepScriptedDoors = true`; на сложности ПО УМОЛЧАНИЮ тревоги — игры.

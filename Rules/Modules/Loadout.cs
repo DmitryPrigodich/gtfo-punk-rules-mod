@@ -380,7 +380,7 @@ public partial class Loadout : ModuleBase
         {
             _nextLobbyCheck = Time.time + 1f;
             ClearStockBoosters();
-            if (Time.time - _lobbySince > 4f) ThermalLobbyPrep();
+            if (Time.time - _lobbySince > 4f) { ThermalLobbyPrep(); GearFactory.DumpFlashlights(); }
             RepaintAll();
         }
 

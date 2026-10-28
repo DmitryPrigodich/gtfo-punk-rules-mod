@@ -54,14 +54,13 @@ public class SilencedGun : ModuleBase
 
     // 4 (ItemFPSSettings) — hand animations: taken from Mastaba, otherwise the hand inserting rounds disappears on reload.
     private const string NewDefault = "DRED SILENZIO GP6-S: Bataldo 3RB + 12=Mastaba R66, 4=Mastaba R66";
-    /// <summary>Main-slot test variants (29.10, round 3): SMG-S A — Hanaway front, HXC stock, Sight_14 — with HXC's or
-    /// Arbalist V's straight magazine; Hanaway's ammo. Burst is the default mode: two headshots kill a striker at mid range
+    /// <summary>Main-slot gun (29.10): SMG-S A — Hanaway front and magazine, HXC stock, Sight_14; Hanaway's ammo. Burst is the default mode: two headshots kill a striker at mid range
     /// (like one from GP6-S), a body burst doesn't.</summary>
     private const string MainA = "Van Auken LTC5 + 12=15, 19=3, 21=10, 23={0} | burst=3, damage=6, precision=0.95, falloff=25-45, delay=0.25, ammo=TR22 Hanaway";
-    private static string MainDefault =>
-        "DS SMG-S A HXC: " + string.Format(MainA, 1) + "; DS SMG-S A ARBALIST: " + string.Format(MainA, 14);
+    /// <summary>29.10, round 4: TR22 Hanaway's magazine (Mag_556_40rnds_A, 1 — the same part HXC has).</summary>
+    private static string MainDefault => "DS SMG-S A: " + string.Format(MainA, 1);
     /// <summary>Earlier test sets, replaced by the new default.</summary>
-    private static bool OldMainDefault(string v) => v == MainDefault0918 || v.StartsWith("DS SMG-S A Sight_18:");
+    private static bool OldMainDefault(string v) => v == MainDefault0918 || v.StartsWith("DS SMG-S A Sight_18:") || v.StartsWith("DS SMG-S A HXC:");
     /// <summary>0.9.18's test set — replaced by the new default.</summary>
     private const string MainDefault0918 =
         "DRED SILENZIO SMG-S A: Van Auken LTC5 + 12=15, 19=3, 21=9; " +

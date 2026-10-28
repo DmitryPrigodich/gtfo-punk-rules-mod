@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.21
+- **DS SMG-S A** — one gun again: TR22 Hanaway's magazine (Mag_556_40rnds_A — the same part as on the HXC), Sight_14, Hanaway's ammo; the HXC / ARBALIST test pair is gone.
+- Reference file `BepInEx/config/GtfoPunk.Flashlights.txt` (written once in the lobby): every flashlight setting (range, angle, brightness, colour), which flashlight part uses which, and which gun has which part.
+
 ## 0.9.20
 - **Frag grenade, fix two**: the C-Foam Grenade's thrown model is a *GlueClusterGrenadeInstance*, not the GlueGrenadeInstance that 0.9.16–0.9.19 hooked — so the frag grenade went on foaming. Both kinds are handled now: no foam, a mine's blast. Log: `GlueClusterGrenadeInstance thrown: … → frag grenade`, `grenade exploded at …`.
 - Silenced main-slot guns, round three: only **DS SMG-S A** stays, with Sight_14, in two versions — HXC's straight magazine (**A HXC**) and Arbalist V's (**A ARBALIST**); TR22 Hanaway's ammo (rounds in reserve and magazine — option `ammo=`). The other test guns are gone.

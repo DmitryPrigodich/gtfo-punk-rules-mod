@@ -127,7 +127,7 @@ Advanced: `SilencedGuns` assembles guns from parts (IDs in `BepInEx/config/GtfoP
 
 **Silenced main-slot guns** (testing, type "Silenced SMG"): Van Auken LTC5's rate of fire, a 3-shot burst by default
 (two headshots kill a striker at mid range, a body burst doesn't; B — semi / auto), Raptus Treffen 2's sound, a weaker
-flashlight. Variants: SMG-S A HXC / A ARBALIST (the magazine differs), Hanaway's ammo.
+flashlight. SMG-S A: Hanaway front and magazine, HXC stock, Sight_14, Hanaway's ammo.
 `MainGuns`: 'Name: Body + part=ID, … | stats=…, burst=…, damage=…, precision=…, falloff=from-to, delay=…, clip=…, spread=…'.
 Flashlight strength: `Flashlight` (GP6-S), `MainFlashlight`. Option `ammo=<gun>` takes that gun's ammo (reserve and magazine).
 
@@ -199,6 +199,6 @@ Keys that are no longer used are removed from the file at start (old values are 
 ## Troubleshooting
 
 - Logs: `BepInEx/LogOutput.log` (lines start with `[Loadout]`, `[Grenades]`, `[Difficulty]` …).
-- Reference lists written at start: `BepInEx/config/GtfoPunk.GearList.txt`, `GtfoPunk.GearParts.txt`.
+- Reference lists written at start: `BepInEx/config/GtfoPunk.GearList.txt`, `GtfoPunk.GearParts.txt`; in the lobby — `GtfoPunk.Flashlights.txt` (flashlight settings and which gun has which).
 - A level that seems stuck behind an alarm door: check that `KeepScriptedDoors = true`; DEFAULT difficulty plays the
   game's own alarms.
