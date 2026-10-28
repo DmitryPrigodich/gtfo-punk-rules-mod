@@ -16,10 +16,10 @@ public partial class Loadout
 
     private void BindRadar()
     {
-        _bioRange = BindMigrated(Id, "BioRange", 20f, "Bio-tracker screen: range (m).", (Id, "PerkScanRange", "15"));
-        _bioWalls = BindMigrated(Id, "BioThroughWalls", true, "Bio-tracker screen sees through walls.", (Id, "PerkThroughWalls", "true"));
-        _bioSound = BindMigrated(Id, "BioSound", true, "Bio-tracker screen beeps on a sweep that finds enemies.", (Id, "PerkSound", "true"));
-        _bioSweep = Bind("BioSweepSeconds", 1.5f, "Bio-tracker screen: time between sweeps (s).");
+        _bioRange = BindMoved(SecBio, "Range", 20f, "Range of the screen (m).", "BioRange");
+        _bioWalls = BindMoved(SecBio, "ThroughWalls", true, "The screen sees through walls.", "BioThroughWalls");
+        _bioSound = BindMoved(SecBio, "Sound", true, "Beep on a sweep that finds enemies.", "BioSound");
+        _bioSweep = BindMoved(SecBio, "SweepSeconds", 1.5f, "Time between sweeps (s).", "BioSweepSeconds");
     }
 
     private struct Blip { public Vector3 Pos; public bool Awake; }

@@ -3,14 +3,14 @@ namespace GtfoPunk.Rules.Modules;
 /// <summary>
 /// Party difficulty, picked by the host in the lobby (the DIFFICULTY button next to READY FOR CAGE DROP) and sent to everyone.
 ///
-/// | Level | Alarm doors (most scans) | Starting ammo, pack fill, items |
+/// | Level | Alarms: shift (default) / cap | Starting ammo, pack fill, items |
 /// |---|---|---|
-/// | I WARDEN'S PET | 0 — alarms become one plain scan, no wave | 100% |
-/// | II EXPENDABLE ASSET | 1 | 80% |
-/// | III PRISONER | 2 | 60% |
-/// | IV SURVIVAL ODDS: LOW | 3 | 40% |
-/// | V THE COMPLEX IS HUNGRY | 4 | 20% |
-/// | VI GET THE F*** OUT | 5 | 0% (melee only) |
+/// | I WARDEN'S PET | −5 / none (a plain scan) | 100% |
+/// | II EXPENDABLE ASSET | −4 / 1 | 80% |
+/// | III PRISONER | −3 / 2 | 60% |
+/// | IV SURVIVAL ODDS: LOW | −2 / 3 | 40% |
+/// | V THE COMPLEX IS HUNGRY | −1 / 4 | 20% |
+/// | VI GET THE F*** OUT | 0 / 5 | 0% (melee only) |
 /// | DEFAULT — AS THE WARDEN INTENDED | as in the game | as in the game, no loadout, no gadgets, no infection growth, artifacts stay |
 ///
 /// Modules read <see cref="Level"/> / <see cref="Vanilla"/> / <see cref="Share"/> and react to <see cref="Changed"/>.
@@ -33,27 +33,39 @@ public class Difficulty : ModuleBase
     public static int AlarmCap => Vanilla ? -1 : Level - 1;
     /// <summary>Alarm mode: false — a cap on the scans (AlarmCap); true — every alarm shifted by AlarmShift scans.</summary>
     public static bool ShiftMode { get; private set; } = true;
-    /// <summary>Scans added to every alarm in shift mode: −4, −3, −2, −1, 0, +1 for I..VI.</summary>
-    public static int AlarmShift => Vanilla ? 0 : Level - 5;
+    /// <summary>Scans added to every alarm in shift mode for the current level (the host's AlarmShifts, sent to everyone).</summary>
+    public static int AlarmShift { get; private set; }
+
+    /// <summary>The configured shift for a level (I..VI), from AlarmShifts.</summary>
+    public static int ShiftFor(int level)
+    {
+        if (level <= Default) return 0;
+        var parts = (_shifts?.Value ?? "").Split(',', ';', ' ').Where(x => x.Trim().Length > 0).ToArray();
+        return level - 1 < parts.Length && int.TryParse(parts[level - 1].Trim(), out var v) ? Math.Clamp(v, -10, 10) : level - 6;
+    }
 
     public static event Action<int> Changed;
 
     private static ConfigEntry<int> _level, _mode;
+    private static ConfigEntry<string> _shifts;
 
     protected override void OnBindConfig()
     {
         _level = Bind("Level", 3, "Difficulty the host plays with: 1–6 (I WARDEN'S PET … VI GET THE F*** OUT), 0 — DEFAULT (the game's rules). Changed with the DIFFICULTY button in the lobby.");
         Level = Math.Clamp(_level.Value, Default, Max);
         _mode = Bind("AlarmMode", 1, "How the difficulty changes alarm doors (the host's setting is used by everyone): "
-            + "0 — a cap: at most N scans (I — one plain scan, II — 1 … VI — 5); "
-            + "1 — a shift: every alarm loses scans (I −4, II −3, III −2, IV −1, V as in the game, VI +1), so a Class V door stays harder than a Class II one; 0 scans or fewer — one plain scan without a wave.");
+            + "1 — a shift: every alarm gets AlarmShifts scans more or fewer, so a Class V door stays harder than a Class II one; "
+            + "0 — a cap: at most N scans (I — none, II — 1 … VI — 5). An alarm left with no scans becomes one plain scan without a wave.");
+        _shifts = Bind("AlarmShifts", "-5,-4,-3,-2,-1,0", "Shift mode: scans added to every alarm for levels I…VI (comma-separated; −5 at I leaves even Class V alarms as a plain scan). The host's values are used by everyone.");
         ShiftMode = _mode.Value != 0;
+        AlarmShift = ShiftFor(Level);
     }
 
     protected override void OnEnable()
     {
         PartyRules.Register("Difficulty.Level", () => Lang.T("Difficulty", "Сложность"), Name, Default, Max, _level, Apply, Describe);
         PartyRules.Register("Difficulty.AlarmMode", () => "Alarm mode", v => v == 0 ? "cap" : "shift", 0, 1, _mode, ApplyMode, hidden: true);
+        PartyRules.Register("Difficulty.AlarmShift", () => "Alarm shift", v => v.ToString(), -10, 10, null, ApplyShift, hidden: true, hostValue: () => ShiftFor(Level));
     }
 
     private static void Apply(int level)
@@ -61,9 +73,23 @@ public class Difficulty : ModuleBase
         level = Math.Clamp(level, Default, Max);
         if (level == Level) return;
         Level = level;
-        ModInfo.Log.LogInfo($"[Difficulty] {Name(level)}: alarm cap {AlarmCap}, share {Share:0.##}");
+        if (SNetwork.SNet.IsMaster || !SNetwork.SNet.HasMaster) AlarmShift = ShiftFor(level); // clients get the host's shift
+        ModInfo.Log.LogInfo($"[Difficulty] {Name(level)}: alarm {(ShiftMode ? $"shift {AlarmShift:+0;-0;0}" : $"cap {AlarmCap}")}, share {Share:0.##}");
+        Raise();
+    }
+
+    private static void ApplyShift(int shift)
+    {
+        if (shift == AlarmShift) return;
+        AlarmShift = shift;
+        ModInfo.Log.LogInfo($"[Difficulty] alarm shift: {shift:+0;-0;0}");
+        Raise();
+    }
+
+    private static void Raise()
+    {
         foreach (Action<int> h in Changed?.GetInvocationList() ?? Array.Empty<Delegate>())
-            try { h(level); } catch (Exception e) { ModInfo.Log.LogWarning($"[Difficulty] {h.Method.DeclaringType?.Name}: {e.Message}"); }
+            try { h(Level); } catch (Exception e) { ModInfo.Log.LogWarning($"[Difficulty] {h.Method.DeclaringType?.Name}: {e.Message}"); }
     }
 
     private static void ApplyMode(int mode)
@@ -72,8 +98,7 @@ public class Difficulty : ModuleBase
         if (shift == ShiftMode) return;
         ShiftMode = shift;
         ModInfo.Log.LogInfo($"[Difficulty] alarm mode: {(shift ? "shift" : "cap")}");
-        foreach (Action<int> h in Changed?.GetInvocationList() ?? Array.Empty<Delegate>())
-            try { h(Level); } catch (Exception e) { ModInfo.Log.LogWarning($"[Difficulty] {h.Method.DeclaringType?.Name}: {e.Message}"); }
+        Raise();
     }
 
     public static string Name(int level) => level switch
@@ -91,11 +116,11 @@ public class Difficulty : ModuleBase
     public static string Describe(int level)
     {
         if (level <= Default) return Lang.T("Alarms and ammo as in the game\nNo loadout, no gadgets", "Тревоги и патроны как в игре\nБез снаряжения и гаджетов");
-        int scans = level - 1, pct = (Max - level) * 20, shift = level - 5;
+        int scans = level - 1, pct = (Max - level) * 20, shift = ShiftFor(level);
         string alarm = ShiftMode
             ? shift == 0 ? Lang.T("Alarms as in the game", "Тревоги как в игре")
               : shift > 0 ? Lang.T($"Alarms: +{shift} scan", $"Тревоги: +{shift} скан")
-              : Lang.T($"Alarms: {shift} scans (none left — plain scan)", $"Тревоги: {shift} скана (не осталось — обычный скан)")
+              : Lang.T($"Alarms: {shift} scans (none left — plain scan)", $"Тревоги: {shift} скан. (не осталось — обычный скан)")
             : scans == 0 ? Lang.T("Alarms: one plain scan, no wave", "Тревоги: один обычный скан, без волны")
                          : Lang.T($"Alarm doors: up to {scans} scan{(scans > 1 ? "s" : "")}", $"Двери с тревогой: до {scans} скан{(scans == 1 ? "а" : "ов")}");
         string res = pct == 0 ? Lang.T("No ammo, packs or items — melee only", "Без патронов, пачек и предметов — только милишка")

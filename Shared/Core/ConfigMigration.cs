@@ -45,14 +45,34 @@ public static class ConfigMigration
         return entry;
     }
 
-    /// <summary>Drops every leftover (unbound) key of a section from the file.</summary>
+    /// <summary>Drops every leftover (unbound) key of a section and its sub-sections ("[section.sub]") from the file.
+    /// Call it after everything in them is bound.</summary>
     public static int DropOrphans(ConfigFile cfg, string section)
     {
         var orphans = Orphans(cfg);
         if (orphans == null) return 0;
-        var dead = orphans.Keys.Where(d => d.Section == section).ToList();
+        var dead = orphans.Keys.Where(d => d.Section == section || d.Section.StartsWith(section + ".", StringComparison.Ordinal)).ToList();
         foreach (var d in dead) orphans.Remove(d);
         if (dead.Count > 0) ModInfo.Log.LogInfo($"[Config] removed {dead.Count} unused keys from [{section}]: {string.Join(", ", dead.Select(d => d.Key))}");
         return dead.Count;
+    }
+
+    /// <summary>Drops every leftover key in the file — settings of removed modules and options. Call it once, after
+    /// every module has bound its settings (old values have been carried over by then).</summary>
+    public static void DropAllOrphans(ConfigFile cfg)
+    {
+        var orphans = Orphans(cfg);
+        if (orphans == null || orphans.Count == 0) return;
+        var dead = orphans.Keys.ToList();
+        orphans.Clear();
+        ModInfo.Log.LogInfo($"[Config] removed {dead.Count} unused keys: {string.Join(", ", dead.Select(d => d.Section + "." + d.Key))}");
+        cfg.Save();
+    }
+
+    /// <summary>Drops one leftover (unbound) key from the file.</summary>
+    public static void DropKey(ConfigFile cfg, string section, string key)
+    {
+        var orphans = Orphans(cfg);
+        if (orphans != null && orphans.Remove(new ConfigDefinition(section, key))) ModInfo.Log.LogInfo($"[Config] removed unused key {section}.{key}");
     }
 }

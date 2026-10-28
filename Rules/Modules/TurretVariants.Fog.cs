@@ -71,7 +71,7 @@ public partial class TurretVariants
         GameObject model = null;
         if (t.Mode == Mode.FogTurbine)
         {
-            var prefab = ItemModel(FogTurbineItemId) ?? FindLoadedModel(_turbineSearch.Value);
+            var prefab = ItemModel(FogTurbineItemId) ?? FindLoadedModel(TurbineModelSearch);
             if (prefab != null)
             {
                 model = CopyModel(prefab, anchor.transform, "GtfoPunk_FogModel");

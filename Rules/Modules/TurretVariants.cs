@@ -15,7 +15,7 @@ namespace GtfoPunk.Rules.Modules;
 /// Non-shooting ones run on a battery (their ammo). Combat sentries get bonuses against tagged enemies.
 ///
 /// Files: this one — registry, game patches, per-frame loop; .Config — settings; .Models — model copies and placement;
-/// .Light / .Fog / .Tracker / .Foam / .Grenade — one sentry kind each; .Battery — battery and screen; .Diagnostics.
+/// .Light / .Fog / .Tracker / .Foam / .Grenade — one sentry kind each; .Battery — battery and screen.
 /// </summary>
 public partial class TurretVariants : ModuleBase
 {
@@ -65,7 +65,7 @@ public partial class TurretVariants : ModuleBase
     protected override void OnEnable()
     {
         FrameTicker.OnUpdate += Tick;
-        FrameTicker.OnLevelExit += () => { _turrets.Clear(); _status.Clear(); _nextStagger.Clear(); ResetDiagnostics(); };
+        FrameTicker.OnLevelExit += () => { _turrets.Clear(); _status.Clear(); _nextStagger.Clear(); };
         GearFactory.OnInject += Inject;
     }
 
@@ -112,6 +112,27 @@ public partial class TurretVariants : ModuleBase
     }
 
     // ---------- game patches ----------
+
+    /// <summary>
+    /// The weapon list shows a sentry's type from its fire-mode archetype — shared by all sentries ("Burst Sentry").
+    /// Ours show their own type (Fog Repeller Sentry, …); the line under it is the gear's name (DRED GARAGE TF I, …).
+    /// </summary>
+    [HarmonyPatch(typeof(ItemEquippable), nameof(ItemEquippable.ArchetypeName), MethodType.Getter)]
+    private static class Patch_TypeName
+    {
+        private static void Postfix(ItemEquippable __instance, ref string __result)
+        {
+            if (_modeByCategory.Count == 0) return;
+            try
+            {
+                var g = __instance.GearIDRange;
+                if (g == null || !_modeByCategory.TryGetValue(g.GetCompID(eGearComponent.Category), out var mode)) return;
+                var type = KindOf(mode)?.Type?.Value;
+                if (!string.IsNullOrEmpty(type)) __result = type;
+            }
+            catch { }
+        }
+    }
 
     [HarmonyPatch(typeof(SentryGunInstance), nameof(SentryGunInstance.OnSpawn))]
     private static class Patch_Spawn
@@ -192,7 +213,6 @@ public partial class TurretVariants : ModuleBase
 
     private static void Tick()
     {
-        DiagnosticsTick();
         PrewarmTick();
         CheckReload();
         StatusTick();

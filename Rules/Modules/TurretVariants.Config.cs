@@ -61,7 +61,8 @@ public partial class TurretVariants
     private static ConfigEntry<float> _lightRange, _lightAngle, _lightIntensity, _lightForward, _lensGlow, _lensGlowForward, _lightInterval, _lightWakeAfter;
     // TF I / TF II fog repellers
     private static ConfigEntry<float> _fogRadius, _turbineRadius, _fogBulb;
-    private static ConfigEntry<string> _turbineSearch;
+    /// <summary>If the turbine item has no model: loaded meshes whose name contains this.</summary>
+    private const string TurbineModelSearch = "defoggerbig";
     private static ConfigEntry<string> _fogHum, _turbineHum;
     private static ConfigEntry<float> _fogHumRadius, _fogHumInterval, _fogHumWake, _turbineHumRadius, _turbineHumInterval, _turbineHumWake;
     // TB1 bio-tracker
@@ -91,7 +92,6 @@ public partial class TurretVariants
         _tagDelay = Bind("TaggedStartDelay", 0.5f, "Combat sentries vs tagged enemies: multiplier of the delay before opening fire (less — quicker).");
         _tagPrio = Bind("TaggedPriority", true, "Combat sentries prefer tagged enemies.");
         BindStatus();
-        BindDiagnostics();
 
         // ----- TL1 searchlight -----
         _light = MakeKind(Mode.Light, "Searchlight", "DRED GARAGE TL1", "TL1", "LightTurret",
@@ -124,7 +124,6 @@ public partial class TurretVariants
             "0,0,0", null, null,
             0.3f, "TurbineScale", null);
         _turbineRadius = K(_turbine, "Radius", 10f, "Radius of the fog-free sphere (m).", "TurbineRange2");
-        _turbineSearch = K(_turbine, "ModelSearch", "defoggerbig", "If the turbine item has no model — search loaded meshes whose name contains one of these words.", "TurbineModelSearch2");
         (_turbineHum, _turbineHumRadius, _turbineHumInterval, _turbineHumWake) = BindHum(_turbine);
 
         // ----- TB1 bio-tracker -----

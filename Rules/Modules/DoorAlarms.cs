@@ -4,16 +4,16 @@ using GameData;
 namespace GtfoPunk.Rules.Modules;
 
 /// <summary>
-/// Caps the alarm class of security doors by the party difficulty (module Difficulty): an alarm puzzle keeps at most
-/// N scans ("Class V Alarm" with five scans becomes "Class II Alarm" with two), or — in shift mode (Difficulty.AlarmMode = 1)
-/// — shifts every alarm by −4…+1 scans for I…VI. An alarm left with no scans becomes a plain one-scan security check
+/// Alarm doors by the party difficulty (module Difficulty). Shift mode (Difficulty.AlarmMode = 1, default): every alarm
+/// gets Difficulty.AlarmShifts scans more or fewer (−5…0 for I…VI; a positive shift repeats the last scan). Cap mode (0):
+/// an alarm puzzle keeps at most N scans ("Class V Alarm" with five scans becomes "Class II Alarm" with two). An alarm left with no scans becomes a plain one-scan security check
 /// without a wave. DEFAULT — as in the game. Non-alarm scans are left alone.
 /// Changes the level data, so everyone needs the same setting (the host's is sent to everyone).
 /// </summary>
 public class DoorAlarms : ModuleBase
 {
     public override string Id => "DoorAlarms";
-    public override string Description => "Caps the alarm class of door scans by the party difficulty (level I — one scan, no alarm). Everyone needs it.";
+    public override string Description => "Alarm doors follow the party difficulty: every alarm gets fewer scans (level I — a plain scan, no wave). Everyone needs it.";
     public override ModuleSide Side => ModuleSide.Everyone;
 
     private static ConfigEntry<bool> _keepScripted;

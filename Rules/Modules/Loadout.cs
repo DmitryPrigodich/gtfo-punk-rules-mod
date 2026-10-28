@@ -13,9 +13,9 @@ namespace GtfoPunk.Rules.Modules;
 /// <summary>
 /// The three booster slots in the lobby become a loadout:
 ///   1st slot (Muted)      — resource PACK: ammo / medi / tool / disinfection (one full pack = 5 charges);
-///   2nd slot (Bold)       — extra ITEM for the consumable slot: grenade, C-foam grenade, mines, fog repeller…;
-///   3rd slot (Aggressive) — GADGET: thermal goggles or a bio-tracker pulse, used with the gadget key (N).
-/// Click a slot to cycle the choice. Choices are stored in the config and sent to everyone;
+///   2nd slot (Bold)       — extra ITEM for the consumable slot: frag grenade, C-foam grenade, mines, fog repeller…;
+///   3rd slot (Aggressive) — GADGET: bio-tracker screen, thermal goggles, hacking tool or soft boots (gadget key N).
+/// Click a slot to step forward through the choices, right-click — back. Choices are stored in the config and sent to everyone;
 /// at drop-in the host hands every player their pack and item (spawned in the level and picked up for them,
 /// so they behave like normal pickups). Stock boosters can't be selected while this is on (nothing is consumed);
 /// their effects live on as booster syringes (module Syringes).
@@ -23,7 +23,7 @@ namespace GtfoPunk.Rules.Modules;
 public partial class Loadout : ModuleBase
 {
     public override string Id => "Loadout";
-    public override string Description => "Booster slots in the lobby become a loadout: resource pack, extra item, gadget (thermal / bio-tracker). The host hands them out at drop-in. Everyone needs it.";
+    public override string Description => "Booster slots in the lobby become a loadout: resource pack, extra item, gadget (bio-tracker, thermal goggles, hacking tool, soft boots). The host hands them out at drop-in. Everyone needs it.";
     public override ModuleSide Side => ModuleSide.Everyone;
 
     // ---------- choices ----------
@@ -44,32 +44,34 @@ public partial class Loadout : ModuleBase
     private static ConfigEntry<string> _pack, _perk, _itemChoices, _botPack;
     private static ConfigEntry<uint> _item, _botItem;
     private static ConfigEntry<int> _packCharges, _itemAmount;
-    private static ConfigEntry<bool> _blockBoosters, _giveBackpack;
+    private static ConfigEntry<bool> _blockBoosters;
     private static ConfigEntry<string> _gadgetKey;
     private static ConfigEntry<float> _giveDelay;
+
+    /// <summary>Sub-sections of the config: [Loadout.Gadget], [Loadout.BioTracker], [Loadout.Thermal], [Loadout.SoftBoots].</summary>
+    private const string SecGadget = "Gadget", SecBio = "BioTracker", SecThermal = "Thermal", SecBoots = "SoftBoots";
 
     protected override void OnBindConfig()
     {
         _pack = Bind("Pack", "Ammo", "Your resource pack (also set by clicking the 1st booster slot in the lobby): None, Ammo, Medi, Tool, Disinfection.");
         _item = Bind("Item", 136u, "Your extra item, an item ID (also set by clicking the 2nd booster slot). 0 — none.");
         _perk = Bind("Perk", "BioTracker", "Your gadget (also set by clicking the 3rd booster slot): BioTracker, Thermal, Hacker, SoftBoots.");
-        _gadgetKey = Bind("GadgetKey", "N", "Key that switches the gadget on/off: thermal goggles or the bio-tracker screen (Unity KeyCode name).");
         _itemChoices = Bind("ItemChoices", "136,115,139,144,117,114,116,140",
-            "Items the 2nd slot cycles through (item IDs): 136 grenade, 115 C-foam grenade, 139 explosive trip mine, 144 C-foam trip mine, 117 fog repeller, 114 glow sticks, 116 lock melter, 140 I2-LP syringe.");
+            "Items the 2nd slot cycles through (item IDs): 4252 frag grenade (136 also means it), 115 C-foam grenade, 139 explosive trip mine, 144 C-foam trip mine, 117 fog repeller, 114 glow sticks, 116 lock melter, 140 I2-LP syringe.");
         _packCharges = Bind("PackCharges", 5, "Charges in the pack you get (a full pack is 5).");
         _itemAmount = Bind("ItemAmount", -1, "How many of the extra item you get (-1 — as many as the biggest stack found in levels).");
         _botPack = Bind("BotPack", "None", "Pack the host gives each bot: None, Ammo, Medi, Tool, Disinfection.");
         _botItem = Bind("BotItem", 0u, "Extra item the host gives each bot (item ID, 0 — none).");
         _giveDelay = Bind("GiveDelay", 3f, "Seconds after drop-in before the host hands out the loadout.");
-        _giveBackpack = Bind("GiveIntoBackpack", false, "EXPERIMENT: hand out straight into the backpack instead of spawning a pickup and picking it up. In 0.9.10 this gave nothing — leave it off.");
         _blockBoosters = Bind("BlockStockBoosters", true, "Stock boosters can't be selected (already selected ones are unselected, not used up).");
+        _gadgetKey = BindMoved(SecGadget, "Key", "N", "Key that switches the gadget on/off (thermal goggles, bio-tracker screen) or takes out the hacking tool (Unity KeyCode name).", "GadgetKey");
         BindBattery();
         BindRadar();
         BindThermal();
         BindIcons();
         BindGadgetHud();
         BindBoots();
-        ConfigMigration.DropOrphans(Config, Id); // PerkScanInterval, BioTrackerAuto … (the pulse is gone)
+        ConfigMigration.DropOrphans(Config, Id); // GiveIntoBackpack, ItemPictures, ItemIcons, ThermalMaterial, ThermalDiagnostics …
     }
 
     protected override void OnEnable()
@@ -85,7 +87,8 @@ public partial class Loadout : ModuleBase
     {
         var pack = Enum.TryParse<PackKind>(_pack.Value, true, out var p) && p != PackKind.None ? p : PackKind.Ammo;
         var items = ItemChoices();
-        uint item = items.Contains(_item.Value) ? _item.Value : items.Count > 0 ? items[0] : 0;
+        uint want = Alias(_item.Value);
+        uint item = items.Contains(want) ? want : items.Count > 0 ? items[0] : 0;
         var perk = Enum.TryParse<PerkKind>(_perk.Value, true, out var k) && k != PerkKind.None ? k : PerkKind.BioTracker;
         return new Choice { Pack = pack, Item = item, Perk = perk };
     }
@@ -93,14 +96,17 @@ public partial class Loadout : ModuleBase
     private static Choice Bot() => new()
     {
         Pack = Enum.TryParse<PackKind>(_botPack.Value, true, out var p) ? p : PackKind.None,
-        Item = _botItem.Value,
+        Item = Alias(_botItem.Value),
     };
+
+    /// <summary>136 (the grenade before 0.9.16) is the frag grenade item now.</summary>
+    private static uint Alias(uint id) => id == Grenades.GrenadeItemId ? Grenades.FragItemId : id;
 
     private static List<uint> ItemChoices()
     {
         var list = new List<uint>();
         foreach (var s in _itemChoices.Value.Split(',', ';', ' '))
-            if (uint.TryParse(s.Trim(), out var id) && id != 0 && GameDataBlockBase<ItemDataBlock>.HasBlock(id) && !list.Contains(id)) list.Add(id);
+            if (uint.TryParse(s.Trim(), out var raw) && Alias(raw) is var id && id != 0 && GameDataBlockBase<ItemDataBlock>.HasBlock(id) && !list.Contains(id)) list.Add(id);
         return list;
     }
 
@@ -286,7 +292,7 @@ public partial class Loadout : ModuleBase
             if (!_origEmptyIcon.ContainsKey(slot.Pointer)) _origEmptyIcon[slot.Pointer] = empty.sprite;
             var reference = _origEmptyIcon[slot.Pointer];
             var icon = iconItem == 0 ? null
-                : IconFile(iconItem, reference) ?? (_photos.Value ? Photo(iconItem, reference) ?? (iconItem < BioIconId ? Icon(iconItem) : null) : null);
+                : IconFile(iconItem, reference);
             empty.sprite = icon ?? _origEmptyIcon[slot.Pointer];
             // The stock empty-slot mark is a tilted diamond: our pictures go upright and bigger.
             var et = empty.transform;
@@ -348,40 +354,6 @@ public partial class Loadout : ModuleBase
         return string.IsNullOrWhiteSpace(n) ? b.publicName : n;
     }
 
-    private static readonly Dictionary<uint, Sprite> _icons = new();
-
-    /// <summary>Item icon from its HUDIcon resource path (the inventory icon). Null if it can't be loaded.</summary>
-    private static Sprite Icon(uint itemId)
-    {
-        if (_icons.TryGetValue(itemId, out var s)) return s;
-        Sprite sprite = null;
-        string path = GameDataBlockBase<ItemDataBlock>.GetBlock(itemId)?.HUDIcon;
-        try
-        {
-            if (!string.IsNullOrEmpty(path))
-            {
-                var obj = Resources.Load(path);
-                sprite = obj?.TryCast<Sprite>();
-                if (sprite == null)
-                {
-                    var tex = obj?.TryCast<Texture2D>();
-                    if (tex != null) sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
-                }
-                if (sprite == null)
-                {
-                    // Already loaded somewhere? Look it up by name.
-                    string name = path.Substring(path.LastIndexOf('/') + 1);
-                    foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<Sprite>()))
-                        if (o != null && o.name == name) { sprite = o.TryCast<Sprite>(); break; }
-                }
-            }
-        }
-        catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] icon of item {itemId}: {e.Message}"); }
-        ModInfo.Log.LogInfo($"[Loadout] icon of item {itemId} ('{path}'): {(sprite != null ? "found" : "not found")}");
-        _icons[itemId] = sprite;
-        return sprite;
-    }
-
     // ---------- tick ----------
 
     private static eGameStateName _lastState;
@@ -408,7 +380,6 @@ public partial class Loadout : ModuleBase
         {
             _nextLobbyCheck = Time.time + 1f;
             ClearStockBoosters();
-            try { PhotoTick(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] photos: {e.Message}"); }
             if (Time.time - _lobbySince > 4f) ThermalLobbyPrep();
             RepaintAll();
         }
@@ -496,20 +467,6 @@ public partial class Loadout : ModuleBase
         var custom = new pItemData_Custom { ammo = ammo };
         var data = new pItemData { itemID_gearCRC = itemId, slot = block.inventorySlot, custom = custom };
         var target = player;
-        if (_giveBackpack.Value)
-        {
-            // Straight into the backpack, the way the game hands items out at drop-in. Spawning a level pickup and
-            // picking it up left a broken item replicator behind: every checkpoint / migration capture then threw a
-            // NullReferenceException (thousands of them — a huge log and hitches).
-            try
-            {
-                PlayerBackpackManager.MasterAddItem(data, player);
-                ModInfo.Log.LogInfo($"[Loadout] item {itemId} put into {player.NickName}'s backpack");
-                FixAmmo(player, block.inventorySlot, ammo, itemId);
-                return;
-            }
-            catch (Exception e) { ModInfo.Log.LogWarning($"[Loadout] backpack add failed ({e.Message}) — spawning a pickup instead"); }
-        }
         var cb = DelegateSupport.ConvertDelegate<ItemReplicationManager.delItemCallback>(
             new Action<ISyncedItem, PlayerAgent>((item, _) =>
             {

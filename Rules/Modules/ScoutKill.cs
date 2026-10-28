@@ -18,7 +18,7 @@ public class ScoutKill : ModuleBase
     protected override void OnBindConfig()
     {
         _chargeup = Bind("ScreamChargeup", 2f, "Seconds a scout charges its scream before it goes off (at least the game's own). 0 — as in the game.");
-        _damage = Bind("ChargeupDamage", 3f, "Damage multiplier on a scout from the moment it catches you until the scream goes off. 1 — normal.");
+        _damage = Bind("ChargeupDamage", 3f, "Damage multiplier on a scout from the moment it catches you until the scream goes off. 1 — as in the game.");
     }
 
     protected override void OnEnable()

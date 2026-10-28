@@ -1,47 +1,51 @@
 # GtfoPunk My Game My Rules
 
-Gameplay changes for GTFO. **This changes the game:** play only with friends, and **everyone in the lobby should have it installed** (some features work if only the host has them, see the table).
+Gameplay overhaul for GTFO: party difficulty, a lobby loadout with gadgets, new sentries and a silenced pistol,
+a frag grenade, booster syringes, living infection, killable scouts.
 
-- Does not require GTFO-API.
-- Every feature has its own toggle in `BepInEx/config/AmDDRed.GtfoPunk.Rules.cfg`.
-- Lobby loadout icons are PNG files in the mod's `icons` folder — replace one to change it.
-- In-game text language: `[General] TextLanguage = auto` — as the game's language (or `en` / `ru`).
-- Meant to be played together with **GtfoPunk QoL** (client-side quality of life, separate package).
+- **Everyone in the lobby needs it.** It changes the game — play with friends who have it too, not with randoms.
+- Made to be played together with **GtfoPunk QoL** (client-side quality of life, separate package).
+- Every feature toggles in `BepInEx/config/AmDDRed.GtfoPunk.Rules.cfg`; shared rules are picked by the host in the lobby.
+- Text in English or Russian (`[General] TextLanguage = auto` follows the game's language). GTFO-API not needed.
 
-## Features
-| Feature | Who needs it | What it does |
-|---|---|---|
-| FullAmmoOnStart | Everyone | Everyone (bots too) starts the level with full ammo and tool. |
-| FireModes | Each player | B switches fire mode: semi / auto (+ burst on weapons that have it). Turns itself off if ExtraWeaponCustomization is installed. |
-| QuickMelee | Each player | V: draw melee, shove, return to your gun. Hold V for a charged hit. |
-| TurretVariants | Everyone | New sentry tools: **DRED GARAGE TF I** (stationary fog repeller) and **TF II** (fog turbine), **TL1** (searchlight that tracks enemies, wakes sleepers it holds in the beam), **TB1** (bio-tracker: tags enemies in its sector, through walls; combat sentries prefer tagged targets), **TCF3** (foam sentry: slowing, acidic foam), **TGL3** (grenade launcher). TF/TL/TB don't shoot and run on a battery. Each sentry has its own config section `[TurretVariants.<Kind>]`. Every sentry gets a status light: green — full, yellow — half, red — not working. |
-| Grenades | Everyone | The game's unreleased grenade (item 136) appears in level lockers/boxes, carried up to 2; a loud 8 m blast that wakes the area. The TGL3 sentry throws it. |
-| Syringes | Everyone | Booster syringes lie where artifacts used to be; picking one up injects the effects of a random booster for 5 minutes (listed on the map screen). |
-| Infection | Everyone | Infection keeps growing (1% / 2 min) until disinfected; from 70% you cough — sleepers nearby notice. |
-| Difficulty | Everyone | DIFFICULTY button in the lobby (host): I–VI set alarm doors (by default a shift: I −4 scans, II −3, III −2, IV −1, V as in the game, VI +1; or a cap with AlarmMode = 0; scripted doors stay as in the game), starting ammo, pack fill and item count (100% … 0%); DEFAULT — the game's rules, no loadout or gadgets. What the level means is written next to the button; right click — back. |
-| DoorAlarms | Everyone | Alarm doors by difficulty (level I — they just open). |
-| ScoutKill | Everyone | From the moment a scout catches you until it screams it takes ×3 damage (and the charge-up is longer) — kill it and there's no wave. |
-| PartyRules | Everyone | The lobby buttons for the shared rules: the host clicks, everyone gets the host's choice. |
-| Loadout | Everyone | The lobby booster slots become a loadout: click to pick a resource pack, an extra item and a gadget (key N: thermal goggles, a bio-tracker screen, the hacking tool — only its owner can hack, or soft boots — quiet running, harder falls; goggles and screen run on a rechargeable battery); the host hands them out at drop-in. Stock boosters are switched off. |
-| SilencedGun | Everyone | Silenced pistol **DRED SILENZIO GP6-S**: Bataldo 3RB body + Mastaba top, 15 damage (headshot kills a striker), S49 sound. Wakes enemies only within 10 m. Shown as "Silenced Pistol". |
+Full guide (every feature and setting): [English](https://github.com/DmitryPrigodich/gtfo-punk-rules-mod/blob/main/docs/GUIDE.md) · [Русский](https://github.com/DmitryPrigodich/gtfo-punk-rules-mod/blob/main/docs/GUIDE.ru.md)
+
+## Key features
+| | |
+|---|---|
+| **Difficulty I–VI** | DIFFICULTY button in the lobby (host). Alarm doors lose scans (I: −5 — every alarm is a plain scan, … VI: as in the game); starting ammo, packs and items 100% … 0%. DEFAULT — the game's own rules. |
+| **Loadout** | The booster slots become PACK / ITEM / GADGET; the host hands them out at drop-in. Stock boosters are off. |
+| **Gadgets** (key N) | Bio-tracker screen · thermal goggles (Z zoom, X palettes) · hacking tool (only its owner hacks) · soft boots (quiet running, harder falls). |
+| **Frag grenade** | A C-Foam Grenade that explodes: 8 m, 120 damage, loud. In lockers and boxes, carry 2. |
+| **Sentries** | DRED GARAGE TL1 searchlight · TF I / TF II fog repellers · TB1 bio-tracker · TCF3 foam · TGL3 grenade launcher. Status light on every sentry. |
+| **Silenced pistol** | DRED SILENZIO GP6-S: 15 damage, wakes only within 10 m. |
+| **Booster syringes** | Instead of artifacts: inject on pickup, a random booster's effects for 5 minutes. |
+| **Infection** | Grows until disinfected; gasping from 50%, coughing and tremor from 70% — sleepers hear you. |
+| **Scouts** | ×3 damage from the moment a scout catches you until it screams — kill it and there's no wave. |
+| **Fire modes / quick melee** | B — semi / auto / burst; V — shove or charged hit, then back to the gun. |
 
 ---
 
 ## По-русски
-Геймплейные изменения. Играть только с друзьями, у которых пакет тоже стоит. Рассчитан на игру вместе с **GtfoPunk QoL**.
 
-| Фича | Кому нужна | Что делает |
-|---|---|---|
-| FullAmmoOnStart | Всем | Полный боезапас (и инструмент) на старте, ботам тоже. |
-| FireModes | Каждому | B — режим огня: одиночный / авто (+ очередь, если она родная). |
-| QuickMelee | Каждому | V — достать милишку, оттолкнуть, вернуть оружие. Держать — заряженный удар. |
-| TurretVariants | Всем | Новые турели: DRED GARAGE TF I и TF II (туман), TL1 (прожектор, будит тех, кого держит в луче), TB1 (биотрекер — метит врагов в секторе, сквозь стены; боевые турели бьют помеченных первыми), TCF3 (пенострел — замедляющая кислотная пена), TGL3 (гранатомёт). У каждой турели свой раздел конфига `[TurretVariants.<Вид>]`. На всех турелях огонёк: зелёный — полная, жёлтый — половина, красный — не работает. |
-| Grenades | Всем | Невыпущенная граната игры (предмет 136) — в шкафчиках/ящиках уровня, носится до 2 штук; громкий взрыв 8 м будит округу. Ею стреляет турель TGL3. |
-| Syringes | Всем | Шприцы-усилители лежат на месте артефактов; подбор = укол, эффекты случайного бустера на 5 минут (видны на экране карты). |
-| Infection | Всем | Инфекция растёт сама (1% за 2 мин), пока не продезинфицируешься; с 70% кашляешь — спящие рядом слышат. |
-| Difficulty | Всем | Кнопка СЛОЖНОСТЬ в лобби (хост): I–VI задают тревогу дверей (по умолчанию сдвиг: I −4 скана, II −3, III −2, IV −1, V как в игре, VI +1; или потолок при AlarmMode = 0; скриптовые двери как в игре), стартовые патроны, заполнение пачки и количество предметов (100% … 0%); ПО УМОЛЧАНИЮ — правила игры, без снаряжения и гаджетов. Что значит уровень — написано рядом с кнопкой; ПКМ — назад. |
-| DoorAlarms | Всем | Тревога дверей по сложности (уровень I — двери просто открываются). |
-| ScoutKill | Всем | С момента, как скаут тебя поймал, и до крика он получает ×3 урона (и крик дольше заряжается) — успел убить, волны нет. |
-| PartyRules | Всем | Кнопки общих правил в лобби: хост кликает, всем приходит его выбор. |
-| Loadout | Всем | Слоты бустеров в лобби — снаряжение: кликом выбираешь пачку, доп. предмет и гаджет (клавиша N: тепловизор, экран биотрекера, мягкие ботинки — тихий бег, но больнее падать, или инструмент взлома — взламывать может только его владелец; тепловизор и экран на батарее); хост выдаёт всё при высадке. Штатные бустеры отключены. |
-| SilencedGun | Всем | Бесшумный пистолет DRED SILENZIO GP6-S (корпус 3RB + верх Mastaba, урон 15 — в голову убивает страйкера, звук S49): будит только в 10 м. |
+Переработка геймплея GTFO: сложность для всей группы, снаряжение с гаджетами в лобби, новые турели и бесшумный
+пистолет, граната, шприцы-усилители, живая инфекция, скаутов можно успеть убить.
+
+- **Нужен всем в лобби.** Меняет игру — играть с друзьями, у которых он тоже стоит, не с рандомами.
+- Рассчитан на игру вместе с **GtfoPunk QoL** (отдельный пакет удобств).
+- Каждая фича включается в `BepInEx/config/AmDDRed.GtfoPunk.Rules.cfg`; общие правила хост выбирает в лобби.
+
+Подробное руководство: [по-русски](https://github.com/DmitryPrigodich/gtfo-punk-rules-mod/blob/main/docs/GUIDE.ru.md).
+
+| | |
+|---|---|
+| **Сложность I–VI** | Кнопка СЛОЖНОСТЬ в лобби (хост). Тревоги теряют сканы (I: −5 — любая тревога становится обычным сканом, … VI: как в игре); патроны, пачки и предметы 100% … 0%. ПО УМОЛЧАНИЮ — правила игры. |
+| **Снаряжение** | Слоты бустеров — ПАЧКА / ПРЕДМЕТ / ГАДЖЕТ; хост выдаёт при высадке. Штатные бустеры выключены. |
+| **Гаджеты** (клавиша N) | Экран биотрекера · тепловизор (Z — зум, X — палитры) · инструмент взлома (взламывает только владелец) · мягкие ботинки (тихий бег, но больнее падать). |
+| **Граната** | Пеногрената, которая взрывается: 8 м, 120 урона, громко. В шкафчиках и ящиках, носится 2. |
+| **Турели** | DRED GARAGE TL1 прожектор · TF I / TF II от тумана · TB1 биотрекер · TCF3 пена · TGL3 гранатомёт. Огонёк состояния на всех турелях. |
+| **Бесшумный пистолет** | DRED SILENZIO GP6-S: урон 15, будит только в 10 м. |
+| **Шприцы-усилители** | Вместо артефактов: укол при подборе, эффекты случайного бустера на 5 минут. |
+| **Инфекция** | Растёт, пока не продезинфицируешься; с 50% одышка, с 70% кашель и дрожь — спящие слышат. |
+| **Скауты** | ×3 урона с момента, как скаут поймал, до крика — успел убить, волны нет. |
+| **Режимы огня / быстрый удар** | B — одиночный / авто / очередь; V — толчок или заряженный удар, потом снова оружие. |

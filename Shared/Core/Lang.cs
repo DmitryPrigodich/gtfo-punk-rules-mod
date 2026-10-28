@@ -15,13 +15,7 @@ public static class Lang
         _lang = ConfigMigration.Bind(config, "General", "TextLanguage", "auto",
             "In-game text language of the mod: auto (as the game's language), en or ru.",
             ("General", "Language", "en"));
-        // One-time: an older "ru" (carried over from the old key) goes back to auto — the text follows the game's language.
-        var reset = config.Bind("General", "TextLanguageAutoOnce", false, "Internal: the one-time switch to auto was done. Leave as is.");
-        if (!reset.Value)
-        {
-            if (_lang.Value.Trim().ToLowerInvariant() == "ru") _lang.Value = "auto";
-            reset.Value = true;
-        }
+        ConfigMigration.DropKey(config, "General", "TextLanguageAutoOnce"); // a one-time switch of 0.6.x
     }
 
     private static float _checkedAt = -100f;

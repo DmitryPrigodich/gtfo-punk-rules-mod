@@ -15,10 +15,10 @@ public partial class Loadout
 
     private void BindGadgetHud()
     {
-        _gadgetHud = Bind("GadgetHud", true, "Show the gadget panel above the health bar: on/off, the battery bar, and the bio-tracker screen.");
-        _gadgetHudAlpha = Bind("GadgetHudOpacity", 0.9f, "Opacity of the gadget panel (0–1).");
-        _gadgetBottom = Bind("GadgetPanelBottom", 0.1f, "Where the gadget panel's bottom edge is: fraction of the screen height from the bottom (the health bar is at ~0.085).");
-        _gadgetScale = Bind("GadgetPanelScale", 1f, "Size of the gadget panel (1 — about a third of the screen height wide).");
+        _gadgetHud = BindMoved(SecGadget, "Panel", true, "Show the gadget panel above the health bar: on/off, the battery bar and the bio-tracker screen.", "GadgetHud");
+        _gadgetHudAlpha = BindMoved(SecGadget, "PanelOpacity", 0.9f, "Opacity of the panel (0–1).", "GadgetHudOpacity");
+        _gadgetBottom = BindMoved(SecGadget, "PanelBottom", 0.1f, "Where the panel's bottom edge is: share of the screen height from the bottom (the health bar is at ~0.085).", "GadgetPanelBottom");
+        _gadgetScale = BindMoved(SecGadget, "PanelScale", 1f, "Size of the panel (1 — about a third of the screen height wide).", "GadgetPanelScale");
         _hideBoosterIcons = Bind("HideBoosterIcons", true, "Hide the stock booster icons above health (boosters are replaced by the loadout).");
     }
 

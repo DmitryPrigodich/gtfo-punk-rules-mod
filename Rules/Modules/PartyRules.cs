@@ -5,7 +5,7 @@ using UnityEngine;
 namespace GtfoPunk.Rules.Modules;
 
 /// <summary>
-/// "Rules of the party": settings everyone must share (door alarm cap, …), chosen by the host right in the lobby
+/// "Rules of the party": settings everyone must share (difficulty, alarm settings), chosen by the host right in the lobby
 /// instead of the config. Buttons like the lobby's own, to the right of READY FOR CAGE DROP; the host clicks a rule to step through its
 /// values, the others see the host's choice. The host's choice is saved
 /// to the host's config; the others get it over the network and their own config is left alone.
@@ -14,7 +14,7 @@ namespace GtfoPunk.Rules.Modules;
 public class PartyRules : ModuleBase
 {
     public override string Id => "PartyRules";
-    public override string Description => "Shared game rules (door alarm cap, …) picked by the host in the lobby and sent to everyone.";
+    public override string Description => "Shared game rules (difficulty, alarm settings) picked by the host in the lobby and sent to everyone.";
     public override ModuleSide Side => ModuleSide.Everyone;
 
     /// <summary>One rule: an integer setting from Min to Max, backed by a config entry (used by the host and when playing alone).</summary>
@@ -28,6 +28,7 @@ public class PartyRules : ModuleBase
         public Action<int> Apply;
         public Func<int, string> Describe; // optional: what the current value means, shown next to the button
         public bool Hidden;                 // synced like the others, but no lobby button (set in the config)
+        public Func<int> HostValue;         // optional: the host's value comes from here instead of Config (a derived value)
         public int Value;
     }
 
@@ -38,10 +39,11 @@ public class PartyRules : ModuleBase
     private static ConfigEntry<float> _infoSize;
 
     /// <summary>Adds a rule (call from a module's OnEnable). Its current value is applied right away.</summary>
-    public static Rule Register(string key, Func<string> title, Func<int, string> format, int min, int max, ConfigEntry<int> config, Action<int> apply, Func<int, string> describe = null, bool hidden = false)
+    public static Rule Register(string key, Func<string> title, Func<int, string> format, int min, int max, ConfigEntry<int> config, Action<int> apply,
+        Func<int, string> describe = null, bool hidden = false, Func<int> hostValue = null)
     {
-        var r = new Rule { Key = key, Title = title, Format = format, Min = min, Max = max, Config = config, Apply = apply, Describe = describe, Hidden = hidden };
-        r.Value = Mathf.Clamp(config.Value, min, max);
+        var r = new Rule { Key = key, Title = title, Format = format, Min = min, Max = max, Config = config, Apply = apply, Describe = describe, Hidden = hidden, HostValue = hostValue };
+        r.Value = Mathf.Clamp(hostValue != null ? hostValue() : config.Value, min, max);
         _rules.Add(r);
         return r;
     }
@@ -125,7 +127,7 @@ public class PartyRules : ModuleBase
         bool preGame = state == eGameStateName.Lobby || state == eGameStateName.Generating || state == eGameStateName.ReadyToStopElevatorRide;
         // The host owns the rules: its config values, broadcast while in the lobby.
         if (SNet.IsMaster || !SNet.HasMaster)
-            foreach (var r in _rules) Set(r, r.Config.Value, "config");
+            foreach (var r in _rules) Set(r, r.HostValue != null ? r.HostValue() : r.Config.Value, "config");
         if (SNet.IsMaster && preGame && Time.time >= _nextBroadcast && SNet.HasMaster) Broadcast();
 
         if (!Visible() || !EnsureViews()) return;
@@ -158,7 +160,7 @@ public class PartyRules : ModuleBase
         int next = r.Value + dir;
         if (next > r.Max) next = r.Min;
         if (next < r.Min) next = r.Max;
-        r.Config.Value = next;
+        if (r.Config != null) r.Config.Value = next;
         Set(r, next, "host clicked");
         if (SNet.IsMaster) Broadcast();
     }

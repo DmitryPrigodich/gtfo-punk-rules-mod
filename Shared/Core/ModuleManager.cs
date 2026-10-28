@@ -27,6 +27,7 @@ internal static class ModuleManager
             module.BindConfig(config);
             Modules.Add(module);
         }
+        ConfigMigration.DropAllOrphans(config); // removed modules and options
     }
 
     /// <summary>Step 2 (once all plugins are loaded): decide what to enable and apply patches.</summary>

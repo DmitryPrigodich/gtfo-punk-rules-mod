@@ -12,9 +12,9 @@ public partial class Loadout
 
     private void BindBattery()
     {
-        _batterySeconds = Bind("GadgetBatterySeconds", 90f, "How long a full gadget battery lasts while the gadget is on (s). 0 — no battery.");
-        _rechargeSeconds = Bind("GadgetRechargeSeconds", 45f, "How long an empty gadget battery takes to recharge while the gadget is off (s).");
-        _minCharge = Bind("GadgetMinCharge", 0.1f, "The gadget won't switch on with less charge than this (0–1).");
+        _batterySeconds = BindMoved(SecGadget, "BatterySeconds", 90f, "How long a full battery lasts while the gadget is on (s). 0 — no battery.", "GadgetBatterySeconds");
+        _rechargeSeconds = BindMoved(SecGadget, "RechargeSeconds", 45f, "How long an empty battery takes to recharge while the gadget is off (s).", "GadgetRechargeSeconds");
+        _minCharge = BindMoved(SecGadget, "MinCharge", 0.1f, "The gadget won't switch on with less charge than this (0–1).", "GadgetMinCharge");
     }
 
     private static float _charge = 1f;

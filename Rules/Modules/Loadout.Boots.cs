@@ -16,9 +16,9 @@ public partial class Loadout
 
     private void BindBoots()
     {
-        _bootsFallDamage = Bind("BootsFallDamage", 1.5f, "Soft boots: fall damage multiplier (1 — as usual).");
-        _bootsFallHeight = Bind("BootsFallHeight", 0.7f, "Soft boots: the height a fall starts to hurt, as a share of the usual one.");
-        _bootsRunSpeed = Bind("BootsRunSpeed", 0.92f, "Soft boots: running speed multiplier (1 — as usual).");
+        _bootsFallDamage = BindMoved(SecBoots, "FallDamage", 1.5f, "Fall damage multiplier (1 — as in the game).", "BootsFallDamage");
+        _bootsFallHeight = BindMoved(SecBoots, "FallHeight", 0.7f, "The height a fall starts to hurt from, as a share of the usual one (1 — as in the game).", "BootsFallHeight");
+        _bootsRunSpeed = BindMoved(SecBoots, "RunSpeed", 0.92f, "Running speed multiplier (1 — as in the game).", "BootsRunSpeed");
     }
 
     /// <summary>Who wears the boots (player slot → yes), refreshed once a second.</summary>

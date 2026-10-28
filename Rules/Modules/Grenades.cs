@@ -8,85 +8,91 @@ using UnityEngine;
 namespace GtfoPunk.Rules.Modules;
 
 /// <summary>
-/// Grenade. The game has an unreleased item 136 (CONSUMABLE_Grenade) with a ready-made GrenadeBase script
-/// (radius, damage, delay, explosion). This module:
-///  - names it and adds it to the level consumable distribution (boxes/lockers), like foam and mines;
-///  - gives sentries a way to "throw" a grenade (synced, like a player throw) — for the grenade launcher sentry;
-///  - sentry grenades explode on contact and are weaker (radius/damage from config).
+/// Frag grenade: a copy of the C-Foam Grenade (item 115 — the same models, throw and pickup) under its own item ID,
+/// with its own name, that explodes instead of foaming (damage, fire and smoke of a mine, shake, noise).
+/// It's a separate item, so it never stacks with glow sticks or foam grenades. In consumable boxes and lockers.
+/// The grenade launcher sentry (TGL3) throws the game's unreleased grenade (item 136, cloned as 4250) — synced
+/// like a player throw, exploding on contact and weaker.
 /// Everyone needs it.
 /// </summary>
 public class Grenades : ModuleBase
 {
     public override string Id => "Grenades";
-    public override string Description => "Grenade: the game's unreleased item 136 — in consumable boxes and for the grenade launcher sentry. Everyone needs it.";
+    public override string Description => "Frag grenade (a C-Foam Grenade that explodes) among level consumables; grenades for the TGL3 sentry. Everyone needs it.";
     public override ModuleSide Side => ModuleSide.Everyone;
 
+    /// <summary>The game's unreleased grenade (GrenadeBase script) — only the base of the sentry grenade now.</summary>
     public const uint GrenadeItemId = 136;
     /// <summary>Clone of item 136 thrown only by the TGL3 sentry — the item ID itself tells every client it's a sentry grenade.</summary>
     public const uint TurretGrenadeItemId = 4250;
+    /// <summary>The frag grenade players carry: a clone of the C-Foam Grenade (never reuse or change this ID).</summary>
+    public const uint FragItemId = 4252;
     /// <summary>Item whose look the grenade borrows (C-Foam Grenade).</summary>
     private const uint LookItemId = 115;
     /// <summary>Mark in the item data: this grenade was thrown by a sentry (visible to all players).</summary>
     private const float TurretMark = -77f;
 
-    private static ConfigEntry<bool> _inLevels, _diag, _hitEnemies, _blastFx;
+    private static ConfigEntry<bool> _inLevels, _hitEnemies, _blastFx;
     private static ConfigEntry<float> _proximity, _noiseRadius, _shake;
     private static ConfigEntry<int> _stack;
-    private static ConfigEntry<bool> _handModels;
-    private static ConfigEntry<float> _weight, _turretRadius, _turretDamage, _turretFuse, _handRadius, _handDamage, _handDelay;
+    private static ConfigEntry<float> _weight, _turretRadius, _turretDamage, _turretFuse, _handRadius, _handDamage;
     private static ConfigEntry<string> _nameEn, _nameRu;
 
     protected override void OnBindConfig()
     {
-        _inLevels = Bind("InLevels", true, "Grenades show up in levels among consumables (boxes, lockers).");
-        _weight = Bind("SpawnWeight", 0.6f, "How often a grenade shows up: fraction of the average consumable weight in the level distribution (1 — like a regular consumable).");
         _nameEn = Bind("NameEn", "Frag Grenade", "Grenade name (English).");
         _nameRu = Bind("NameRu", "Граната", "Grenade name (Russian).");
-        _handModels = Bind("HandModels", true, "In hand the grenade uses the C-Foam Grenade's own models and throwing animation.");
-        _stack = Bind("Stack", 2, "How many hand grenades (and C-Foam Grenades) a player can carry. Level pickups hold 1. 0 — as in the game.");
-        _handRadius = BindMigrated(Id, "HandBlastRadius", 8f, "Hand grenade blast radius (m). 0 — as designed in the game.", (Id, "HandRadius", "0"));
-        _handDamage = BindMigrated(Id, "HandBlastDamage", 120f, "Hand grenade damage at the center. 0 — as designed in the game.", (Id, "HandDamage", "0"));
-        _blastFx = Bind("BlastEffect", true, "Explosions look and sound like a mine going off (fire, smoke, light, sound), not a silent pop.");
-        _shake = Bind("BlastShake", 1f, "Camera shake from a hand grenade explosion (0 — none; sentry grenades shake half as much).");
-        _noiseRadius = Bind("BlastNoiseRadius", 30f, "A hand grenade explosion wakes and alerts enemies within this radius (m; sentry grenades — half). 0 — no extra noise.");
-        _handDelay = Bind("HandDelay", -1f, "Hand grenade fuse after impact (s). -1 — as designed in the game.");
-        _turretRadius = Bind("TurretRadius", 3.5f, "Blast radius of the grenade launcher sentry's grenades (m; a mine's is bigger).");
+        _inLevels = Bind("InLevels", true, "Grenades show up in levels among consumables (boxes, lockers).");
+        _weight = Bind("SpawnWeight", 0.6f, "How often a grenade shows up: share of the average consumable weight in the level distribution (1 — like a regular consumable).");
+        _stack = Bind("Stack", 2, "How many grenades (and C-Foam Grenades) a player can carry; a level pickup holds 1. 0 — as in the game.");
+        _handRadius = BindMigrated(Id, "BlastRadius", 8f, "Grenade blast radius (m).", (Id, "HandBlastRadius", "8"));
+        _handDamage = BindMigrated(Id, "BlastDamage", 120f, "Grenade damage at the blast center (falls off towards the edge; hurts players too).", (Id, "HandBlastDamage", "120"));
+        _blastFx = Bind("BlastEffect", true, "Explosions look and sound like a mine going off (fire, smoke, light, sound).");
+        _shake = Bind("BlastShake", 1f, "Camera shake from a grenade explosion (0 — none; sentry grenades shake half as much).");
+        _noiseRadius = Bind("BlastNoiseRadius", 30f, "A grenade explosion wakes and alerts enemies within this radius (m; sentry grenades — half). 0 — no extra noise.");
+        _turretRadius = Bind("TurretRadius", 3.5f, "Blast radius of the grenade launcher sentry's grenades (m).");
         _turretDamage = Bind("TurretDamage", 40f, "Sentry grenade damage at the blast center.");
         _turretFuse = Bind("TurretFuse", 0f, "Sentry grenade fuse after impact (s). 0 — on contact.");
         _proximity = Bind("TurretProximity", 0.8f, "Sentry grenades explode when they fly within this distance of an enemy (m). 0 — off.");
-        _hitEnemies = Bind("BounceOffEnemies", true, "Grenades hit enemies instead of flying through them.");
-        _diag = Bind("DiagnosticDump", false, "Write grenade model details to the log at the first drop-in (diagnostics; may cause a short hitch).");
-        ConfigMigration.DropOrphans(Config, Id);
+        _hitEnemies = Bind("BounceOffEnemies", true, "Sentry grenades hit enemies instead of flying through them.");
+        ConfigMigration.DropOrphans(Config, Id); // HandModels, HandDelay, DiagnosticDump (0.9.x)
     }
 
     protected override void OnEnable()
     {
         GearFactory.OnInject += Inject;
         FrameTicker.OnUpdate += Tick;
-        FrameTicker.OnLevelExit += () => { _pending.Clear(); _calib.Clear(); _armed.Clear(); _turretGrenades.Clear(); _exploded.Clear(); _live.Clear(); _boomPool = null; _flashPool = null; _dumped = false; };
+        FrameTicker.OnLevelExit += () => { _pending.Clear(); _calib.Clear(); _armed.Clear(); _turretGrenades.Clear(); _exploded.Clear(); _live.Clear(); _frags.Clear(); _boomPool = null; _flashPool = null; };
     }
 
     // ---------- data: name and distribution ----------
 
     private static void Inject()
     {
-        var item = GameDataBlockBase<ItemDataBlock>.GetBlock(GrenadeItemId);
-        if (item == null) { ModInfo.Log.LogWarning("[Grenades] item 136 is not in the game data — no grenade"); return; }
-        int prefabs = (item.FirstPersonPrefabs?.Count ?? 0) + (item.InstancePrefabs?.Count ?? 0) + (item.PickupPrefabs?.Count ?? 0);
-        ModInfo.Log.LogInfo($"[Grenades] item 136 '{item.publicName}', slot {item.inventorySlot}, models: first person {item.FirstPersonPrefabs?.Count ?? 0}, pickup {item.PickupPrefabs?.Count ?? 0}, thrown {item.InstancePrefabs?.Count ?? 0}, charges {item.ConsumableAmmoMin}–{item.ConsumableAmmoMax}");
-        if (item.InstancePrefabs == null || item.InstancePrefabs.Count == 0) { ModInfo.Log.LogWarning("[Grenades] item 136 has no thrown model — leaving it alone"); return; }
-
+        var foam = GameDataBlockBase<ItemDataBlock>.GetBlock(LookItemId);
+        if (foam == null) { ModInfo.Log.LogWarning("[Grenades] C-Foam Grenade (115) is not in the game data — no grenade"); return; }
         string name = Lang.T(_nameEn.Value, _nameRu.Value);
+
+        // The frag grenade: the C-Foam Grenade under its own ID (models, throw, pickup — all the foam grenade's).
+        if (!GameDataBlockBase<ItemDataBlock>.HasBlock(FragItemId))
+        {
+            var frag = GearFactory.CloneBlock(foam);
+            frag.persistentID = FragItemId;
+            frag.name = "GtfoPunk_FragGrenade";
+            GameDataBlockBase<ItemDataBlock>.AddBlock(frag);
+        }
+        var item = GameDataBlockBase<ItemDataBlock>.GetBlock(FragItemId);
         item.publicName = name;
         try { item.LocalizedName = GearFactory.Text(name); } catch { }
         try { item.terminalItemShortName = "GRENADE"; item.terminalItemLongName = GearFactory.Text(name); } catch { }
-
         _named = name;
+        ModInfo.Log.LogInfo($"[Grenades] '{name}' ({FragItemId}): a copy of the C-Foam Grenade, models: first person {item.FirstPersonPrefabs?.Count ?? 0}, pickup {item.PickupPrefabs?.Count ?? 0}, thrown {item.InstancePrefabs?.Count ?? 0}");
 
-        // Sentry grenade: same item under its own fixed ID (prefabs load for it like for any item).
-        if (!GameDataBlockBase<ItemDataBlock>.HasBlock(TurretGrenadeItemId))
+        // Sentry grenade: the game's unreleased grenade 136 under its own fixed ID (prefabs load for it like for any item).
+        var g136 = GameDataBlockBase<ItemDataBlock>.GetBlock(GrenadeItemId);
+        if (g136 != null && g136.InstancePrefabs != null && g136.InstancePrefabs.Count > 0 && !GameDataBlockBase<ItemDataBlock>.HasBlock(TurretGrenadeItemId))
         {
-            var tg = GearFactory.CloneBlock(item);
+            var tg = GearFactory.CloneBlock(g136);
             tg.persistentID = TurretGrenadeItemId;
             tg.name = "GtfoPunk_TurretGrenade";
             tg.publicName = Lang.T("Sentry Grenade", "Граната турели");
@@ -94,24 +100,11 @@ public class Grenades : ModuleBase
             tg.registerInTerminalSystem = false;
             GameDataBlockBase<ItemDataBlock>.AddBlock(tg);
         }
-        // Inventory icon of the C-Foam Grenade.
-        var look = GameDataBlockBase<ItemDataBlock>.GetBlock(LookItemId);
-        if (look != null && !string.IsNullOrEmpty(look.HUDIcon)) item.HUDIcon = look.HUDIcon;
 
-        // In hand (first and third person) use the C-Foam Grenade's own models and throwing script: the glow stick's
-        // hand model can't carry a grenade look (it never showed). What gets thrown is still item 136's grenade.
-        if (look != null && _handModels.Value)
-        {
-            item.FirstPersonPrefabs = look.FirstPersonPrefabs;
-            item.ThirdPersonPrefabs = look.ThirdPersonPrefabs;
-            ModInfo.Log.LogInfo($"[Grenades] in hand: C-Foam Grenade models ({look.FirstPersonPrefabs?.Count ?? 0} first person, {look.ThirdPersonPrefabs?.Count ?? 0} third person)");
-        }
-
-        // Carried like C-Foam Grenades (one per pickup, a few in the pocket), not like a pack of glow sticks.
+        // Carried like C-Foam Grenades: one per pickup, a few in the pocket.
         if (_stack.Value > 0)
-            foreach (var b in new[] { item, look })
+            foreach (var b in new[] { item, foam })
             {
-                if (b == null) continue;
                 b.ConsumableAmmoMin = 1;
                 b.ConsumableAmmoMax = _stack.Value;
                 ModInfo.Log.LogInfo($"[Grenades] {b.publicName} ({b.persistentID}): carry up to {_stack.Value}");
@@ -129,13 +122,13 @@ public class Grenades : ModuleBase
         private static void Postfix()
         {
             try { Distribute(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] distribution: {e.Message}"); }
-            try { Reskin(GrenadeItemId); Reskin(TurretGrenadeItemId); } catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] look: {e.Message}"); }
+            try { Reskin(TurretGrenadeItemId); } catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] look: {e.Message}"); }
         }
     }
 
     /// <summary>
-    /// Item 136 ships with glow stick models. In every view (hand, third person, pickup, thrown) hide the glow stick
-    /// meshes and put a copy of the C-Foam Grenade model in their place. Prefabs are changed once, so every spawned copy gets it.
+    /// The sentry grenade (a clone of item 136) ships with glow stick models: hide them and put a copy of the C-Foam
+    /// Grenade model in their place. Prefabs are changed once, so every spawned copy gets it.
     /// </summary>
     private static void Reskin(uint id)
     {
@@ -146,7 +139,6 @@ public class Grenades : ModuleBase
         {
             var dict = perMode[m];
             if (dict == null || !dict.ContainsKey(id) || !dict.ContainsKey(LookItemId)) continue;
-            if (_handModels.Value && id == GrenadeItemId && (m == (int)ItemMode.FirstPerson || m == (int)ItemMode.ThirdPerson)) continue; // already the foam grenade's
             GameObject src = null;
             foreach (var cand in dict[LookItemId])
                 if (cand != null && cand.GetComponentsInChildren<Renderer>(true).Length > 0) { src = cand; break; }
@@ -212,9 +204,9 @@ public class Grenades : ModuleBase
     private static void Distribute()
     {
         if (_distributed || _named == null || !_inLevels.Value) return;
-        bool ok = ItemSpawnManager.ItemHasMode(GrenadeItemId, ItemMode.Pickup) && ItemSpawnManager.ItemHasMode(GrenadeItemId, ItemMode.Instance)
-                  && ItemSpawnManager.ItemHasMode(GrenadeItemId, ItemMode.FirstPerson);
-        if (!ok) { ModInfo.Log.LogWarning("[Grenades] not all grenade (136) models loaded — not adding it to level distributions"); return; }
+        bool ok = ItemSpawnManager.ItemHasMode(FragItemId, ItemMode.Pickup) && ItemSpawnManager.ItemHasMode(FragItemId, ItemMode.Instance)
+                  && ItemSpawnManager.ItemHasMode(FragItemId, ItemMode.FirstPerson);
+        if (!ok) { ModInfo.Log.LogWarning($"[Grenades] not all grenade ({FragItemId}) models loaded — not adding it to level distributions"); return; }
         _distributed = true;
         string name = _named;
         int lists = 0;
@@ -222,9 +214,9 @@ public class Grenades : ModuleBase
         {
             if (d?.SpawnData == null || d.SpawnData.Count == 0) continue;
             bool has = false; float sum = 0f; int n = 0;
-            foreach (var s in d.SpawnData) { if (s == null) continue; if (s.ItemID == GrenadeItemId) has = true; sum += s.Weight; n++; }
+            foreach (var s in d.SpawnData) { if (s == null) continue; if (s.ItemID == FragItemId) has = true; sum += s.Weight; n++; }
             if (has || n == 0) continue;
-            var g = new ConsumableSpawnData { ItemID = GrenadeItemId, Weight = Math.Max(0.01f, sum / n * _weight.Value) };
+            var g = new ConsumableSpawnData { ItemID = FragItemId, Weight = Math.Max(0.01f, sum / n * _weight.Value) };
             d.SpawnData.Add(g);
             lists++;
         }
@@ -249,7 +241,88 @@ public class Grenades : ModuleBase
         return true;
     }
 
-    // ---------- behaviour of thrown grenades ----------
+    // ---------- the frag grenade: a foam grenade that explodes ----------
+
+    private static bool IsFrag(Item i) { try { return i != null && i.ItemDataBlock != null && i.ItemDataBlock.persistentID == FragItemId; } catch { return false; } }
+
+    /// <summary>
+    /// The foam grenade's own detonation (after its fuse): no glue globs for ours — a blast instead. The rest of the
+    /// sequence runs as usual (the grenade disappears like a foam grenade does). Runs on every machine (the throw is
+    /// synced); the thrower's machine deals the damage, like with bullets.
+    /// </summary>
+    [HarmonyPatch(typeof(GlueGrenadeInstance), nameof(GlueGrenadeInstance.ExplosionSequence))]
+    private static class Patch_FragDetonate
+    {
+        private static void Prefix(GlueGrenadeInstance __instance, ref int projectiles, Vector3 pos)
+        {
+            if (!IsFrag(__instance)) return;
+            projectiles = 0;
+            try
+            {
+                if (__instance.m_graphics != null) foreach (var r in __instance.m_graphics) if (r != null) r.enabled = false;
+                if (!_exploded.Add(__instance.Pointer)) return;
+                PlayerAgent owner = null;
+                try { owner = __instance.Owner; } catch { }
+                bool dealDamage = owner != null ? owner.IsLocallyOwned : SNetwork.SNet.IsMaster;
+                if (dealDamage)
+                    DamageUtil.DoExplosionDamage(pos, _handRadius.Value, _handDamage.Value, LayerManager.MASK_EXPLOSION_TARGETS, LayerManager.MASK_EXPLOSION_BLOCKERS, true, 1000f);
+                Bang(__instance.Pointer, pos, _handRadius.Value, (int)_handDamage.Value, owner, dealDamage ? "fuse, damage dealt here" : "fuse");
+            }
+            catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] frag grenade: {e.Message}"); }
+        }
+    }
+
+    private class Frag { public GlueGrenadeInstance G; public IntPtr Key; public Vector3 Pos; public PlayerAgent Owner; }
+    private static readonly List<Frag> _frags = new();
+
+    /// <summary>Thrown frag grenades: no glue globs, and watched in case the detonation call is inlined by the game.</summary>
+    [HarmonyPatch(typeof(GlueGrenadeInstance), nameof(GlueGrenadeInstance.Start))]
+    private static class Patch_FragStart
+    {
+        private static void Postfix(GlueGrenadeInstance __instance)
+        {
+            if (!IsFrag(__instance)) return;
+            try
+            {
+                __instance.m_projCount = 0;
+                PlayerAgent owner = null;
+                try { owner = __instance.Owner; } catch { }
+                _frags.Add(new Frag { G = __instance, Key = __instance.Pointer, Pos = __instance.transform.position, Owner = owner });
+            }
+            catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] frag grenade: {e.Message}"); }
+        }
+    }
+
+    /// <summary>A frag grenade that went off (or vanished) without our detonation hook firing — explode it here.</summary>
+    private static void FragTick()
+    {
+        for (int i = _frags.Count - 1; i >= 0; i--)
+        {
+            var f = _frags[i];
+            bool gone = true, fired = false;
+            try
+            {
+                gone = f.G == null || f.G.gameObject == null || !f.G.gameObject.activeInHierarchy;
+                if (!gone) { f.Pos = f.G.transform.position; fired = f.G.m_exploded; }
+            }
+            catch { }
+            if (!gone && !fired) continue;
+            _frags.RemoveAt(i);
+            // Done with this grenade either way: forget its pointer (a new object may get the same address later).
+            if (!_exploded.Add(f.Key)) { _exploded.Remove(f.Key); continue; } // the detonation hook did it
+            _exploded.Remove(f.Key);
+            try
+            {
+                bool dealDamage = f.Owner != null ? f.Owner.IsLocallyOwned : SNetwork.SNet.IsMaster;
+                if (dealDamage)
+                    DamageUtil.DoExplosionDamage(f.Pos, _handRadius.Value, _handDamage.Value, LayerManager.MASK_EXPLOSION_TARGETS, LayerManager.MASK_EXPLOSION_BLOCKERS, true, 1000f);
+                Bang(f.Key, f.Pos, _handRadius.Value, (int)_handDamage.Value, f.Owner, gone ? "gone" : "exploded");
+            }
+            catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] frag grenade: {e.Message}"); }
+        }
+    }
+
+    // ---------- behaviour of thrown sentry grenades ----------
 
     private static readonly List<GrenadeBase> _pending = new();
 
@@ -259,11 +332,9 @@ public class Grenades : ModuleBase
         private static void Postfix(GrenadeBase __instance) { if (__instance != null) _pending.Add(__instance); }
     }
 
-    private static bool _dumped;
-
     private static void Tick()
     {
-        if (_diag.Value && !_dumped && GameUtil.InLevel) { _dumped = true; try { Dump(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] {e.Message}"); } }
+        if (_frags.Count > 0) FragTick();
         if (_armed.Count > 0) ProximityTick();
         if (_live.Count > 0) WatchTick();
         if (_pending.Count == 0) return;
@@ -297,12 +368,6 @@ public class Grenades : ModuleBase
             g.m_grenadeMaxDamage = (int)_turretDamage.Value;
             g.m_grenadeExplosionDelay = Math.Max(0f, _turretFuse.Value);
             Calibrate(g);
-        }
-        else
-        {
-            if (_handRadius.Value > 0f) g.m_grenadeExplosionRadius = _handRadius.Value;
-            if (_handDamage.Value > 0f) g.m_grenadeMaxDamage = (int)_handDamage.Value;
-            if (_handDelay.Value >= 0f) g.m_grenadeExplosionDelay = _handDelay.Value;
         }
         ModInfo.Log.LogInfo($"[Grenades] {(turret ? "sentry grenade" : "grenade")}: radius {g.m_grenadeExplosionRadius:0.#} m, damage {g.m_grenadeMaxDamage}, fuse {g.m_grenadeExplosionDelay:0.##} s");
         _live.Add(new Live { G = g, Key = g.Pointer, Pos = g.transform.position, Radius = g.m_grenadeExplosionRadius, Damage = g.m_grenadeMaxDamage, Owner = SafeOwner(g) });
@@ -378,6 +443,8 @@ public class Grenades : ModuleBase
             if (!gone) { try { l.Pos = l.G.transform.position; l.Radius = l.G.m_grenadeExplosionRadius; l.Damage = l.G.m_grenadeMaxDamage; } catch { } continue; }
             _live.RemoveAt(i);
             if (_exploded.Add(l.Key)) try { Bang(l.Key, l.Pos, l.Radius, l.Damage, l.Owner, "gone"); } catch (Exception e) { ModInfo.Log.LogWarning($"[Grenades] explosion effect: {e.Message}"); }
+            // Gone for good: forget its pointer (a new grenade may get the same address — the launcher fires a lot).
+            _exploded.Remove(l.Key); _turretGrenades.Remove(l.Key);
         }
     }
 
@@ -498,25 +565,5 @@ public class Grenades : ModuleBase
         float k = need / got;
         _forceFactor = Mathf.Clamp(_forceFactor * Mathf.Lerp(1f, k, 0.7f), 0.01f, 100f);
         ModInfo.Log.LogInfo($"[Grenades] grenade speed {got:0.0} m/s (wanted {need:0.0}), mass {rb.mass:0.##} → force factor {_forceFactor:0.###}");
-    }
-
-    private static void Dump()
-    {
-        ModInfo.Log.LogInfo($"[Grenades] sentry grenade item {TurretGrenadeItemId}: thrown model loaded = {ItemSpawnManager.ItemHasMode(TurretGrenadeItemId, ItemMode.Instance)}");
-        var perMode = ItemSpawnManager.m_loadedPrefabsPerItemMode;
-        if (perMode == null) return;
-        for (int m = 0; m < perMode.Length; m++)
-        {
-            var dict = perMode[m];
-            if (dict == null || !dict.ContainsKey(GrenadeItemId)) continue;
-            var list = dict[GrenadeItemId];
-            for (int k = 0; list != null && k < list.Count; k++)
-            {
-                var go = list[k];
-                if (go == null) continue;
-                var comps = go.GetComponentsInChildren<Component>(true).Select(c => c == null ? "null" : c.GetIl2CppType().Name).GroupBy(n => n).Select(x => $"{x.Key}x{x.Count()}");
-                ModInfo.Log.LogInfo($"[Grenades] model 136 mode {(ItemMode)m} [{k}] '{go.name}': {string.Join(", ", comps)}");
-            }
-        }
     }
 }

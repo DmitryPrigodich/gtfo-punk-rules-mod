@@ -71,6 +71,11 @@ public abstract class ModuleBase
     protected ConfigEntry<T> BindMigrated<T>(string section, string key, T defaultValue, string description, params (string Section, string Key, string OldDefault)[] old)
         => ConfigMigration.Bind(Config, section, key, defaultValue, description, old);
 
+    /// <summary>A setting moved from the module's own section into "[Id.sub]" (and maybe renamed): the player's old
+    /// value is carried over and the old key is removed.</summary>
+    protected ConfigEntry<T> BindMoved<T>(string sub, string key, T defaultValue, string description, string oldKey)
+        => ConfigMigration.Bind(Config, $"{Id}.{sub}", key, defaultValue, description, (Id, oldKey, null));
+
     internal void Enable()
     {
         _harmony = new Harmony($"{ModInfo.Guid}.{Id}");

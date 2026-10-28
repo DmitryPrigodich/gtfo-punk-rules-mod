@@ -30,7 +30,7 @@ public class FireModes : ModuleBase
         _key = Bind("Key", KeyCode.B, "Fire mode switch key.");
         _modes = Bind("Modes", "Semi,Burst,Auto", "Available modes in order (Semi, Burst, Auto). The weapon's native mode is always included.");
         _burstCount = Bind("BurstShots", 3, "Shots per burst (for weapons without their own burst).");
-        _burstDelay = Bind("BurstDelay", 0.3f, "Pause between bursts, s (for weapons without their own burst).");
+        _burstDelay = Bind("BurstDelay", 0.3f, "Pause between bursts (s; for weapons without their own burst).");
         _semiSpread = Bind("SemiSpread", 0.7f, "Spread when switched to semi from the weapon's own auto / burst (0.7 — 30% tighter). 1 — no change.");
         _autoSpread = Bind("AutoSpread", 1.3f, "Spread when switched to auto from the weapon's own semi / burst (1.3 — 30% wider). 1 — no change. Burst and the weapon's own mode keep its spread.");
         _burstForAll = Bind("BurstForAll", false, "Give burst to weapons that don't have it natively. Off: burst only for native-burst weapons, others get semi/auto.");

@@ -1,8 +1,8 @@
 # GtfoPunk My Game My Rules
 
-Gameplay changes for GTFO: new sentries and guns, grenades, fire modes, quick melee, full ammo. Everyone in the lobby must have it; not for playing with randoms.
+Gameplay overhaul for GTFO: party difficulty, a lobby loadout with gadgets, new sentries and a silenced pistol, a frag grenade, booster syringes, infection, killable scouts. Everyone in the lobby must have it; not for playing with randoms.
 
-A plugin for [BepInEx 6 IL2CPP](https://thunderstore.io/c/gtfo/p/BepInEx/BepInExPack_GTFO/) (GTFO). Feature description for players: [packaging/Rules/README.md](packaging/Rules/README.md), version history: [packaging/Rules/CHANGELOG.md](packaging/Rules/CHANGELOG.md).
+A plugin for [BepInEx 6 IL2CPP](https://thunderstore.io/c/gtfo/p/BepInEx/BepInExPack_GTFO/) (GTFO). Guide: [docs/GUIDE.md](docs/GUIDE.md) · [docs/GUIDE.ru.md](docs/GUIDE.ru.md). Package page text: [packaging/Rules/README.md](packaging/Rules/README.md), version history: [packaging/Rules/CHANGELOG.md](packaging/Rules/CHANGELOG.md), publishing: [docs/RELEASE.md](docs/RELEASE.md).
 
 ## Install (players)
 Zip from releases → r2modman → *Settings → Import local mod*. Requires BepInExPack_GTFO.

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.16
+- **Frag grenade reworked**: now a copy of the C-Foam Grenade under its own item 4252 ("Frag Grenade" / "Граната") — the foam grenade's model, throw and pickup, a separate item that no longer merges with glow sticks. Explodes after the foam grenade's fuse: 8 m, 120 damage, mine fire and smoke, shake, 30 m noise. The loadout's grenade choice (136) gives it too. Config: `HandBlastRadius` / `HandBlastDamage` → `BlastRadius` / `BlastDamage` (changed values carried over); `HandModels`, `HandDelay`, `DiagnosticDump` removed.
+- **Alarm shift from −5**: `Difficulty.AlarmShifts` (default `-5,-4,-3,-2,-1,0` for I…VI) — level I turns even Class V alarms into a plain scan, VI is as in the game. The host's shifts are sent to everyone.
+- Sentry types in the weapon list: Searchlight / Fog Repeller / Fog Turbine / Bio-tracker / Foam / Grenade Sentry (`[TurretVariants.<Kind>] Type`).
+- **Config cleaned up and made uniform** (old values are carried over):
+  - gadget settings moved to sub-sections: `[Loadout.Gadget]` (Key, BatterySeconds, RechargeSeconds, MinCharge, Panel, PanelOpacity, PanelBottom, PanelScale), `[Loadout.BioTracker]` (Range, ThroughWalls, Sound, SweepSeconds), `[Loadout.Thermal]` (Zoom, ZoomLevels, ZoomKey, Palette, PaletteKey, Noise, Glitch, Reticle, Distance), `[Loadout.SoftBoots]` (FallDamage, FallHeight, RunSpeed); `SlotIconSize` → `IconSize`;
+  - removed: experiments and diagnostics (GiveIntoBackpack, ItemPictures / ItemPictureSize / ItemPictureTilt / ItemIcons — the model-silhouette renderer is gone, the drawn icons stay; ThermalMaterial, ThermalSearch, ThermalDiagnostics, ThermalOnItemCamera; TurretVariants FogDiagnostics, FogTurbine.ModelSearch; General.TextLanguageAutoOnce);
+  - every key no longer used is removed from the file at start (also leftovers of removed modules).
+- Fix: sentry grenades and frag grenades forget their object once gone — over a long level a new grenade could get the old one's address and lose its explosion effect.
+- Documentation: `docs/GUIDE.md` (English), `docs/GUIDE.ru.md` (Russian); shorter package README.
+
 ## 0.9.15
 - ScoutKill covers the zoomers (the crawling scouts): the ×3 window is now also any moment a scout charges its scream, and a scout that's alerted (rushing at you) but hasn't screamed yet. Diagnostics: the first scout state changes of each level go to the log (`[ScoutKill] Scout_zoomer#…: A → B (mode …, scream …)`).
 - Thermal goggles: the palette picked with X is remembered (ThermalPalette).

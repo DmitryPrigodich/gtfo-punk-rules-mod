@@ -1,58 +1,43 @@
-using System.Text;
 using Il2CppInterop.Runtime;
 using UnityEngine;
 
 namespace GtfoPunk.Rules.Modules;
 
 /// <summary>
-/// Thermal vision perk (EXPERIMENT). Two weapons in the game have thermal sights (parts Sight_10_t, Sight_19_t);
-/// the effect lives in the material of the sight lens. The perk takes that material and stretches it over the whole view:
-/// a quad right in front of the camera, toggled with a key.
-/// Also writes a dump of every thermal-looking material (shader, properties) to BepInEx/config/GtfoPunk.ThermalDump.txt.
+/// Gadget "Thermal goggles". Two weapons in the game have thermal sights (parts Sight_10_t, Sight_19_t); the effect
+/// lives in the material of the sight lens. The gadget takes that material and stretches it over the whole view: a quad
+/// right in front of the weapon camera, toggled with the gadget key. Zoom levels, palettes (the game's own heat
+/// gradients), noise and signal drop-outs on damage / a dying battery.
 /// </summary>
 public partial class Loadout
 {
-    private static ConfigEntry<string> _thermalZoomKey, _thermalZoomLevels, _thermalMaterial, _thermalSearch;
+    private static ConfigEntry<string> _thermalZoomKey, _thermalZoomLevels;
     private static ConfigEntry<float> _thermalDistance;
-    private static ConfigEntry<bool> _thermalItemCamera, _thermalDump, _thermalReticle;
+    private static ConfigEntry<bool> _thermalReticle;
     private static ConfigEntry<float> _thermalZoom, _thermalNoise;
     private static ConfigEntry<string> _thermalPalette, _thermalPaletteKey;
     private static ConfigEntry<bool> _thermalGlitch;
 
     private void BindThermal()
     {
-        _thermalZoomKey = Bind("ThermalZoomKey", "Z", "Thermal goggles: key that steps through the zoom levels (Unity KeyCode name).");
-        _thermalZoomLevels = Bind("ThermalZoomLevels", "0,0.5,0.75", "Thermal goggles: zoom levels the zoom key steps through (0 — no zoom, 0.75 — like the thermal sight).");
-        _thermalMaterial = Bind("ThermalMaterial", "", "Thermal goggles: exact material name to use (see GtfoPunk.ThermalDump.txt). Empty — pick automatically.");
-        _thermalSearch = Bind("ThermalSearch", "thermal,_t_,sight_10_t,sight_19_t,heat,infrared",
-            "Thermal goggles: words to look for in material / shader / object names when picking and dumping (comma-separated).");
-        _thermalDistance = Bind("ThermalDistance", 0.12f, "Thermal goggles: how far in front of the camera the thermal screen sits (m).");
-        _thermalZoom = Bind("ThermalZoom", 0f, "Thermal goggles: zoom when switched on (the sight uses 0.75 = strongly zoomed). 0 — like your eyes.");
-        _thermalNoise = Bind("ThermalNoise", 1f, "Thermal goggles: amount of scanline / signal distortion (1 — like the sight, 2–3 — predator-style noise, 0 — clean). Applied live.");
-        _thermalReticle = Bind("ThermalReticle", false, "Thermal goggles: keep the sight's reticle drawn over the whole view.");
-        _thermalDump = Bind("ThermalDiagnostics", false, "Write GtfoPunk.ThermalDump.txt (thermal materials and shader settings) in the first level. Causes a hitch.");
-        _thermalPalette = Bind("ThermalPalette", "", "Thermal goggles: color palette — part of a palette texture's name (the log lists the ones found: '[Thermal] palettes: …'). Empty — the sight's own. The key below changes it and the choice is remembered here.");
-        _thermalPaletteKey = Bind("ThermalPaletteKey", "X", "Thermal goggles: key that steps through the palettes found (Unity KeyCode name; empty — off).");
-        _thermalGlitch = Bind("ThermalGlitch", true, "Thermal goggles: the picture breaks up when you take damage and gets noisier as the battery runs low (signal drop-outs below 15%).");
-        _thermalItemCamera = Bind("ThermalOnItemCamera", true, "Thermal goggles: put the screen on the camera that draws the weapon (like the sight lens). false — on the world camera.");
+        _thermalZoom = BindMoved(SecThermal, "Zoom", 0f, "Zoom when switched on (0 — like your eyes, 0.75 — like the thermal sight).", "ThermalZoom");
+        _thermalZoomLevels = BindMoved(SecThermal, "ZoomLevels", "0,0.5,0.75", "Zoom levels the zoom key steps through (comma-separated).", "ThermalZoomLevels");
+        _thermalZoomKey = BindMoved(SecThermal, "ZoomKey", "Z", "Key that steps through the zoom levels (Unity KeyCode name; empty — off).", "ThermalZoomKey");
+        _thermalPalette = BindMoved(SecThermal, "Palette", "", "Color palette: part of a palette texture's name (the log lists them: '[Thermal] palettes: …'). Empty — the sight's own. The palette key changes it and the choice is remembered here.", "ThermalPalette");
+        _thermalPaletteKey = BindMoved(SecThermal, "PaletteKey", "X", "Key that steps through the palettes (Unity KeyCode name; empty — off).", "ThermalPaletteKey");
+        _thermalNoise = BindMoved(SecThermal, "Noise", 1f, "Scanlines and signal distortion (1 — like the sight, 2–3 — heavy noise, 0 — clean picture).", "ThermalNoise");
+        _thermalGlitch = BindMoved(SecThermal, "Glitch", true, "The picture breaks up when you take damage and gets noisier as the battery runs low (drop-outs below 15%).", "ThermalGlitch");
+        _thermalReticle = BindMoved(SecThermal, "Reticle", false, "Keep the sight's reticle drawn over the whole view.", "ThermalReticle");
+        _thermalDistance = BindMoved(SecThermal, "Distance", 0.12f, "How far in front of the camera the thermal screen sits (m). Raise it if the edges of the view stay uncovered.", "ThermalDistance");
     }
 
     private static GameObject _thermalQuad;
     private static Camera _thermalCam;
     private static Material _thermalMat;
-    private static bool _thermalOn, _thermalDumped, _thermalSearched;
-
-    private static float _dumpAt = -1f;
+    private static bool _thermalOn, _thermalSearched;
 
     private static void ThermalTick(bool inLevel, bool perk)
     {
-        if (!inLevel) _dumpAt = -1f;
-        // One-time diagnostic dump a few seconds into the first level (whatever the perk).
-        if (inLevel && !_thermalDumped && _thermalDump.Value)
-        {
-            if (_dumpAt < 0f) _dumpAt = Time.time + 5f;
-            else if (Time.time >= _dumpAt) { _thermalDumped = true; try { DumpThermal(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Thermal] dump: {e.Message}"); } }
-        }
         if (!inLevel || !perk)
         {
             if (_thermalQuad != null) SetThermal(false, instant: true);
@@ -287,9 +272,9 @@ public partial class Loadout
         var fps = agent?.FPSCamera;
         if (fps == null) { ModInfo.Log.LogWarning("[Thermal] no player camera"); return; }
         var mat = ThermalMaterial();
-        if (mat == null) { ModInfo.Log.LogWarning("[Thermal] no thermal material found — see GtfoPunk.ThermalDump.txt and set ThermalMaterial"); return; }
+        if (mat == null) { ModInfo.Log.LogWarning("[Thermal] no thermal material found (the thermal sight parts weren't loaded in the lobby)"); return; }
 
-        var cam = _thermalItemCamera.Value && fps.m_itemCamera != null ? fps.m_itemCamera : fps.GetComponent<Camera>();
+        var cam = fps.m_itemCamera != null ? fps.m_itemCamera : fps.GetComponent<Camera>(); // the weapon camera, like the sight lens
         if (cam == null) { ModInfo.Log.LogWarning("[Thermal] camera not found"); return; }
 
         var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -335,25 +320,15 @@ public partial class Loadout
 
     private static int _lensLayer = -1;
 
-    private static string[] SearchWords() =>
-        _thermalSearch.Value.Split(',').Select(s => s.Trim().ToLowerInvariant()).Where(s => s.Length > 0).ToArray();
+    private static bool Matches(string s, string word) => !string.IsNullOrEmpty(s) && s.ToLowerInvariant().Contains(word);
 
-    private static bool Matches(string s, string[] words)
-    {
-        if (string.IsNullOrEmpty(s)) return false;
-        s = s.ToLowerInvariant();
-        return words.Any(w => s.Contains(w));
-    }
-
-    /// <summary>The configured material, or the best automatic guess: a renderer material on a thermal sight part,
-    /// then any material whose shader / name mentions "thermal".</summary>
+    /// <summary>The lens material of a thermal sight part, or else any material whose shader / name mentions "thermal".</summary>
     private static Material ThermalMaterial()
     {
         if (_thermalMat != null) return _thermalMat;
         if (_thermalSearched && Time.time < _thermalRetryAt) return null; // the search is a scene-wide scan — not too often
         _thermalSearched = true;
         _thermalRetryAt = Time.time + 20f;
-        string want = _thermalMaterial.Value.Trim();
         Material pick = null;
 
         // 1) Lens of a thermal sight part.
@@ -367,7 +342,7 @@ public partial class Loadout
                 foreach (var m in r.sharedMaterials)
                 {
                     if (m == null) continue;
-                    bool ok = want.Length > 0 ? m.name == want : Matches(m.name, new[] { "thermal" }) || Matches(m.shader?.name, new[] { "thermal" });
+                    bool ok = Matches(m.name, "thermal") || Matches(m.shader?.name, "thermal");
                     if (ok && pick == null) { pick = m; _lensLayer = r.gameObject.layer; }
                 }
         }
@@ -377,7 +352,7 @@ public partial class Loadout
             {
                 var m = o?.TryCast<Material>();
                 if (m == null) continue;
-                bool ok = want.Length > 0 ? m.name == want : Matches(m.shader?.name, new[] { "thermal" }) || Matches(m.name, new[] { "thermal" });
+                bool ok = Matches(m.shader?.name, "thermal") || Matches(m.name, "thermal");
                 if (ok) { pick = m; break; }
             }
         if (pick != null)
@@ -386,82 +361,5 @@ public partial class Loadout
             ModInfo.Log.LogInfo($"[Thermal] using material '{pick.name}', shader '{pick.shader?.name}', lens layer {_lensLayer}");
         }
         return _thermalMat;
-    }
-
-    /// <summary>Writes what we know about thermal-looking materials and the thermal sight parts.</summary>
-    private static void DumpThermal()
-    {
-        var words = SearchWords();
-        var sb = new StringBuilder();
-        sb.AppendLine($"GtfoPunk thermal dump, {DateTime.Now}");
-        sb.AppendLine("== GameObjects (sight parts and anything matching) ==");
-        int objs = 0;
-        foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<GameObject>()))
-        {
-            var g = o?.TryCast<GameObject>();
-            if (g == null || g.transform.parent != null) continue; // roots only
-            if (!Matches(g.name, words)) continue;
-            if (objs++ > 40) break;
-            sb.AppendLine($"[{g.name}] prefab={!g.scene.IsValid()} layer={g.layer}");
-            foreach (var r in g.GetComponentsInChildren<Renderer>(true))
-            {
-                sb.Append($"   renderer '{r.name}' ({r.GetIl2CppType().Name}) layer {r.gameObject.layer}:");
-                foreach (var m in r.sharedMaterials) sb.Append($" '{m?.name}'<{m?.shader?.name}>");
-                sb.AppendLine();
-            }
-        }
-        sb.AppendLine("== Materials matching ==");
-        var seenShaders = new HashSet<string>();
-        int mats = 0;
-        foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<Material>()))
-        {
-            var m = o?.TryCast<Material>();
-            if (m == null) continue;
-            string sh = m.shader?.name;
-            if (!Matches(m.name, words) && !Matches(sh, words)) continue;
-            if (mats++ > 60) break;
-            sb.AppendLine($"material '{m.name}' shader '{sh}' queue {m.renderQueue} keywords [{string.Join(" ", m.shaderKeywords ?? new string[0])}]");
-            if (sh != null && seenShaders.Add(sh)) DumpShader(sb, m);
-        }
-        sb.AppendLine("== All shader names (for reference) ==");
-        var names = new SortedSet<string>();
-        foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<Shader>()))
-        {
-            var s = o?.TryCast<Shader>();
-            if (s != null && s.name != null) names.Add(s.name);
-        }
-        foreach (var n in names) sb.AppendLine("  " + n);
-        string path = System.IO.Path.Combine(BepInEx.Paths.ConfigPath, "GtfoPunk.ThermalDump.txt");
-        System.IO.File.WriteAllText(path, sb.ToString());
-        ModInfo.Log.LogInfo($"[Thermal] dump written: {objs} objects, {mats} materials, {names.Count} shaders → {path}");
-    }
-
-    private static void DumpShader(StringBuilder sb, Material m)
-    {
-        try
-        {
-            var s = m.shader;
-            int n = s.GetPropertyCount();
-            for (int i = 0; i < n; i++)
-            {
-                string name = Shader.GetPropertyName(s, i);
-                var type = Shader.GetPropertyType(s, i);
-                string val = "";
-                try
-                {
-                    val = type switch
-                    {
-                        UnityEngine.Rendering.ShaderPropertyType.Color => m.GetColor(name).ToString(),
-                        UnityEngine.Rendering.ShaderPropertyType.Vector => m.GetVector(name).ToString(),
-                        UnityEngine.Rendering.ShaderPropertyType.Float or UnityEngine.Rendering.ShaderPropertyType.Range => m.GetFloat(name).ToString("0.###"),
-                        UnityEngine.Rendering.ShaderPropertyType.Texture => m.GetTexture(name)?.name ?? "none",
-                        _ => "",
-                    };
-                }
-                catch { }
-                sb.AppendLine($"     {name} : {type} = {val}");
-            }
-        }
-        catch (Exception e) { sb.AppendLine($"     (properties unavailable: {e.Message})"); }
     }
 }
