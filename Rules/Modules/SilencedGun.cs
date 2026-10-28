@@ -24,7 +24,8 @@ public class SilencedGun : ModuleBase
     public override ModuleSide Side => ModuleSide.Everyone;
     public override IReadOnlyList<string> ReplacedBy => Array.Empty<string>();
 
-    private static ConfigEntry<string> _stats, _sound, _guns, _pose, _mainStats, _mainGuns, _mainType;
+    private static ConfigEntry<string> _stats, _sound, _guns, _pose, _mainStats, _mainGuns, _mainType, _mainSound;
+    private static ConfigEntry<float> _light, _mainLight;
     private static ConfigEntry<float> _hard, _soft;
     private static ConfigEntry<bool> _softPulse;
 
@@ -38,9 +39,14 @@ public class SilencedGun : ModuleBase
         _hard = Bind("HardRadius", 10f, "Radius (m) within which a shot wakes enemies.");
         _damage = Bind("Damage", 15f, "Damage per shot. 15: a headshot kills a striker or a shooter, a body shot doesn't (Arid 5 itself does far more). 0 — Arid 5's own.");
         _archName = Bind("WeaponType", "Silenced Pistol", "Weapon type shown above the gun's name in the weapon list (the gun's own name is in SilencedGuns).");
-        _mainStats = Bind("MainStatsFrom", "Van Auken LTC5", "Silenced main-slot guns: weapon to take rate of fire, damage and magazine from (its own damage is kept).");
+        _light = Bind("Flashlight", 0.5f, "Flashlight strength of the silenced pistol (brightness and reach; 1 — as the part's own).");
+        _mainStats = Bind("MainStatsFrom", "Van Auken LTC5", "Silenced main-slot guns: weapon to take rate of fire and magazine from (a gun can name its own: '| stats=…').");
+        _mainSound = Bind("MainSoundFrom", "Raptus Treffen 2", "Silenced main-slot guns: weapon to take the shot sound from.");
+        _mainLight = Bind("MainFlashlight", 0.6f, "Flashlight strength of the silenced main-slot guns (1 — as the part's own).");
         _mainGuns = Bind("MainGuns", MainDefault,
-            "Silenced main-slot guns, same format as SilencedGuns. The body's category gives the hand grip. Part IDs: 12 front, 16 receiver, 19 stock, 21 sight (GtfoPunk.GearList.txt / GearParts.txt). Empty — none.");
+            "Silenced main-slot guns separated by ';': 'Name: Body + part=ID, … | option=value, …'. The body gives the parts and the hand grip. "
+            + "Part IDs: 12 front, 16 receiver, 19 stock, 21 sight, 23 magazine (GtfoPunk.GearList.txt / GearParts.txt). "
+            + "Options: stats=<gun> (rate of fire), burst=<shots> (the default fire mode; 0 — the donor's own), damage, precision, falloff=<from>-<to> m, delay=<pause between bursts, s>, clip, spread=<×>. Empty — none.");
         _mainType = Bind("MainWeaponType", "Silenced SMG", "Weapon type shown above the main-slot silenced guns' names in the weapon list.");
         _soft = Bind("SoftRadius", 25f, "Radius (m) within which a shot only disturbs (pulse) without waking. 0 — don't disturb.");
         _softPulse = Bind("SoftIsPulseOnly", true, "true — distant enemies only pulse; false — they get regular noise (may wake up after repeated shots).");
@@ -48,9 +54,21 @@ public class SilencedGun : ModuleBase
 
     // 4 (ItemFPSSettings) — hand animations: taken from Mastaba, otherwise the hand inserting rounds disappears on reload.
     private const string NewDefault = "DRED SILENZIO GP6-S: Bataldo 3RB + 12=Mastaba R66, 4=Mastaba R66";
-    /// <summary>Test variants (28.10): A — Hanaway front + Arbalist/HXC stock + Golok sight; B — Hanaway front + unused UZI stock
-    /// + J 300 sight; C — the unused bullpup set (front 46, receiver 20) + Golok stock + HXC sight.</summary>
-    private const string MainDefault =
+    /// <summary>Main-slot test variants (29.10). A — Hanaway front, HXC stock, 24-round magazine, one per sight; D — Rifle_3 receiver
+    /// + precision stock; C — the unused bullpup set on Golok DA's stats, a short-range burst. Burst is the default mode:
+    /// two headshots kill a striker at mid range (like one from GP6-S), a body burst doesn't.</summary>
+    private const string MainA = "Van Auken LTC5 + 12=15, 19=3, 23=20, 21={0} | burst=3, damage=6, precision=0.95, falloff=25-45, delay=0.25, clip=24";
+    private static readonly (string Sight, uint Id)[] ASights =
+    {
+        ("Sight_18", 9), ("Sight_14", 10), ("Sight_14b", 48), ("Sight_2", 8), ("Sight_16", 12), ("Sight_25", 50),
+        ("Sight_3", 22), ("Sight_4", 23), ("Sight_7", 17), ("Sight_11", 6), ("Sight_17", 18), ("Sight_23", 45),
+    };
+    private static string MainDefault =>
+        string.Join("; ", ASights.Select(x => $"DS SMG-S A {x.Sight}: " + string.Format(MainA, x.Id)))
+        + "; DS SMG-S C: Accrat Golok DA + 12=46, 16=20, 19=17, 21=45 | stats=Accrat Golok DA, burst=3, damage=7, precision=1, falloff=8-18, delay=0.18, spread=1.15"
+        + "; DS SMG-S D: Van Auken LTC5 + 12=15, 16=13, 19=12, 23=20, 21=6 | burst=3, damage=6, precision=0.95, falloff=25-45, delay=0.25, clip=24";
+    /// <summary>0.9.18's test set — replaced by the new default.</summary>
+    private const string MainDefault0918 =
         "DRED SILENZIO SMG-S A: Van Auken LTC5 + 12=15, 19=3, 21=9; " +
         "DRED SILENZIO SMG-S B: Van Auken LTC5 + 12=15, 19=19, 21=11; " +
         "DRED SILENZIO SMG-S C: Accrat Golok DA + 12=46, 16=20, 19=17, 21=45";
@@ -123,42 +141,150 @@ public class SilencedGun : ModuleBase
                 foreach (var kv in GearFactory.ParseParts(bodySplit[1], "SilencedGun")) comps[kv.Key] = kv.Value;
             GearFactory.AddGear(body, $"GtfoPunk_SilencedGun_{idx}", nameSplit[0], comps);
         }
-        try { InjectMain(sound); } catch (Exception e) { ModInfo.Log.LogWarning($"[SilencedGun] main-slot guns: {e.Message}"); }
+        try { InjectMain(); } catch (Exception e) { ModInfo.Log.LogWarning($"[SilencedGun] main-slot guns: {e.Message}"); }
     }
 
-    /// <summary>Silenced main-slot guns: an SMG's stats in a category of their own per gun (the hand grip comes from the body).</summary>
-    private static void InjectMain(uint? sound)
+    /// <summary>Silenced main-slot guns: each gets a category of its own (stats donor's rate of fire, the body's hand grip),
+    /// a tuned burst archetype as the default mode (FireModes switches to semi / auto from it), the main-slot sound.</summary>
+    private static void InjectMain()
     {
-        var statsGear = GearFactory.FindByName(_mainStats.Value);
-        if (statsGear == null) { ModInfo.Log.LogWarning($"[SilencedGun] weapon '{_mainStats.Value}' not found — no main-slot silenced guns"); return; }
-        var sc = GearFactory.GetComps(statsGear.GearJSON);
-        if (!sc.TryGetValue((int)eGearComponent.Category, out var statsCat)) return;
+        if (_mainGuns.Value == MainDefault0918) _mainGuns.Value = MainDefault;
+        uint? sound = null;
+        var soundGear = GearFactory.FindByName(_mainSound.Value);
+        if (soundGear != null && GearFactory.GetComps(soundGear.GearJSON).TryGetValue((int)eGearComponent.AudioSetting, out var snd)) sound = snd;
         foreach (var entry in _mainGuns.Value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
-            var nameSplit = entry.Split(':', 2, StringSplitOptions.TrimEntries);
-            if (nameSplit.Length != 2) { ModInfo.Log.LogWarning($"[SilencedGun] can't parse '{entry}'"); continue; }
-            var bodySplit = nameSplit[1].Split('+', 2, StringSplitOptions.TrimEntries);
-            var body = GearFactory.FindByName(bodySplit[0]);
-            if (body == null) { ModInfo.Log.LogWarning($"[SilencedGun] body '{bodySplit[0]}' not found"); continue; }
-            // Keys from the gun's name: removing one variant doesn't move the others' IDs.
-            string key = "GtfoPunk_SilencedMain_" + new string(nameSplit[0].Where(char.IsLetterOrDigit).ToArray());
-            uint catId = GearFactory.CloneCategory(statsCat, key, "DRED SILENZIO",
-                Lang.T("Silenced. Wakes enemies only within 10 m; farther ones only stir.", "С глушителем. Будит только в 10 м, дальше враги лишь тревожатся."));
-            _categories.Add(catId);
-            GearFactory.OwnArchetypes(catId, key, _mainType.Value);
-            if (GearFactory.GetComps(body.GearJSON).TryGetValue((int)eGearComponent.Category, out var bodyCat) && bodyCat != statsCat)
-                CopyGrip(bodyCat, catId);
-            var comps = new Dictionary<int, uint?>
-            {
-                [(int)eGearComponent.Category] = catId,
-                [(int)eGearComponent.FireMode] = sc.TryGetValue((int)eGearComponent.FireMode, out var fm) ? fm : null,
-                [(int)eGearComponent.BaseItem] = sc.TryGetValue((int)eGearComponent.BaseItem, out var bi) ? bi : null,
-            };
-            if (sound.HasValue) comps[(int)eGearComponent.AudioSetting] = sound;
-            if (bodySplit.Length > 1)
-                foreach (var kv in GearFactory.ParseParts(bodySplit[1], "SilencedGun")) comps[kv.Key] = kv.Value;
-            GearFactory.AddGear(body, key + "_Gun", nameSplit[0], comps);
+            try { AddMainGun(entry, sound); }
+            catch (Exception e) { ModInfo.Log.LogWarning($"[SilencedGun] '{entry}': {e.Message}"); }
         }
+    }
+
+    private static void AddMainGun(string entry, uint? sound)
+    {
+        var nameSplit = entry.Split(':', 2, StringSplitOptions.TrimEntries);
+        if (nameSplit.Length != 2) { ModInfo.Log.LogWarning($"[SilencedGun] can't parse '{entry}'"); return; }
+        var optSplit = nameSplit[1].Split('|', 2, StringSplitOptions.TrimEntries);
+        var opt = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (optSplit.Length > 1)
+            foreach (var o in optSplit[1].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var kv = o.Split('=', 2, StringSplitOptions.TrimEntries);
+                if (kv.Length == 2) opt[kv[0]] = kv[1];
+            }
+        var bodySplit = optSplit[0].Split('+', 2, StringSplitOptions.TrimEntries);
+        var body = GearFactory.FindByName(bodySplit[0]);
+        if (body == null) { ModInfo.Log.LogWarning($"[SilencedGun] body '{bodySplit[0]}' not found"); return; }
+        string statsName = opt.TryGetValue("stats", out var sn) ? sn : _mainStats.Value;
+        var statsGear = GearFactory.FindByName(statsName);
+        if (statsGear == null) { ModInfo.Log.LogWarning($"[SilencedGun] weapon '{statsName}' not found"); return; }
+        var sc = GearFactory.GetComps(statsGear.GearJSON);
+        if (!sc.TryGetValue((int)eGearComponent.Category, out var statsCat)) return;
+
+        // Keys from the gun's name: removing one variant doesn't move the others' IDs.
+        string key = "GtfoPunk_SilencedMain_" + new string(nameSplit[0].Where(char.IsLetterOrDigit).ToArray());
+        uint catId = GearFactory.CloneCategory(statsCat, key, "DRED SILENZIO",
+            Lang.T("Silenced. Wakes enemies only within 10 m; farther ones only stir.", "С глушителем. Будит только в 10 м, дальше враги лишь тревожатся."));
+        _categories.Add(catId);
+        _mainCategories.Add(catId);
+        GearFactory.OwnArchetypes(catId, key, _mainType.Value);
+        if (GearFactory.GetComps(body.GearJSON).TryGetValue((int)eGearComponent.Category, out var bodyCat) && bodyCat != statsCat)
+            CopyGrip(bodyCat, catId);
+
+        uint? fireMode = sc.TryGetValue((int)eGearComponent.FireMode, out var fm) ? fm : null;
+        int burst = opt.TryGetValue("burst", out var b) && int.TryParse(b, out var bn) ? bn : 0;
+        if (burst > 0 && MakeBurst(catId, key, burst, opt)) fireMode = (uint)eWeaponFireMode.Burst;
+
+        var comps = new Dictionary<int, uint?>
+        {
+            [(int)eGearComponent.Category] = catId,
+            [(int)eGearComponent.FireMode] = fireMode,
+            [(int)eGearComponent.BaseItem] = sc.TryGetValue((int)eGearComponent.BaseItem, out var bi) ? bi : null,
+        };
+        if (sound.HasValue) comps[(int)eGearComponent.AudioSetting] = sound;
+        if (bodySplit.Length > 1)
+            foreach (var kv in GearFactory.ParseParts(bodySplit[1], "SilencedGun")) comps[kv.Key] = kv.Value;
+        GearFactory.AddGear(body, key + "_Gun", nameSplit[0], comps);
+    }
+
+    /// <summary>The category's burst archetype: a copy of its auto (or semi) one with the gun's burst numbers.</summary>
+    private static bool MakeBurst(uint catId, string key, int shots, Dictionary<string, string> opt)
+    {
+        var cat = GameDataBlockBase<GearCategoryDataBlock>.GetBlock(catId);
+        if (cat == null) return false;
+        uint src = cat.AutoArchetype != 0 ? cat.AutoArchetype : cat.SemiArchetype != 0 ? cat.SemiArchetype : cat.BurstArchetype;
+        if (src == 0) return false;
+        uint id = GearFactory.CloneArchetype(src, key + "_Arch_MainBurst");
+        var a = GameDataBlockBase<ArchetypeDataBlock>.GetBlock(id);
+        if (a == null) return false;
+        var ci = System.Globalization.CultureInfo.InvariantCulture;
+        float F(string k, float def) => opt.TryGetValue(k, out var v) && float.TryParse(v, System.Globalization.NumberStyles.Float, ci, out var f) ? f : def;
+        string was = $"damage {a.Damage:0.##} ×{a.PrecisionDamageMulti:0.##} head, falloff {a.DamageFalloff.x:0}-{a.DamageFalloff.y:0} m, shot delay {a.ShotDelay:0.###} s, clip {a.DefaultClipSize}, spread {a.HipFireSpread:0.##}/{a.AimSpread:0.##}";
+        a.FireMode = eWeaponFireMode.Burst;
+        a.BurstShotCount = Math.Max(2, shots);
+        a.BurstDelay = Math.Max(0.05f, F("delay", 0.25f));
+        a.Damage = F("damage", a.Damage);
+        a.PrecisionDamageMulti = F("precision", a.PrecisionDamageMulti);
+        if (opt.TryGetValue("falloff", out var fo))
+        {
+            var p = fo.Split('-', 2);
+            if (p.Length == 2 && float.TryParse(p[0], System.Globalization.NumberStyles.Float, ci, out var f0) && float.TryParse(p[1], System.Globalization.NumberStyles.Float, ci, out var f1))
+                a.DamageFalloff = new Vector2(f0, f1);
+        }
+        if (opt.TryGetValue("clip", out var cl) && int.TryParse(cl, out var clip) && clip > 0) a.DefaultClipSize = clip;
+        float spread = F("spread", 1f);
+        a.HipFireSpread *= spread; a.AimSpread *= spread;
+        if (!string.IsNullOrEmpty(_mainType.Value)) a.PublicName = GearFactory.Text(_mainType.Value);
+        cat.BurstArchetype = id;
+        ModInfo.Log.LogInfo($"[SilencedGun] {key}: burst ×{a.BurstShotCount} — damage {a.Damage:0.##} ×{a.PrecisionDamageMulti:0.##} head, falloff {a.DamageFalloff.x:0}-{a.DamageFalloff.y:0} m, burst pause {a.BurstDelay:0.##} s, clip {a.DefaultClipSize}, spread {a.HipFireSpread:0.##}/{a.AimSpread:0.##} (donor: {was})");
+        return true;
+    }
+
+    // ---------- weak flashlights ----------
+
+    private static readonly HashSet<uint> _mainCategories = new();
+    private static readonly Dictionary<(uint, int), uint> _weakLights = new();
+
+    /// <summary>Our guns light the way with a weaker copy of their flashlight part's settings.</summary>
+    [HarmonyPatch(typeof(PlayerInventoryBase), nameof(PlayerInventoryBase.OnItemEquippableFlashlightWielded))]
+    private static class Patch_Flashlight
+    {
+        private static void Prefix(ItemEquippable wieldedItem, GearPartFlashlight flashlight)
+        {
+            try
+            {
+                if (flashlight == null || wieldedItem == null || _categories.Count == 0) return;
+                uint cat = wieldedItem.GearIDRange?.GetCompID(eGearComponent.Category) ?? 0;
+                if (!_categories.Contains(cat)) return;
+                float k = Mathf.Clamp(_mainCategories.Contains(cat) ? _mainLight.Value : _light.Value, 0.05f, 1f);
+                if (k >= 0.999f) return;
+                flashlight.m_settingsID = WeakLight(flashlight.m_settingsID, k);
+            }
+            catch (Exception e) { ModInfo.Log.LogWarning($"[SilencedGun] flashlight: {e.Message}"); }
+        }
+    }
+
+    private static uint WeakLight(uint src, float k)
+    {
+        int pct = Mathf.RoundToInt(k * 100f);
+        if (_weakLights.TryGetValue((src, pct), out var id)) return id;
+        var s = GameDataBlockBase<FlashlightSettingsDataBlock>.GetBlock(src);
+        if (s == null) return src;
+        string key = $"GtfoPunk_WeakLight_{src}_{pct}";
+        if (GameDataBlockBase<FlashlightSettingsDataBlock>.HasBlock(key)) id = GameDataBlockBase<FlashlightSettingsDataBlock>.GetBlockID(key);
+        else
+        {
+            var w = GearFactory.CloneBlock(s);
+            w.persistentID = GearFactory.StableId<FlashlightSettingsDataBlock>(key);
+            w.name = key;
+            w.intensity = s.intensity * k;
+            w.range = s.range * Mathf.Sqrt(k);
+            GameDataBlockBase<FlashlightSettingsDataBlock>.AddBlock(w);
+            id = w.persistentID;
+            ModInfo.Log.LogInfo($"[SilencedGun] weak flashlight {src} → {id}: intensity {s.intensity:0.##} → {w.intensity:0.##}, range {s.range:0.#} → {w.range:0.#}");
+        }
+        _weakLights[(src, pct)] = id;
+        _weakLights[(id, pct)] = id; // the part keeps our ID once set
+        return id;
     }
 
     /// <summary>Hand pose and which part the left hand holds, from another category.</summary>

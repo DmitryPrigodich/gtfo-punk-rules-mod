@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.19
+- Silenced main-slot guns, round two (picked: SMG-S A; B dropped):
+  - **burst by default** — 3 shots, 6 damage, ×0.95 on the head, full damage up to 25 m (falls off to 45 m): two headshots kill a striker at mid range (like one from GP6-S), a body burst doesn't. B switches to semi / auto (FireModes: semi tighter, auto wider);
+  - the 24-round magazine (Mag_556_24rnds) on A and D, clip 24;
+  - **SMG-S A** in 12 sight variants to compare (Sight_18, 14, 14b, 2, 16, 25, 3, 4, 7, 11, 17, 23 — the sight is in the name);
+  - **SMG-S C** — short-range burst on Accrat Golok DA's stats: 7 damage, ×1 head, full damage only to 8 m (falls off to 18 m), quicker bursts (0.18 s), a bit wider spread;
+  - **SMG-S D** — Hanaway front, Receiver_Rifle_3, precision stock (Stock_Precision_1), Sight_11;
+  - shot sound of the Raptus Treffen 2 (`MainSoundFrom`);
+  - per-gun options in `MainGuns` after '|': stats, burst, damage, precision, falloff, delay, clip, spread.
+- **Weaker flashlights** on the silenced guns: GP6-S at 50% (`Flashlight`), the main-slot ones at 60% (`MainFlashlight`); each keeps its own flashlight part.
+
 ## 0.9.18
 - **Silenced main-slot guns** (test variants, like the GP6-S fitting room): rate of fire, damage and magazine of the Van Auken LTC5, the same quiet shot as the silenced pistol (wakes only within 10 m), type "Silenced SMG". Three variants to pick from:
   - **SMG-S A** — LTC5 + Hanaway front (Front_Rifle_2), HXC stock (Stock_Rifle_2), Golok sight (Sight_18);
