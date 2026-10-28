@@ -14,6 +14,8 @@ namespace GtfoPunk.Rules.Modules;
 /// body and barrel assembled from parts of different guns (option Guns). A shot wakes sleepers only within HardRadius (10 m),
 /// further out, up to SoftRadius, it only disturbs them (pulse), beyond that — silence. Not heard through walls.
 /// The host computes the noise, so everyone needs the mod.
+/// Silenced main-slot guns (option MainGuns): rate of fire and damage of an SMG (MainStatsFrom, Van Auken LTC5), the
+/// same quiet shot; each gun gets its own category so the hand grip can come from its body. Test variants for now.
 /// </summary>
 public class SilencedGun : ModuleBase
 {
@@ -22,7 +24,7 @@ public class SilencedGun : ModuleBase
     public override ModuleSide Side => ModuleSide.Everyone;
     public override IReadOnlyList<string> ReplacedBy => Array.Empty<string>();
 
-    private static ConfigEntry<string> _stats, _sound, _guns, _pose;
+    private static ConfigEntry<string> _stats, _sound, _guns, _pose, _mainStats, _mainGuns, _mainType;
     private static ConfigEntry<float> _hard, _soft;
     private static ConfigEntry<bool> _softPulse;
 
@@ -36,12 +38,22 @@ public class SilencedGun : ModuleBase
         _hard = Bind("HardRadius", 10f, "Radius (m) within which a shot wakes enemies.");
         _damage = Bind("Damage", 15f, "Damage per shot. 15: a headshot kills a striker or a shooter, a body shot doesn't (Arid 5 itself does far more). 0 — Arid 5's own.");
         _archName = Bind("WeaponType", "Silenced Pistol", "Weapon type shown above the gun's name in the weapon list (the gun's own name is in SilencedGuns).");
+        _mainStats = Bind("MainStatsFrom", "Van Auken LTC5", "Silenced main-slot guns: weapon to take rate of fire, damage and magazine from (its own damage is kept).");
+        _mainGuns = Bind("MainGuns", MainDefault,
+            "Silenced main-slot guns, same format as SilencedGuns. The body's category gives the hand grip. Part IDs: 12 front, 16 receiver, 19 stock, 21 sight (GtfoPunk.GearList.txt / GearParts.txt). Empty — none.");
+        _mainType = Bind("MainWeaponType", "Silenced SMG", "Weapon type shown above the main-slot silenced guns' names in the weapon list.");
         _soft = Bind("SoftRadius", 25f, "Radius (m) within which a shot only disturbs (pulse) without waking. 0 — don't disturb.");
         _softPulse = Bind("SoftIsPulseOnly", true, "true — distant enemies only pulse; false — they get regular noise (may wake up after repeated shots).");
     }
 
     // 4 (ItemFPSSettings) — hand animations: taken from Mastaba, otherwise the hand inserting rounds disappears on reload.
     private const string NewDefault = "DRED SILENZIO GP6-S: Bataldo 3RB + 12=Mastaba R66, 4=Mastaba R66";
+    /// <summary>Test variants (28.10): A — Hanaway front + Arbalist/HXC stock + Golok sight; B — Hanaway front + unused UZI stock
+    /// + J 300 sight; C — the unused bullpup set (front 46, receiver 20) + Golok stock + HXC sight.</summary>
+    private const string MainDefault =
+        "DRED SILENZIO SMG-S A: Van Auken LTC5 + 12=15, 19=3, 21=9; " +
+        "DRED SILENZIO SMG-S B: Van Auken LTC5 + 12=15, 19=19, 21=11; " +
+        "DRED SILENZIO SMG-S C: Accrat Golok DA + 12=46, 16=20, 19=17, 21=45";
     private const string TestDefault = NewDefault + "; GP6-S TEST B: Mastaba R66 + 19=Bataldo 3RB";
 
     private static readonly HashSet<uint> _categories = new();
@@ -111,6 +123,53 @@ public class SilencedGun : ModuleBase
                 foreach (var kv in GearFactory.ParseParts(bodySplit[1], "SilencedGun")) comps[kv.Key] = kv.Value;
             GearFactory.AddGear(body, $"GtfoPunk_SilencedGun_{idx}", nameSplit[0], comps);
         }
+        try { InjectMain(sound); } catch (Exception e) { ModInfo.Log.LogWarning($"[SilencedGun] main-slot guns: {e.Message}"); }
+    }
+
+    /// <summary>Silenced main-slot guns: an SMG's stats in a category of their own per gun (the hand grip comes from the body).</summary>
+    private static void InjectMain(uint? sound)
+    {
+        var statsGear = GearFactory.FindByName(_mainStats.Value);
+        if (statsGear == null) { ModInfo.Log.LogWarning($"[SilencedGun] weapon '{_mainStats.Value}' not found — no main-slot silenced guns"); return; }
+        var sc = GearFactory.GetComps(statsGear.GearJSON);
+        if (!sc.TryGetValue((int)eGearComponent.Category, out var statsCat)) return;
+        foreach (var entry in _mainGuns.Value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var nameSplit = entry.Split(':', 2, StringSplitOptions.TrimEntries);
+            if (nameSplit.Length != 2) { ModInfo.Log.LogWarning($"[SilencedGun] can't parse '{entry}'"); continue; }
+            var bodySplit = nameSplit[1].Split('+', 2, StringSplitOptions.TrimEntries);
+            var body = GearFactory.FindByName(bodySplit[0]);
+            if (body == null) { ModInfo.Log.LogWarning($"[SilencedGun] body '{bodySplit[0]}' not found"); continue; }
+            // Keys from the gun's name: removing one variant doesn't move the others' IDs.
+            string key = "GtfoPunk_SilencedMain_" + new string(nameSplit[0].Where(char.IsLetterOrDigit).ToArray());
+            uint catId = GearFactory.CloneCategory(statsCat, key, "DRED SILENZIO",
+                Lang.T("Silenced. Wakes enemies only within 10 m; farther ones only stir.", "С глушителем. Будит только в 10 м, дальше враги лишь тревожатся."));
+            _categories.Add(catId);
+            GearFactory.OwnArchetypes(catId, key, _mainType.Value);
+            if (GearFactory.GetComps(body.GearJSON).TryGetValue((int)eGearComponent.Category, out var bodyCat) && bodyCat != statsCat)
+                CopyGrip(bodyCat, catId);
+            var comps = new Dictionary<int, uint?>
+            {
+                [(int)eGearComponent.Category] = catId,
+                [(int)eGearComponent.FireMode] = sc.TryGetValue((int)eGearComponent.FireMode, out var fm) ? fm : null,
+                [(int)eGearComponent.BaseItem] = sc.TryGetValue((int)eGearComponent.BaseItem, out var bi) ? bi : null,
+            };
+            if (sound.HasValue) comps[(int)eGearComponent.AudioSetting] = sound;
+            if (bodySplit.Length > 1)
+                foreach (var kv in GearFactory.ParseParts(bodySplit[1], "SilencedGun")) comps[kv.Key] = kv.Value;
+            GearFactory.AddGear(body, key + "_Gun", nameSplit[0], comps);
+        }
+    }
+
+    /// <summary>Hand pose and which part the left hand holds, from another category.</summary>
+    private static void CopyGrip(uint fromCat, uint toCat)
+    {
+        var src = GameDataBlockBase<GearCategoryDataBlock>.GetBlock(fromCat);
+        var dst = GameDataBlockBase<GearCategoryDataBlock>.GetBlock(toCat);
+        if (src == null || dst == null) return;
+        dst.FPSArmPoseName = src.FPSArmPoseName;
+        dst.PartAlignPriority = src.PartAlignPriority;
+        dst.ThirdPersonFullbodyMovement = src.ThirdPersonFullbodyMovement;
     }
 
     private static ConfigEntry<float> _damage;

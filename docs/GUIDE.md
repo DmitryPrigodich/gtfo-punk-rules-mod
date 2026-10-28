@@ -125,6 +125,10 @@ and rate of fire, 15 damage (a headshot kills a striker or a shooter, a body sho
 A shot wakes sleepers only within 10 m (`HardRadius`), disturbs them up to 25 m (`SoftRadius`), beyond that — silence.
 Advanced: `SilencedGuns` assembles guns from parts (IDs in `BepInEx/config/GtfoPunk.GearList.txt`).
 
+**Silenced main-slot guns** (testing, type "Silenced SMG"): rate of fire, damage and magazine of the Van Auken LTC5,
+the same quiet shot. Variants SMG-S A / B / C differ in front, stock, receiver and sight; `MainGuns` lists them in the
+same format, `MainStatsFrom` picks the stats donor.
+
 ## Booster syringes
 
 Every artifact spot gets a **booster syringe** instead (a copy of the IIx syringe, not in the terminal — look around).

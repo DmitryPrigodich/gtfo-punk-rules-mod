@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.18
+- **Silenced main-slot guns** (test variants, like the GP6-S fitting room): rate of fire, damage and magazine of the Van Auken LTC5, the same quiet shot as the silenced pistol (wakes only within 10 m), type "Silenced SMG". Three variants to pick from:
+  - **SMG-S A** — LTC5 + Hanaway front (Front_Rifle_2), HXC stock (Stock_Rifle_2), Golok sight (Sight_18);
+  - **SMG-S B** — LTC5 + Hanaway front, the unused UZI stock (Stock_UZI_2), J 300 sight (Sight_1);
+  - **SMG-S C** — Golok DA body with the unused bullpup front and receiver (Front_Bullpop_2, Receiver_Bullpop_1), bullpup stock, HXC sight (Sight_23); Golok's hand grip.
+  Settings `[SilencedGun] MainStatsFrom`, `MainGuns`, `MainWeaponType`.
+
 ## 0.9.17
 - **Frag grenade fix**: 0.9.16 threw a plain foam grenade — the thrown grenade didn't carry our item ID. It's now recognised by its throw (where and when a frag grenade was thrown) as well as by its ID, and explodes like a mine. Log: `[Grenades] thrown: item …` and `glue grenade thrown: … → frag grenade`.
 - **TCF3 foam tank**: one tank instead of two mirrored foam grenades; by default the fog turbine's barrel. New keys `[TurretVariants.Foam] Tank` (item name, "Fog Turbine" — the turbine), `TankMirror` (two mirrored tanks), `TankModelOffset`, `TankModelRotation`, `TankModelScale` (the old TankModel / TankOffset / TankRotation / TankScale are dropped).
