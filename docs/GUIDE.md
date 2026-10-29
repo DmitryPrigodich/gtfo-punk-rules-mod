@@ -126,10 +126,9 @@ A shot wakes sleepers only within 10 m (`HardRadius`), disturbs them up to 25 m 
 Advanced: `SilencedGuns` assembles guns from parts (IDs in `BepInEx/config/GtfoPunk.GearList.txt`).
 
 **Silenced main-slot guns** (testing, type "Silenced SMG"): Van Auken LTC5's rate of fire, a 3-shot burst by default
-(two headshots kill a striker at mid range, a body burst doesn't; B — semi / auto), Raptus Treffen 2's sound, a weaker
-flashlight. SMG-S A: Hanaway front and magazine, HXC stock, Sight_14, Hanaway's ammo.
+(two headshots kill a striker at mid range, a body burst doesn't; B — semi / auto), Raptus Treffen 2's sound. SMG-S A: Hanaway front and magazine, HXC stock, Sight_14, Hanaway's ammo.
 `MainGuns`: 'Name: Body + part=ID, … | stats=…, burst=…, damage=…, precision=…, falloff=from-to, delay=…, clip=…, spread=…'.
-Flashlight strength: `Flashlight` (GP6-S), `MainFlashlight`. Option `ammo=<gun>` takes that gun's ammo (reserve and magazine).
+Option `ammo=<gun>` takes that gun's ammo (reserve and magazine).
 
 **Garage guns** (`[GarageGuns] Guns`, same format, plus `type=`): ordinary loud guns. **DRED BULL GOLORAT-2** — a bullpup
 rifle, an alternative to the Accrat Golok DA: a hard 3-shot burst up close (7 damage, full to 8 m, gone by 18 m).
@@ -160,6 +159,12 @@ The crawling "zoomer" scouts get a window too (while they charge the scream) —
   mode changes the spread: semi 30% tighter, auto 30% wider. Off if ExtraWeaponCustomization is installed.
 - **V** — quick melee: tap — shove, hold — charged hit; then your gun comes back.
 
+## Flashlight focus
+
+Hold the flashlight key and turn the mouse wheel: narrower — reaches further and brighter, wider — lights more around
+you but less far (5 positions from the gun's own light). A plain press toggles the light as usual (on release). The
+wheel doesn't switch weapons while the key is held. Local only: others see your light as usual. `[FlashlightFocus]`.
+
 ## Config reference
 
 | Section | Keys |
@@ -176,8 +181,9 @@ The crawling "zoomer" scouts get a window too (while they charge the scream) —
 | `[Grenades]` | `NameEn`, `NameRu`, `InLevels`, `SpawnWeight`, `Stack`, `BlastRadius`, `BlastDamage`, `BlastEffect`, `BlastShake`, `BlastNoiseRadius`, `TurretRadius`, `TurretDamage`, `TurretFuse`, `TurretProximity`, `BounceOffEnemies` |
 | `[TurretVariants]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
 | `[TurretVariants.<Kind>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — see the descriptions in the file |
-| `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `Flashlight`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly`, `MainStatsFrom`, `MainSoundFrom`, `MainFlashlight`, `MainGuns`, `MainWeaponType` |
+| `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly`, `MainStatsFrom`, `MainSoundFrom`, `MainGuns`, `MainWeaponType` |
 | `[GarageGuns]` | `Guns` |
+| `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
 | `[Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
 | `[Infection]` | `Growth*`, `Cough*`, `Breath*`, `Tremor*`, `Disinfection*` |
 | `[ScoutKill]` | `ScreamChargeup`, `ChargeupDamage` |

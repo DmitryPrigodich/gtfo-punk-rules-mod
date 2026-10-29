@@ -125,8 +125,8 @@
 
 **Тихострелы для основного слота** (на пробу, тип "Silenced SMG"): темп Van Auken LTC5, по умолчанию очередь по 3
 (два попадания в голову убивают страйкера на средней дистанции, очередь в тело — нет; B — одиночный / авто), звук Raptus
-Treffen 2, фонарик слабее. SMG-S A: нос и магазин Hanaway, приклад HXC, Sight_14, патроны как у Hanaway. `MainGuns`: 'Имя: Основа + деталь=ID, … | stats=…, burst=…, damage=…, precision=…, falloff=от-до,
-delay=…, clip=…, spread=…'. Сила фонарика: `Flashlight` (GP6-S), `MainFlashlight`. Опция `ammo=<ствол>` — патроны как у того ствола (запас и магазин).
+Treffen 2. SMG-S A: нос и магазин Hanaway, приклад HXC, Sight_14, патроны как у Hanaway. `MainGuns`: 'Имя: Основа + деталь=ID, … | stats=…, burst=…, damage=…, precision=…, falloff=от-до,
+delay=…, clip=…, spread=…'. Опция `ammo=<ствол>` — патроны как у того ствола (запас и магазин).
 
 **Стволы гаража** (`[GarageGuns] Guns`, тот же формат плюс `type=`): обычные, громкие. **DRED BULL GOLORAT-2** — буллпап,
 альтернатива Accrat Golok DA: мощная очередь по 3 вблизи (урон 7, полный до 8 м, к 18 м сходит на нет).
@@ -156,6 +156,12 @@ delay=…, clip=…, spread=…'. Сила фонарика: `Flashlight` (GP6-S
   разброс: одиночный на 30% кучнее, авто на 30% шире. Выключается, если стоит ExtraWeaponCustomization.
 - **V** — быстрый удар милишкой: нажать — толчок, держать — заряженный удар; потом оружие возвращается в руки.
 
+## Фокус фонаря
+
+Держишь клавишу фонаря и крутишь колесо: уже — дальше и ярче, шире — светит вокруг, но ближе (5 положений от родного
+фонарика ствола). Простое нажатие включает и выключает фонарь как обычно (при отпускании). Пока клавиша зажата, колесо
+не переключает оружие. Только у себя: другие видят твой фонарь как обычно. `[FlashlightFocus]`.
+
 ## Настройки
 
 | Раздел | Ключи |
@@ -172,8 +178,9 @@ delay=…, clip=…, spread=…'. Сила фонарика: `Flashlight` (GP6-S
 | `[Grenades]` | `NameEn`, `NameRu`, `InLevels`, `SpawnWeight`, `Stack`, `BlastRadius`, `BlastDamage`, `BlastEffect`, `BlastShake`, `BlastNoiseRadius`, `TurretRadius`, `TurretDamage`, `TurretFuse`, `TurretProximity`, `BounceOffEnemies` |
 | `[TurretVariants]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
 | `[TurretVariants.<Вид>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — описания в самом файле |
-| `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `Flashlight`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly`, `MainStatsFrom`, `MainSoundFrom`, `MainFlashlight`, `MainGuns`, `MainWeaponType` |
+| `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly`, `MainStatsFrom`, `MainSoundFrom`, `MainGuns`, `MainWeaponType` |
 | `[GarageGuns]` | `Guns` |
+| `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
 | `[Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
 | `[Infection]` | `Growth*`, `Cough*`, `Breath*`, `Tremor*`, `Disinfection*` |
 | `[ScoutKill]` | `ScreamChargeup`, `ChargeupDamage` |

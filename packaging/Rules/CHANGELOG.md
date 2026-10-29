@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.22
+- New module **FlashlightFocus**: gun flashlight focus, like turning a real flashlight's lens — **hold the flashlight key and turn the mouse wheel**: narrower reaches further and is brighter, wider lights more around you but less far (5 positions; e.g. light B, 35° / 15 m / 0.5: narrowest 18° / 26 m / 0.87, widest 70° / 9 m / 0.29). The wheel doesn't switch weapons while the key is held; a plain press toggles the light as before, on release. Local only. `[FlashlightFocus] Steps`, `MaxFocus`, `ReachExponent`.
+- The silenced guns' flashlights are back to their own (the weakened copies and `Flashlight` / `MainFlashlight` are gone).
+
 ## 0.9.21
 - **DS SMG-S A** — one gun again: TR22 Hanaway's magazine (Mag_556_40rnds_A — the same part as on the HXC), Sight_14, Hanaway's ammo; the HXC / ARBALIST test pair is gone.
 - Reference file `BepInEx/config/GtfoPunk.Flashlights.txt` (written once in the lobby): every flashlight setting (range, angle, brightness, colour), which flashlight part uses which, and which gun has which part.

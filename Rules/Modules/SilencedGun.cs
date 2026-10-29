@@ -25,7 +25,6 @@ public class SilencedGun : ModuleBase
     public override IReadOnlyList<string> ReplacedBy => Array.Empty<string>();
 
     private static ConfigEntry<string> _stats, _sound, _guns, _pose, _mainStats, _mainGuns, _mainType, _mainSound;
-    private static ConfigEntry<float> _light, _mainLight;
     private static ConfigEntry<float> _hard, _soft;
     private static ConfigEntry<bool> _softPulse;
 
@@ -39,10 +38,8 @@ public class SilencedGun : ModuleBase
         _hard = Bind("HardRadius", 10f, "Radius (m) within which a shot wakes enemies.");
         _damage = Bind("Damage", 15f, "Damage per shot. 15: a headshot kills a striker or a shooter, a body shot doesn't (Arid 5 itself does far more). 0 — Arid 5's own.");
         _archName = Bind("WeaponType", "Silenced Pistol", "Weapon type shown above the gun's name in the weapon list (the gun's own name is in SilencedGuns).");
-        _light = Bind("Flashlight", 0.5f, "Flashlight strength of the silenced pistol (brightness and reach; 1 — as the part's own).");
         _mainStats = Bind("MainStatsFrom", "Van Auken LTC5", "Silenced main-slot guns: weapon to take rate of fire and magazine from (a gun can name its own: '| stats=…').");
         _mainSound = Bind("MainSoundFrom", "Raptus Treffen 2", "Silenced main-slot guns: weapon to take the shot sound from.");
-        _mainLight = Bind("MainFlashlight", 0.6f, "Flashlight strength of the silenced main-slot guns (1 — as the part's own).");
         _mainGuns = Bind("MainGuns", MainDefault,
             "Silenced main-slot guns separated by ';': 'Name: Body + part=ID, … | option=value, …'. The body gives the parts and the hand grip. "
             + "Part IDs: 12 front, 16 receiver, 19 stock, 21 sight, 23 magazine (GtfoPunk.GearList.txt / GearParts.txt). "
@@ -155,8 +152,8 @@ public class SilencedGun : ModuleBase
 
     /// <summary>
     /// A garage gun from 'Name: Body + parts | options': a category of its own (rate of fire from the stats donor, hand
-    /// grip from the body), the burst option as the default mode. <paramref name="silent"/> — quiet shot and a weaker
-    /// flashlight (DRED SILENZIO); otherwise a normal loud gun (DRED BULL …). Option type= — the weapon type shown.
+    /// grip from the body), the burst option as the default mode. <paramref name="silent"/> — quiet shot
+    /// (DRED SILENZIO); otherwise a normal loud gun (DRED BULL …). Option type= — the weapon type shown.
     /// </summary>
     internal static void AddGun(string entry, bool silent, string keyPrefix, string defaultStats, string defaultType, uint? sound)
     {
@@ -186,7 +183,7 @@ public class SilencedGun : ModuleBase
             ? GearFactory.CloneCategory(statsCat, key, "DRED SILENZIO",
                 Lang.T("Silenced. Wakes enemies only within 10 m; farther ones only stir.", "С глушителем. Будит только в 10 м, дальше враги лишь тревожатся."))
             : GearFactory.CloneCategory(statsCat, key, string.Join(" ", nameSplit[0].Split(' ').Take(2)), null);
-        if (silent) { _categories.Add(catId); _mainCategories.Add(catId); }
+        if (silent) _categories.Add(catId);
         GearFactory.OwnArchetypes(catId, key, type);
         if (GearFactory.GetComps(body.GearJSON).TryGetValue((int)eGearComponent.Category, out var bodyCat) && bodyCat != statsCat)
             CopyGrip(bodyCat, catId);
@@ -257,54 +254,6 @@ public class SilencedGun : ModuleBase
         var a = GameDataBlockBase<ArchetypeDataBlock>.GetBlock(id);
         if (a != null) ModInfo.Log.LogInfo($"[SilencedGun] ammo like '{name}': clip {a.DefaultClipSize}, round cost {a.CostOfBullet:0.###}");
         return a;
-    }
-
-    // ---------- weak flashlights ----------
-
-    private static readonly HashSet<uint> _mainCategories = new();
-    private static readonly Dictionary<(uint, int), uint> _weakLights = new();
-
-    /// <summary>Our guns light the way with a weaker copy of their flashlight part's settings.</summary>
-    [HarmonyPatch(typeof(PlayerInventoryBase), nameof(PlayerInventoryBase.OnItemEquippableFlashlightWielded))]
-    private static class Patch_Flashlight
-    {
-        private static void Prefix(ItemEquippable wieldedItem, GearPartFlashlight flashlight)
-        {
-            try
-            {
-                if (flashlight == null || wieldedItem == null || _categories.Count == 0) return;
-                uint cat = wieldedItem.GearIDRange?.GetCompID(eGearComponent.Category) ?? 0;
-                if (!_categories.Contains(cat)) return;
-                float k = Mathf.Clamp(_mainCategories.Contains(cat) ? _mainLight.Value : _light.Value, 0.05f, 1f);
-                if (k >= 0.999f) return;
-                flashlight.m_settingsID = WeakLight(flashlight.m_settingsID, k);
-            }
-            catch (Exception e) { ModInfo.Log.LogWarning($"[SilencedGun] flashlight: {e.Message}"); }
-        }
-    }
-
-    private static uint WeakLight(uint src, float k)
-    {
-        int pct = Mathf.RoundToInt(k * 100f);
-        if (_weakLights.TryGetValue((src, pct), out var id)) return id;
-        var s = GameDataBlockBase<FlashlightSettingsDataBlock>.GetBlock(src);
-        if (s == null) return src;
-        string key = $"GtfoPunk_WeakLight_{src}_{pct}";
-        if (GameDataBlockBase<FlashlightSettingsDataBlock>.HasBlock(key)) id = GameDataBlockBase<FlashlightSettingsDataBlock>.GetBlockID(key);
-        else
-        {
-            var w = GearFactory.CloneBlock(s);
-            w.persistentID = GearFactory.StableId<FlashlightSettingsDataBlock>(key);
-            w.name = key;
-            w.intensity = s.intensity * k;
-            w.range = s.range * Mathf.Sqrt(k);
-            GameDataBlockBase<FlashlightSettingsDataBlock>.AddBlock(w);
-            id = w.persistentID;
-            ModInfo.Log.LogInfo($"[SilencedGun] weak flashlight {src} → {id}: intensity {s.intensity:0.##} → {w.intensity:0.##}, range {s.range:0.#} → {w.range:0.#}");
-        }
-        _weakLights[(src, pct)] = id;
-        _weakLights[(id, pct)] = id; // the part keeps our ID once set
-        return id;
     }
 
     /// <summary>Hand pose and which part the left hand holds, from another category.</summary>
