@@ -131,8 +131,8 @@ ones may wake after shots in a row), `ThroughWalls`. GLUKHAR wakes within 8 m an
 
 **DRED TIKHON-A 24S** (main slot, type "Silenced Rifle") — the same quiet shot (Raptus Treffen 2's sound): Pres MOD 556
 front, Receiver_Rifle_3, Köning PR 11's stock, Sight_23, the short 556 magazine, flashlight B; Van Auken LTC5's light, fast
-**burst of 3**, **24 in a magazine, 120 in the reserve**, 2.4 damage a round — three in the head kill a striker, a body
-burst doesn't (full damage to 25 m).
+**burst of 3**, **24 in a magazine, 120 in the reserve**, 7 damage a round; full damage to 25 m, then it falls by the
+square (`FalloffCurve = Square`) and is gone by 50 m.
 
 The optional guns — DRED ASSASSIN SMG-SA, DRED ASSASSIN AR-S, DRED BULL GOLORAT-2 — and the weapon fitting room (F8 in the lobby) are in a separate mod, **GtfoPunk Weapons**: the guns that are part of the game's kit live here, optional ones there.
 
@@ -160,6 +160,12 @@ listed above the watermark and on the map screen (Tab). `KeepDownsides` keeps bo
 - From 70% you cough now and then (sleepers within 10 m notice; a few coughs in a row can wake them) and the view
   trembles slightly.
 - `DisinfectionStrength` / `DisinfectionPauseMinutes` can weaken disinfection (off by default).
+
+## The drop is loud
+
+When the elevator lands and the loudspeaker announces the expedition, the sleepers around it wake up (within 25 m,
+through walls) and those up to 50 m stir — the first room has to be cleared. Zones behind closed security doors don't
+hear it. Host only. `[Level.Elevator]` `Delay`, `WakeRadius`, `StirRadius`, `StirWakes`.
 
 ## Scouts
 
@@ -196,7 +202,8 @@ wheel doesn't switch weapons while the key is held. Works on the helmet light to
 | `[Turrets]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
 | `[Turrets.<Kind>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — see the descriptions in the file |
 | `[Weapons]` | `Enabled` (the kit's silenced guns) |
-| `[Weapons.Glukhar]`, `[Weapons.Tikhon]` | `Enabled`, `Name`, `Type`, `Body`, `Parts`, `Stats`, `SoundFrom`, `GripFrom`, `RateFrom`, `AmmoFrom`, `RecoilFrom`, `FireMode`, `Burst`, `BurstPause`, `ShotDelay`, `Damage`, `HeadMultiplier`, `FalloffFrom`, `FalloffTo`, `Magazine`, `Reserve`, `SpreadHip`, `SpreadAim`, `Silent`, `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls` |
+| `[Weapons.Glukhar]`, `[Weapons.Tikhon]` | `Enabled`, `Name`, `Type`, `Body`, `Parts`, `Stats`, `SoundFrom`, `GripFrom`, `RateFrom`, `AmmoFrom`, `RecoilFrom`, `FireMode`, `Burst`, `BurstPause`, `ShotDelay`, `Damage`, `HeadMultiplier`, `FalloffFrom`, `FalloffTo`, `FalloffCurve`, `Magazine`, `Reserve`, `SpreadHip`, `SpreadAim`, `Silent`, `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls` |
+| `[Level.Elevator]` | `Enabled`, `Delay`, `WakeRadius`, `StirRadius`, `StirWakes` |
 | `[Weapons.Khlopushka]` | `Name`, `Type`, `Body`, `Parts`, `RecoilFrom`, `Magazine`, `Reserve`, `ShotDelay`, `GrenadeDamage`, `GrenadeRadius`, `GrenadeSpeed`, `GrenadeSize`, `Loft`, `Shake`, `ChargeTime`, `Silent`, `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
 | `[Items.Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |

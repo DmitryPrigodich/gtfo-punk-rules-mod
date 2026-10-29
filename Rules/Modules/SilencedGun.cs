@@ -15,7 +15,7 @@ namespace GtfoPunk.Rules.Modules;
 /// <item>DRED GLUKHAR S6 (was DRED SILENZIO GP6-S) — pistol: Bataldo 3RB body with a Mastaba top, Shelling Arid 5's stats,
 /// 15 damage (a headshot kills a striker or a shooter, a body shot doesn't), S49's sound.</item>
 /// <item>DRED TIKHON-A 24S — rifle: Pres MOD 556 front, Receiver_Rifle_3, Köning PR 11's stock, Sight_23, the short 556
-/// magazine; Van Auken LTC5's light fast burst of 3, 24 + 120 rounds, 2.4 a round — three in the head kill a striker.</item>
+/// magazine; Van Auken LTC5's light fast burst of 3, 24 + 120 rounds, 7 a round, full to 25 m and then falling by the square.</item>
 /// </list>
 /// Each gun's shot noise is its own (Silent, WakeRadius, StirRadius, StirWakes, ThroughWalls — see GunNoise): the pistol
 /// wakes within 8 m and stirs to 20 m, the rifle 10 / 25 m. The host computes the noise, so everyone needs the mod.
@@ -44,8 +44,8 @@ public class SilencedGun : ModuleBase
     private static readonly GunConfig.Defaults RifleDefaults = new()
     {
         Name = "DRED TIKHON-A 24S", Type = "Silenced Rifle", Silent = true, WakeRadius = 10f, StirRadius = 25f, Body = "Drekker Pres MOD 556", Parts = "12=14, 16=13, 19=11, 21=45, 23=20, 25=3",
-        Stats = "Van Auken LTC5", SoundFrom = "Raptus Treffen 2", FireMode = "Burst", Burst = "3", BurstPause = "0.3", Damage = "2.4", HeadMultiplier = "1",
-        FalloffFrom = "25", FalloffTo = "50", Magazine = "24", Reserve = "120",
+        Stats = "Van Auken LTC5", SoundFrom = "Raptus Treffen 2", FireMode = "Burst", Burst = "3", BurstPause = "0.3", Damage = "7", HeadMultiplier = "1",
+        FalloffFrom = "25", FalloffTo = "50", FalloffCurve = "Square", Magazine = "24", Reserve = "120",
     };
     private const string PistolLineDefault = "DRED GLUKHAR S6: Bataldo 3RB + 12=Mastaba R66, 4=Mastaba R66";
     private static readonly string[] RifleLineDefaults =
@@ -84,6 +84,7 @@ public class SilencedGun : ModuleBase
 
         _rifle = GunConfig.Bind(Config, "Weapons.Tikhon", RifleDefaults, new() { ["SoundFrom"] = new[] { (Old, "RifleSoundFrom", "Raptus Treffen 2") } });
         if (_rifle.Name.Value == "DRED TIKHON-A 20S") _rifle.Name.Value = RifleDefaults.Name; // 24 rounds since 0.9.38
+        if (_rifle.Damage.Value == "2.4") _rifle.Damage.Value = RifleDefaults.Damage;          // 0.9.40: 2.4 took the head off but didn't kill
         foreach (var g in new[] { _pistol, _rifle })
         {
             if (hard.HasValue) g.WakeRadius.Value = hard.Value;
@@ -106,6 +107,7 @@ public class SilencedGun : ModuleBase
     {
         GearFactory.OnInject += Inject;
         GunNoise.Install();
+        GunFalloff.Install();
     }
 
     private static float? OldFloat(string key, float def)
@@ -147,6 +149,7 @@ public class SilencedGun : ModuleBase
             if (g.Silent.Value) spec.Opt["desc"] = Lang.T("Silenced. Wakes enemies only within 10 m; farther ones only stir.", "С глушителем. Будит только в 10 м, дальше враги лишь тревожатся.");
             uint cat = GunBuilder.AddGun(spec, "GtfoPunk_Silent_", defStats, defType, out _, catKey, gearKey);
             GunNoise.Set(cat, g.Noise());
+            GunFalloff.Set(cat, GunFalloff.Parse(g.FalloffCurve.Value));
         }
         catch (Exception e) { ModInfo.Log.LogWarning($"[SilencedGun] [{g.Section}]: {e.Message}"); }
     }

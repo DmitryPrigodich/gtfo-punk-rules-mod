@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.40
+- **The drop is loud** (new, `[Level.Elevator]`, host): when the elevator lands and the loudspeaker speaks, sleepers within 25 m wake up (through walls) and those up to 50 m stir — the first room has to be cleared. Zones behind closed security doors don't hear it.
+- **Falloff curve** — a new gun key `FalloffCurve`: Linear (the game's), Square ((1 − t)² after FalloffFrom) or Hyperbola (FalloffFrom / distance).
+- **DRED TIKHON-A 24S**: 7 damage a round (2.4 took the head off but didn't kill), falloff by the square from 25 m to 50 m.
+
 ## 0.9.39
 - **Shot noise is each gun's own** (the same keys on every gun): `Silent` (no game shot noise), `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls`. DRED GLUKHAR S6 wakes within 8 m and stirs to 20 m, DRED TIKHON 10 / 25 m. `[Weapons.Silent]` is gone (changed radii are carried to both guns); `[Weapons] Enabled` turns the kit's silenced guns on / off.
 - **DRED TIKHON-A 24S** (was 20S — 24 rounds a magazine); same gear ID.

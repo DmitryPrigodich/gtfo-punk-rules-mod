@@ -129,8 +129,8 @@
 
 **DRED TIKHON-A 24S** (основной слот, тип "Silenced Rifle") — тот же тихий выстрел (звук Raptus Treffen 2): нос Pres MOD
 556, коробка Receiver_Rifle_3, приклад Köning PR 11, Sight_23, короткий магазин 556, фонарь B; лёгкая быстрая **очередь
-по 3** с темпом Van Auken LTC5, **24 в магазине, 120 в запасе**, урон 2,4 — три в голову убивают страйкера, очередь в
-тело — нет (полный урон до 25 м).
+по 3** с темпом Van Auken LTC5, **24 в магазине, 120 в запасе**, урон 7; полный урон до 25 м, дальше падает по квадрату
+(`FalloffCurve = Square`) и к 50 м сходит на нет.
 
 Необязательные стволы — DRED ASSASSIN SMG-SA, DRED ASSASSIN AR-S, DRED BULL GOLORAT-2 — и примерочная оружия (F8 в лобби) — в отдельном моде **GtfoPunk Weapons**: оружие, которое часть геймплея пака, — здесь, необязательное — там.
 
@@ -157,6 +157,12 @@
 - С 50% после бега задыхаешься (тихий шум, тревожит спящих в 6 м).
 - С 70% время от времени кашляешь (спящие в 10 м слышат; несколько раз подряд — могут проснуться) и картинка слегка дрожит.
 - `DisinfectionStrength` / `DisinfectionPauseMinutes` — ослабить дезинфекцию (по умолчанию выключено).
+
+## Громкая высадка
+
+Когда лифт приземляется и громкоговоритель объявляет экспедицию, спящие вокруг просыпаются (в 25 м, сквозь стены), а до
+50 м — тревожатся: первую комнату придётся зачистить. Зоны за закрытыми гермодверями не слышат. Только у хоста.
+`[Level.Elevator]` `Delay`, `WakeRadius`, `StirRadius`, `StirWakes`.
 
 ## Скауты
 
@@ -193,7 +199,8 @@
 | `[Turrets]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
 | `[Turrets.<Вид>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — описания в самом файле |
 | `[Weapons]` | `Enabled` (the kit's silenced guns) |
-| `[Weapons.Glukhar]`, `[Weapons.Tikhon]` | `Enabled`, `Name`, `Type`, `Body`, `Parts`, `Stats`, `SoundFrom`, `GripFrom`, `RateFrom`, `AmmoFrom`, `RecoilFrom`, `FireMode`, `Burst`, `BurstPause`, `ShotDelay`, `Damage`, `HeadMultiplier`, `FalloffFrom`, `FalloffTo`, `Magazine`, `Reserve`, `SpreadHip`, `SpreadAim`, `Silent`, `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls` |
+| `[Weapons.Glukhar]`, `[Weapons.Tikhon]` | `Enabled`, `Name`, `Type`, `Body`, `Parts`, `Stats`, `SoundFrom`, `GripFrom`, `RateFrom`, `AmmoFrom`, `RecoilFrom`, `FireMode`, `Burst`, `BurstPause`, `ShotDelay`, `Damage`, `HeadMultiplier`, `FalloffFrom`, `FalloffTo`, `FalloffCurve`, `Magazine`, `Reserve`, `SpreadHip`, `SpreadAim`, `Silent`, `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls` |
+| `[Level.Elevator]` | `Enabled`, `Delay`, `WakeRadius`, `StirRadius`, `StirWakes` |
 | `[Weapons.Khlopushka]` | `Name`, `Type`, `Body`, `Parts`, `RecoilFrom`, `Magazine`, `Reserve`, `ShotDelay`, `GrenadeDamage`, `GrenadeRadius`, `GrenadeSpeed`, `GrenadeSize`, `Loft`, `Shake`, `ChargeTime`, `Silent`, `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
 | `[Items.Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |

@@ -13,7 +13,7 @@ public class GunConfig
     public ConfigEntry<bool> Enabled, Silent, StirWakes, ThroughWalls;
     public ConfigEntry<float> WakeRadius, StirRadius;
     public ConfigEntry<string> Name, Type, Body, Parts, Stats, SoundFrom, GripFrom, RateFrom, AmmoFrom, RecoilFrom,
-        FireMode, Burst, BurstPause, ShotDelay, Damage, HeadMultiplier, FalloffFrom, FalloffTo, Magazine, Reserve, SpreadHip, SpreadAim;
+        FireMode, Burst, BurstPause, ShotDelay, Damage, HeadMultiplier, FalloffFrom, FalloffTo, FalloffCurve, Magazine, Reserve, SpreadHip, SpreadAim;
 
     /// <summary>Default values of a gun's keys (all strings but the two flags; empty — the donor's).</summary>
     public class Defaults
@@ -22,7 +22,7 @@ public class GunConfig
         /// <summary>The gun's own shot noise (m): wakes within WakeRadius, stirs up to StirRadius; 0 — none.</summary>
         public float WakeRadius, StirRadius;
         public string Name = "", Type = "", Body = "", Parts = "", Stats = "", SoundFrom = "", GripFrom = "", RateFrom = "", AmmoFrom = "", RecoilFrom = "",
-            FireMode = "", Burst = "", BurstPause = "", ShotDelay = "", Damage = "", HeadMultiplier = "", FalloffFrom = "", FalloffTo = "",
+            FireMode = "", Burst = "", BurstPause = "", ShotDelay = "", Damage = "", HeadMultiplier = "", FalloffFrom = "", FalloffTo = "", FalloffCurve = "Linear",
             Magazine = "", Reserve = "", SpreadHip = "", SpreadAim = "";
     }
 
@@ -60,6 +60,7 @@ public class GunConfig
             HeadMultiplier = B("HeadMultiplier", d.HeadMultiplier, "The gun's head multiplier (the enemy's own comes on top)." + Num),
             FalloffFrom = B("FalloffFrom", d.FalloffFrom, "Full damage up to this distance (m)." + Num),
             FalloffTo = B("FalloffTo", d.FalloffTo, "Damage gone by this distance (m)." + Num),
+            FalloffCurve = B("FalloffCurve", d.FalloffCurve, "How damage falls after FalloffFrom: Linear (the game's straight line to FalloffTo), Square ((1 − t)², drops faster at first), Hyperbola (FalloffFrom / distance — a long tail, FalloffTo unused)."),
             Magazine = B("Magazine", d.Magazine, "Rounds in a magazine." + Num),
             Reserve = B("Reserve", d.Reserve, "Rounds the reserve holds when full." + Num),
             SpreadHip = B("SpreadHip", d.SpreadHip, "Spread from the hip." + Num),
@@ -80,7 +81,7 @@ public class GunConfig
         O("type", Type); O("stats", Stats); O("sound", SoundFrom); O("grip", GripFrom); O("rate", RateFrom); O("ammo", AmmoFrom); O("recoil", RecoilFrom);
         if (!string.IsNullOrWhiteSpace(FireMode.Value)) s.Opt["mode"] = FireMode.Value.Trim().ToLowerInvariant();
         O("burst", Burst); O("delay", BurstPause); O("shotdelay", ShotDelay); O("damage", Damage); O("precision", HeadMultiplier);
-        O("falloff0", FalloffFrom); O("falloff1", FalloffTo); O("clip", Magazine); O("reserve", Reserve); O("hip", SpreadHip); O("aim", SpreadAim);
+        O("falloff0", FalloffFrom); O("falloff1", FalloffTo); O("curve", FalloffCurve); O("clip", Magazine); O("reserve", Reserve); O("hip", SpreadHip); O("aim", SpreadAim);
         return s;
     }
 
@@ -93,7 +94,7 @@ public class GunConfig
             Silent = silent, WakeRadius = silent ? 10f : 0f, StirRadius = silent ? 25f : 0f, Name = s.Name, Type = O("type"), Body = s.Body, Parts = string.Join(", ", s.Parts.Select(p => $"{p.Comp}={p.Value}")),
             Stats = O("stats"), SoundFrom = O("sound"), GripFrom = O("grip"), RateFrom = O("rate"), AmmoFrom = O("ammo"), RecoilFrom = O("recoil"),
             FireMode = O("mode"), Burst = O("burst"), BurstPause = O("delay"), ShotDelay = O("shotdelay"), Damage = O("damage"), HeadMultiplier = O("precision"),
-            FalloffFrom = O("falloff0"), FalloffTo = O("falloff1"), Magazine = O("clip"), Reserve = O("reserve"), SpreadHip = O("hip"), SpreadAim = O("aim"),
+            FalloffFrom = O("falloff0"), FalloffTo = O("falloff1"), FalloffCurve = O("curve") is { Length: > 0 } fc ? fc : "Linear", Magazine = O("clip"), Reserve = O("reserve"), SpreadHip = O("hip"), SpreadAim = O("aim"),
         };
         if (s.Opt.TryGetValue("falloff", out var f) && f.Split('-', 2) is { Length: 2 } p) { d.FalloffFrom = p[0].Trim(); d.FalloffTo = p[1].Trim(); }
         if (s.Opt.TryGetValue("spread", out var sp) && sp.Length > 0) { if (d.SpreadHip == "") d.SpreadHip = "x" + sp; if (d.SpreadAim == "") d.SpreadAim = "x" + sp; }
