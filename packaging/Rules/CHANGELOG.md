@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.28
+- Garage: the gun is shown **turning on the right side of the screen** (the lobby characters don't hold their guns): the third-person model is assembled again on every part change and stands in front of the lobby camera; the panel stays on the left. Log: `[Garage] preview on camera …`.
+
 ## 0.9.27
 - Garage: the prototype is taken from the game's own main-slot list (0.9.25–0.9.26 looked in the lobby backpack and didn't find it — "no prototype"); **F8 puts it in your hands** and opens the panel. Keys: **W S** — part, **A D** — change it (↑↓ and , . work too).
 

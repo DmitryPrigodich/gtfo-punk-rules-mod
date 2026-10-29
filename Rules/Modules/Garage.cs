@@ -100,7 +100,7 @@ public class Garage : ModuleBase
     private static void Tick()
     {
         bool lobby = GameStateManager.CurrentStateName == eGameStateName.Lobby;
-        if (!lobby) { _open = false; return; }
+        if (!lobby) { if (_open) ClosePreview(); _open = false; return; }
         if (Input.GetKeyDown(_key.Value))
         {
             _open = !_open;
@@ -108,11 +108,12 @@ public class Garage : ModuleBase
             {
                 BuildRows();
                 var g = Prototype();
-                if (g != null) { try { Equip(g); _status = Lang.T($"{ProtoName} is in your hands", $"{ProtoName} у тебя в руках"); } catch (Exception e) { _status = e.Message; } }
+                if (g != null) { try { Equip(g); Rebuild(g); _status = ""; } catch (Exception e) { _status = e.Message; } }
                 if (!_hooked) { _hooked = true; Overlay.Ensure(); Overlay.OnDraw += Draw; }
             }
         }
-        if (!_open) return;
+        if (!_open) { ClosePreview(); return; }
+        PreviewTick();
         if (Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow)) _row = (_row + _rows.Count - 1) % _rows.Count;
         if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.DownArrow)) _row = (_row + 1) % _rows.Count;
         // ← → move the lobby camera — the parts change with A / D (or , . — the < > keys)
@@ -161,6 +162,7 @@ public class Garage : ModuleBase
         {
             gear.SetCompID(row.Comp, id);
             Equip(gear);
+            Rebuild(gear);
             Remember(gear);
             _status = $"{row.En}: {row.Parts[i].Name} ({id})";
             ModInfo.Log.LogInfo($"[Garage] {row.En} → {row.Parts[i].Name} ({id})");
@@ -188,6 +190,78 @@ public class Garage : ModuleBase
             ModInfo.Log.LogInfo($"[Garage] {line}");
         }
         catch (Exception e) { _status = e.Message; }
+    }
+
+    // ---------- the turning model on the right ----------
+
+    private static GameObject _preview;
+    private static int _buildId;
+    private static Camera _cam;
+    private static bool _camLogged;
+
+    /// <summary>Assembles the gun again (third-person model) and stands it in front of the lobby camera.</summary>
+    private static void Rebuild(GearIDRange gear)
+    {
+        ClosePreview();
+        int id = ++_buildId;
+        var cb = Il2CppInterop.Runtime.DelegateSupport.ConvertDelegate<GearManager.delGearAssembled>(new Action<ItemEquippable>(item =>
+        {
+            try { if (id == _buildId && item != null) Settle(item.gameObject); }
+            catch (Exception e) { ModInfo.Log.LogWarning($"[Garage] preview: {e.Message}"); }
+        }));
+        var built = GearManager.AssembleGearAsync(gear, ItemMode.ThirdPerson, cb);
+        if (built != null) _preview = built.gameObject;
+        if (_preview != null) Settle(_preview);
+    }
+
+    /// <summary>No physics, no colliders; visible to the lobby camera.</summary>
+    private static bool _layerSet;
+
+    private static void Settle(GameObject go)
+    {
+        _preview = go;
+        _layerSet = false;
+        foreach (var rb in go.GetComponentsInChildren<Rigidbody>(true)) { rb.isKinematic = true; rb.useGravity = false; }
+        foreach (var c in go.GetComponentsInChildren<Collider>(true)) c.enabled = false;
+        go.SetActive(true);
+    }
+
+    private static Camera LobbyCamera()
+    {
+        if (_cam != null && _cam.isActiveAndEnabled) return _cam;
+        _cam = null;
+        var all = Camera.allCameras;
+        if (!_camLogged) { _camLogged = true; ModInfo.Log.LogInfo($"[Garage] cameras: {string.Join(", ", all.Select(c => $"{c.name} (depth {c.depth}, fov {c.fieldOfView:0})"))}"); }
+        // The camera that draws the lobby's 3D scene: perspective, the deepest that isn't a UI camera.
+        foreach (var c in all.OrderByDescending(c => c.depth))
+            if (c != null && !c.orthographic && !c.name.ToLowerInvariant().Contains("ui")) { _cam = c; break; }
+        return _cam ??= Camera.main;
+    }
+
+    private static float _spin;
+
+    private static void PreviewTick()
+    {
+        if (_preview == null) return;
+        var cam = LobbyCamera();
+        if (cam == null) return;
+        if (!_layerSet)
+        {
+            _layerSet = true;
+            int layer = (cam.cullingMask & 1) != 0 ? 0 : Enumerable.Range(0, 32).FirstOrDefault(i => (cam.cullingMask & (1 << i)) != 0);
+            foreach (var tr in _preview.GetComponentsInChildren<Transform>(true)) tr.gameObject.layer = layer;
+            ModInfo.Log.LogInfo($"[Garage] preview on camera '{cam.name}', layer {layer} '{LayerMask.LayerToName(layer)}', renderers {_preview.GetComponentsInChildren<Renderer>(true).Length}");
+        }
+        var t = _preview.transform;
+        t.position = cam.ViewportToWorldPoint(new Vector3(0.7f, 0.5f, 1.3f));
+        _spin = (_spin + Time.unscaledDeltaTime * 30f) % 360f;
+        t.rotation = Quaternion.LookRotation(cam.transform.right, cam.transform.up) * Quaternion.Euler(0f, _spin, 0f);
+    }
+
+    private static void ClosePreview()
+    {
+        if (_preview != null) UnityEngine.Object.Destroy(_preview);
+        _preview = null;
     }
 
     // ---------- drawing ----------
