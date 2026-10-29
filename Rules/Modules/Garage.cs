@@ -24,6 +24,8 @@ public class Garage : ModuleBase
 
     private static ConfigEntry<KeyCode> _key;
     private static ConfigEntry<string> _proto;
+    private static ConfigEntry<string> _pvPos;
+    private static ConfigEntry<float> _pvDepth, _pvSize, _pvSpin;
 
     private const string ProtoName = "DRED GARAGE PROTOTYPE";
     private const string ProtoBody = "Van Auken LTC5";
@@ -33,6 +35,10 @@ public class Garage : ModuleBase
         _key = Bind("Key", KeyCode.F8, "Opens / closes the garage panel in the lobby.");
         _proto = Bind("Prototype", ProtoBody + " + 12=15, 19=3, 21=10, 23=1 | type=Prototype",
             "The prototype's parts (written by the garage): 'Body + part=ID, … | options' — as in SilencedGun.MainGuns. Applied after a game restart; in the lobby the garage changes the gun at once.");
+        _pvPos = Bind("PreviewPosition", "0.62,0.5", "Where the turning gun stands on the screen: 'x,y' from 0 (left / bottom) to 1 (right / top).");
+        _pvDepth = Bind("PreviewDepth", 0.8f, "How far the gun stands, as a part of the distance to the players (1 — next to them, 0.5 — halfway to the camera).");
+        _pvSize = Bind("PreviewSize", 1.2f, "Gun size against the players' scale (the lobby scene is scaled up, so the gun takes the players' scale times this).");
+        _pvSpin = Bind("PreviewSpin", 30f, "Turning speed, degrees per second (0 — still, side view).");
     }
 
     protected override void OnEnable()
@@ -200,6 +206,7 @@ public class Garage : ModuleBase
     private static int _buildId;
     private static Camera _cam;
     private static int _layer = -1;
+    private static float _modelScale = 1f;
     private static bool _diagLogged;
 
     /// <summary>Assembles the gun again (third-person model) and stands it in front of the lobby camera.</summary>
@@ -242,13 +249,18 @@ public class Garage : ModuleBase
     private static int ModelLayer(GameObject model)
     {
         var counts = new Dictionary<int, int>();
+        Bounds? box = null;
         foreach (var r in model.GetComponentsInChildren<Renderer>(true))
         {
             if (r == null || !r.enabled || !r.gameObject.activeInHierarchy) continue;
             if (r.TryCast<SkinnedMeshRenderer>() == null && r.TryCast<MeshRenderer>() == null) continue;
             int l = r.gameObject.layer;
             counts[l] = counts.TryGetValue(l, out var n) ? n + 1 : 1;
+            if (box == null) box = r.bounds; else { var b = box.Value; b.Encapsulate(r.bounds); box = b; }
         }
+        // A person is ~1.8 m tall: the scene's scale from the model's real height on screen (its transform may say 1).
+        _modelScale = box != null && box.Value.size.y > 0.01f ? box.Value.size.y / 1.8f : model.transform.lossyScale.y;
+        ModInfo.Log.LogInfo($"[Garage] player height {(box != null ? box.Value.size.y : 0f):0.##} units, transform scale {model.transform.lossyScale.y:0.##} → scene scale {_modelScale:0.##}");
         ModInfo.Log.LogInfo($"[Garage] model layers: {string.Join(", ", counts.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} '{LayerMask.LayerToName(kv.Key)}' ×{kv.Value}"))}");
         return counts.Count > 0 ? counts.OrderByDescending(kv => kv.Value).First().Key : model.layer;
     }
@@ -297,17 +309,29 @@ public class Garage : ModuleBase
             if (r.enabled) shown++;
         }
         var t = _preview.transform;
-        // Between the camera and the players, at the right of the screen (the panel takes the left).
-        float depth = Math.Max(1f, Vector3.Dot(model.transform.position - cam.transform.position, cam.transform.forward) * 0.55f);
-        t.position = cam.ViewportToWorldPoint(new Vector3(0.62f, 0.5f, depth));
-        t.localScale = Vector3.one * 1.3f;
-        _spin = (_spin + Time.unscaledDeltaTime * 30f) % 360f;
+        if (t.parent != null) t.SetParent(null, true);
+        // The lobby scene is scaled up (players ~1000×, thousands of units from the camera): the gun takes their scale.
+        float modelDepth = Vector3.Dot(model.transform.position - cam.transform.position, cam.transform.forward);
+        float depth = Math.Max(cam.nearClipPlane * 2f, modelDepth * Mathf.Clamp(_pvDepth.Value, 0.05f, 1.5f));
+        var (vx, vy) = ParseXY(_pvPos.Value, 0.62f, 0.5f);
+        t.position = cam.ViewportToWorldPoint(new Vector3(vx, vy, depth));
+        t.localScale = Vector3.one * (_modelScale * _pvSize.Value);
+        _spin = (_spin + Time.unscaledDeltaTime * _pvSpin.Value) % 360f;
         t.rotation = Quaternion.LookRotation(cam.transform.right, cam.transform.up) * Quaternion.Euler(0f, _spin, 0f);
         if (!_diagLogged && all > 0)
         {
             _diagLogged = true;
-            ModInfo.Log.LogInfo($"[Garage] preview: camera '{cam.name}', model '{model.name}' at {model.transform.position}, layer {_layer} '{LayerMask.LayerToName(_layer)}', gun at {t.position} (depth {depth:0.0}), renderers {shown}/{all} on");
+            ModInfo.Log.LogInfo($"[Garage] preview: camera '{cam.name}', model '{model.name}' at {model.transform.position}, layer {_layer} '{LayerMask.LayerToName(_layer)}', scene scale {_modelScale:0.##}, players at depth {modelDepth:0}, gun at {t.position} (depth {depth:0}, scale {t.localScale.y:0.##}), renderers {shown}/{all} on");
         }
+    }
+
+    private static (float, float) ParseXY(string v, float dx, float dy)
+    {
+        var p = (v ?? "").Split(',');
+        var ci = System.Globalization.CultureInfo.InvariantCulture;
+        float x = p.Length > 0 && float.TryParse(p[0].Trim(), System.Globalization.NumberStyles.Float, ci, out var a) ? a : dx;
+        float y = p.Length > 1 && float.TryParse(p[1].Trim(), System.Globalization.NumberStyles.Float, ci, out var b) ? b : dy;
+        return (x, y);
     }
 
     private static void ClosePreview()

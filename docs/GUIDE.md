@@ -164,7 +164,7 @@ The crawling "zoomer" scouts get a window too (while they charge the scream) —
 In the lobby press **F8**: **DRED GARAGE PROTOTYPE** goes into your hands and the panel opens. **W S** — part (front,
 receiver, stock, sight, magazine, flashlight), **A D** — change it; the gun turns on the right side of the screen and is rebuilt at once, and each part shows which vanilla guns use it.
 Enter writes the line for `MainGuns` / `[GarageGuns] Guns` to `BepInEx/config/GtfoPunk.Garage.txt`. `[Garage] Key`,
-`Prototype`.
+`Prototype`; the turning gun: `PreviewPosition` (screen x,y), `PreviewDepth`, `PreviewSize`, `PreviewSpin`.
 
 ## Flashlight focus
 
@@ -191,7 +191,7 @@ wheel doesn't switch weapons while the key is held. Works on the helmet light to
 | `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly`, `MainStatsFrom`, `MainSoundFrom`, `MainGuns`, `MainWeaponType` |
 | `[GarageGuns]` | `Guns` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
-| `[Garage]` | `Key`, `Prototype` |
+| `[Garage]` | `Key`, `Prototype`, `PreviewPosition`, `PreviewDepth`, `PreviewSize`, `PreviewSpin` |
 | `[Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
 | `[Infection]` | `Growth*`, `Cough*`, `Breath*`, `Tremor*`, `Disinfection*` |
 | `[ScoutKill]` | `ScreamChargeup`, `ChargeupDamage` |

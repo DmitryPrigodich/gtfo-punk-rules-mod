@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.31
+- Garage preview: 0.9.30 found the right camera and layer (`CM_Camera`, layer 31 'MenuDeferredScene'), but the lobby scene is scaled up — the players stand ~2700 units from the camera and are ~1000× a person — so a gun of normal size there was a speck. Now the gun takes the scene's scale (the player model's height / 1.8 m) and stands at 0.8 of the players' distance. New keys `[Garage] PreviewPosition` (screen x,y, default 0.62,0.5), `PreviewDepth` (0.8), `PreviewSize` (1.2), `PreviewSpin` (30°/s). Log: `[Garage] player height …`.
+
 ## 0.9.30
 - Garage preview, still unseen in 0.9.29: the camera it was placed by was the menu UI camera (at the origin), not the one that draws the lobby players, and the layer came from the wrong renderer of the player model (9 'PlayerSynced'). Now the layer is the most common one among the model's mesh renderers, set on every part of the gun (also the ones that load later), and the camera is the one — even a disabled one — whose view has the player in it and whose mask has that layer. Parts are no longer forced visible. Log: `[Garage] model layers …`, `[Garage] cameras: … → <chosen>`, `[Garage] preview: …`.
 - Gear log lines say `[GearFactory] added: …` (were `[Garage]`, confusing next to the garage).
