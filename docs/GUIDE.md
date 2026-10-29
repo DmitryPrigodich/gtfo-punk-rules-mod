@@ -130,7 +130,7 @@ Advanced: `SilencedGuns` assembles guns from parts (IDs in `BepInEx/config/GtfoP
 `MainGuns`: 'Name: Body + part=ID, … | stats=…, burst=…, damage=…, precision=…, falloff=from-to, delay=…, clip=…, spread=…'.
 Option `ammo=<gun>` takes that gun's ammo (reserve and magazine).
 
-The weapon fitting room (F8 in the lobby) and the guns made in it (DRED BULL GOLORAT-2) are now a separate mod — **GtfoPunk Garage**.
+The weapon fitting room (F8 in the lobby) and the guns made in it (DRED BULL GOLORAT-2) are now a separate mod — **GtfoPunk Weapons**.
 
 ## Booster syringes
 

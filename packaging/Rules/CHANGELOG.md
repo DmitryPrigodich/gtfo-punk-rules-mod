@@ -1,7 +1,7 @@
 # Changelog
 
 ## 0.9.34
-- The garage (F8 weapon fitting room, DRED GARAGE PROTOTYPE) and the guns made in it (`[GarageGuns]`, DRED BULL GOLORAT-2) moved to a separate mod, **GtfoPunk Garage** — weapon building isn't what My Game My Rules is about. Its settings are carried over to the new mod on its first start. The silenced guns (GP6-S, DS SMG-S A, DS AR-S) and the sentries stay here.
+- The garage (F8 weapon fitting room, DRED GARAGE PROTOTYPE) and the guns made in it (`[GarageGuns]`, DRED BULL GOLORAT-2) moved to a separate mod, **GtfoPunk Weapons** — weapon building isn't what My Game My Rules is about. Its settings stay in this config file (no longer cleaned up) and are carried over by the new mod on its first start. The silenced guns (GP6-S, DS SMG-S A, DS AR-S) and the sentries stay here.
 - Gear log lines are tagged `[GearFactory]`.
 
 ## 0.9.33

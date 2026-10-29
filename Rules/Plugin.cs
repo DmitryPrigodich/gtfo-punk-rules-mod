@@ -17,6 +17,8 @@ public class Plugin : BasePlugin
 
     public override void Load()
     {
+        // The garage moved to GtfoPunk Weapons (0.9.34): keep its old settings in this file for that mod to carry over.
+        ConfigMigration.KeepSections.UnionWith(new[] { "Garage", "GarageGuns" });
         ModInfo.Start(GUID, NAME, VERSION, Config, Log);
         Watermark.Register($"GPUNK RULES v{VERSION}");
         // After modules are enabled (they subscribe to GearFactory.OnInject) — hook up the "garage".

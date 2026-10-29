@@ -128,7 +128,7 @@
 Treffen 2. SMG-S A: нос и магазин Hanaway, приклад HXC, Sight_14, патроны как у Hanaway. AR-S («Silenced Rifle»): нос и статы Pres MOD 556, коробка Receiver_Rifle_3, приклад DEL P1, Sight_23, очередь по 2. `MainGuns`: 'Имя: Основа + деталь=ID, … | stats=…, burst=…, damage=…, precision=…, falloff=от-до,
 delay=…, clip=…, spread=…'. Опция `ammo=<ствол>` — патроны как у того ствола (запас и магазин).
 
-Примерочная оружия (F8 в лобби) и стволы из неё (DRED BULL GOLORAT-2) теперь отдельный мод — **GtfoPunk Garage**.
+Примерочная оружия (F8 в лобби) и стволы из неё (DRED BULL GOLORAT-2) теперь отдельный мод — **GtfoPunk Weapons**.
 
 ## Шприцы-усилители
 

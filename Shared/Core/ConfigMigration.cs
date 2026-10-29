@@ -59,12 +59,16 @@ public static class ConfigMigration
 
     /// <summary>Drops every leftover key in the file — settings of removed modules and options. Call it once, after
     /// every module has bound its settings (old values have been carried over by then).</summary>
+    /// <summary>Sections whose leftover keys are kept (settings another mod takes over, e.g. Rules' old [Garage] read by GtfoPunk Weapons).</summary>
+    public static readonly HashSet<string> KeepSections = new();
+
     public static void DropAllOrphans(ConfigFile cfg)
     {
         var orphans = Orphans(cfg);
         if (orphans == null || orphans.Count == 0) return;
-        var dead = orphans.Keys.ToList();
-        orphans.Clear();
+        var dead = orphans.Keys.Where(d => !KeepSections.Contains(d.Section)).ToList();
+        if (dead.Count == 0) return;
+        foreach (var d in dead) orphans.Remove(d);
         ModInfo.Log.LogInfo($"[Config] removed {dead.Count} unused keys: {string.Join(", ", dead.Select(d => d.Section + "." + d.Key))}");
         cfg.Save();
     }
