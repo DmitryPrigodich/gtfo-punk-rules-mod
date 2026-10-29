@@ -329,26 +329,31 @@ public class Garage : ModuleBase
     }
 
     private static bool _uiHidden;
-    private static float _uiCheckAt;
 
-    /// <summary>The game's own "hide the loadout" (used for the clothes view) on every lobby bar; kept hidden while
-    /// the garage is open (an inventory update may show the cards again).</summary>
+    /// <summary>
+    /// The game's own "hide the loadout" (used for the clothes view) on every lobby bar. Hidden once on opening; while
+    /// the garage is open the game's own calls to show the cards again (bots' bars refresh now and then) are turned
+    /// into "hide" by a patch — re-hiding them from here made them blink.
+    /// </summary>
     private static void LobbyUi(bool show)
     {
-        if (show && !_uiHidden) return;
-        if (!show && _uiHidden && Time.unscaledTime < _uiCheckAt) return;
-        _uiCheckAt = Time.unscaledTime + 0.5f;
+        if (show == !_uiHidden) return;
+        _uiHidden = !show;
         try
         {
             foreach (var bar in CellMenu.CM_PlayerLobbyBar.instances)
-            {
-                if (bar == null) continue;
-                if (show) bar.HideLoadoutUI(false, true);
-                else if (!bar.m_loadoutHidden) bar.HideLoadoutUI(true, true);
-            }
-            _uiHidden = !show;
+                if (bar != null) bar.HideLoadoutUI(!show, true);
         }
-        catch (Exception e) { _uiHidden = false; ModInfo.Log.LogWarning($"[Garage] lobby UI: {e.Message}"); }
+        catch (Exception e) { ModInfo.Log.LogWarning($"[Garage] lobby UI: {e.Message}"); }
+    }
+
+    [HarmonyPatch(typeof(CellMenu.CM_PlayerLobbyBar), nameof(CellMenu.CM_PlayerLobbyBar.HideLoadoutUI))]
+    private static class Patch_HideLoadout
+    {
+        private static void Prefix(ref bool hide)
+        {
+            if (_uiHidden) hide = true;
+        }
     }
 
     private static (float, float) ParseXY(string v, float dx, float dy)

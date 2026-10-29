@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.33
+- Garage: the lobby loadout cards (bots' especially) blinked while the garage was open — the game shows a bar's cards again on its own refreshes and 0.9.32 hid them again every half second. Now they are hidden once, and while the garage is open the game's own "show the loadout" calls are turned into "hide".
+
 ## 0.9.32
 - Garage: the gun is seen turning (0.9.31 confirmed). While the garage is open, the players' loadout cards in the lobby are hidden with the game's own "hide loadout" (as in the clothes view) and come back when it closes. `[Garage] HideLobbyUi` (on by default).
 
