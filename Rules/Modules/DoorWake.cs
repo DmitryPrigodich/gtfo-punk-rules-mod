@@ -1,3 +1,4 @@
+using ChainedPuzzles;
 using Il2CppInterop.Runtime.InteropTypes;
 using Enemies;
 using LevelGeneration;
@@ -7,29 +8,33 @@ using UnityEngine;
 namespace GtfoPunk.Rules.Modules;
 
 /// <summary>
-/// The first security door is loud: the one leading out of the elevator zone wakes the sleepers around it when it opens
-/// (within WakeRadius, through walls) and stirs those further off (up to StirRadius) — the room behind it has to be
-/// cleared. Zones behind other closed doors don't hear it. The host makes the noise. AllDoors — every security door.
+/// Loud doors. A bioscan starts with the loudspeaker announcing it — that wakes the sleepers around the scan (within
+/// WakeRadius, through walls) and stirs those further off (up to StirRadius): the room has to be cleared before the scan
+/// can be done in peace. Optional (off by default): the first security door opening (or every one, AllDoors) and the
+/// elevator landing make the same noise. Zones behind closed doors don't hear it. The host makes the noise.
 /// </summary>
 public class DoorWake : ModuleBase
 {
     public override string Id => "DoorWake";
-    public override string Section => "Level.FirstDoor";
-    public override IReadOnlyList<string> OldSections => new[] { "Level.Elevator" };
-    public override string Description => "The first security door (out of the elevator zone) is loud: opening it wakes the sleepers around it. Host only.";
+    public override string Section => "Level.Doors";
+    public override IReadOnlyList<string> OldSections => new[] { "Level.FirstDoor", "Level.Elevator" };
+    public override string Description => "A bioscan's loudspeaker wakes the sleepers around it (the room has to be cleared first); optionally the first door opening and the elevator landing too. Host only.";
     public override ModuleSide Side => ModuleSide.Host;
     public override IReadOnlyList<string> ReplacedBy => Array.Empty<string>();
 
     private static ConfigEntry<float> _delay, _wake, _stir;
-    private static ConfigEntry<bool> _stirWakes, _all;
+    private static ConfigEntry<bool> _stirWakes, _all, _scan, _open, _elevator;
 
     protected override void OnBindConfig()
     {
-        _delay = Bind("Delay", 0.5f, "Seconds after the door has opened before the noise.");
-        _wake = BindMigrated(Section, "WakeRadius", 20f, "Sleepers within this distance (m) of the door wake up (through walls). 0 — none.", (Section, "WakeRadius", "25"));
-        _stir = BindMigrated(Section, "StirRadius", 40f, "Sleepers up to this distance (m) stir. 0 — none.", (Section, "StirRadius", "50"));
+        _scan = Bind("ScanStart", true, "A bioscan starting (the loudspeaker announces it) makes the noise around the scan.");
+        _open = Bind("DoorOpen", false, "The first security door (out of the elevator zone) makes the noise when it opens.");
+        _all = Bind("AllDoors", false, "DoorOpen: every security door, not only the first one.");
+        _elevator = Bind("ElevatorLanding", false, "The elevator landing makes the noise around the cage.");
+        _delay = Bind("Delay", 0.5f, "Seconds after the event before the noise (the loudspeaker).");
+        _wake = BindMigrated(Section, "WakeRadius", 15f, "Sleepers within this distance (m) wake up (through walls). 0 — none.", (Section, "WakeRadius", "20"), (Section, "WakeRadius", "25"));
+        _stir = BindMigrated(Section, "StirRadius", 35f, "Sleepers up to this distance (m) stir. 0 — none.", (Section, "StirRadius", "40"), (Section, "StirRadius", "50"));
         _stirWakes = Bind("StirWakes", false, "Stirred enemies get regular noise (may wake) instead of a pulse.");
-        _all = Bind("AllDoors", false, "Every security door is loud, not only the first one.");
     }
 
     protected override void OnEnable()
@@ -55,10 +60,30 @@ public class DoorWake : ModuleBase
                 bool first = IsFirst(__instance);
                 var z = __instance.Gate?.ProgressionSourceArea?.m_zone;
                 ModInfo.Log.LogInfo($"[DoorWake] security door opened, from {(z == null ? "?" : $"{z.m_layer?.m_type} {z.LocalIndex}")}{(first ? " — the first door" : "")}");
-                if (!_all.Value && !first) return;
+                if (!_open.Value || (!_all.Value && !first)) return;
                 _pending.Add((__instance.transform.position, Time.time + Math.Max(0f, _delay.Value)));
             }
             catch (Exception e) { ModInfo.Log.LogWarning($"[DoorWake] {e.Message}"); }
+        }
+    }
+
+    /// <summary>A bioscan starts (the host activates it): the noise around it.</summary>
+    [HarmonyPatch(typeof(ChainedPuzzleInstance), nameof(ChainedPuzzleInstance.MasterActivate))]
+    private static class Patch_Scan
+    {
+        private static void Postfix(ChainedPuzzleInstance __instance)
+        {
+            try
+            {
+                if (!_scan.Value || __instance == null || !SNet.IsMaster || !GameUtil.InLevel) return;
+                Vector3? pos = null;
+                try { var cores = __instance.m_chainedPuzzleCores; if (cores != null && cores.Length > 0) pos = ((Il2CppObjectBase)cores[0]).TryCast<Component>()?.transform.position; } catch { }
+                pos ??= __instance.m_parent != null ? __instance.m_parent.position : GameUtil.LocalAgent?.Position;
+                if (pos == null) return;
+                ModInfo.Log.LogInfo($"[DoorWake] bioscan started at {pos.Value}");
+                _pending.Add((pos.Value, Time.time + Math.Max(0f, _delay.Value)));
+            }
+            catch (Exception e) { ModInfo.Log.LogWarning($"[DoorWake] scan: {e.Message}"); }
         }
     }
 
@@ -73,7 +98,12 @@ public class DoorWake : ModuleBase
     private static void Tick()
     {
         if (!GameUtil.InLevel) { _inLevelAt = -1f; return; }
-        if (_inLevelAt < 0f) _inLevelAt = Time.time;
+        if (_inLevelAt < 0f)
+        {
+            _inLevelAt = Time.time;
+            // The elevator has landed (InLevel starts with the cage): the noise around it, if asked for.
+            if (_elevator.Value && SNet.IsMaster && GameUtil.LocalAgent != null) _pending.Add((GameUtil.LocalAgent.Position, Time.time + 3f));
+        }
         for (int i = _pending.Count - 1; i >= 0; i--)
         {
             if (Time.time < _pending[i].At) continue;
@@ -116,6 +146,6 @@ public class DoorWake : ModuleBase
                 raycastFirstNode = false,
             });
         }
-        ModInfo.Log.LogInfo($"[DoorWake] the door at {from} woke {woke} and stirred {stirred}");
+        ModInfo.Log.LogInfo($"[DoorWake] noise at {from}: woke {woke}, stirred {stirred}");
     }
 }

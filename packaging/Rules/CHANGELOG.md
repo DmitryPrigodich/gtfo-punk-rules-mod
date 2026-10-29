@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.42
+- **Loud bioscans** (what was meant all along): a security door's bioscan starting — the loudspeaker announcing it — wakes the sleepers within 15 m of the scan (through walls) and stirs those up to 35 m; clear the room before the scan. The door opening (0.9.41) and the elevator landing (0.9.40) are now options, off by default (`DoorOpen`, `AllDoors`, `ElevatorLanding`). `[Level.Doors]` (was `[Level.FirstDoor]` / `[Level.Elevator]`). Host only. Log: `[DoorWake]`.
+
 ## 0.9.41
 - **The first door is loud** (instead of 0.9.40's loud drop — a misunderstanding): opening the first security door, the one out of the elevator zone, wakes the sleepers within 20 m of it (through walls) and stirs those up to 40 m — the room behind it has to be cleared. `[Level.FirstDoor]` (was `[Level.Elevator]`), `AllDoors` — every security door. Host only. Log: `[DoorWake]`.
 

@@ -158,11 +158,13 @@
 - С 70% время от времени кашляешь (спящие в 10 м слышат; несколько раз подряд — могут проснуться) и картинка слегка дрожит.
 - `DisinfectionStrength` / `DisinfectionPauseMinutes` — ослабить дезинфекцию (по умолчанию выключено).
 
-## Громкая первая дверь
+## Громкий биоскан
 
-Открытие первой гермодвери (из зоны лифта) будит спящих вокруг неё — в 20 м, сквозь стены — и тревожит до 40 м: комнату
-за ней придётся зачистить. Зоны за другими закрытыми дверями не слышат. Только у хоста. `[Level.FirstDoor]` `Delay`,
-`WakeRadius`, `StirRadius`, `StirWakes`, `AllDoors` (каждая гермодверь).
+Когда у гермодвери начинается биоскан, громкоговоритель его объявляет — и это шум: спящие в 15 м от скана просыпаются
+(сквозь стены), до 35 м — тревожатся. Зачисти комнату, прежде чем начинать скан. Зоны за закрытыми дверями не слышат.
+По желанию (по умолчанию выключено): `DoorOpen` — открытие первой гермодвери (или любой, `AllDoors`) и `ElevatorLanding`
+— посадка лифта шумят так же. Только у хоста. `[Level.Doors]` `ScanStart`, `DoorOpen`, `AllDoors`, `ElevatorLanding`,
+`Delay`, `WakeRadius`, `StirRadius`, `StirWakes`.
 
 ## Скауты
 
@@ -200,7 +202,7 @@
 | `[Turrets.<Вид>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — описания в самом файле |
 | `[Weapons]` | `Enabled` (the kit's silenced guns) |
 | `[Weapons.Glukhar]`, `[Weapons.Tikhon]` | `Enabled`, `Name`, `Type`, `Body`, `Parts`, `Stats`, `SoundFrom`, `GripFrom`, `RateFrom`, `AmmoFrom`, `RecoilFrom`, `FireMode`, `Burst`, `BurstPause`, `ShotDelay`, `Damage`, `HeadMultiplier`, `FalloffFrom`, `FalloffTo`, `FalloffCurve`, `Magazine`, `Reserve`, `SpreadHip`, `SpreadAim`, `Silent`, `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls` |
-| `[Level.FirstDoor]` | `Enabled`, `Delay`, `WakeRadius`, `StirRadius`, `StirWakes`, `AllDoors` |
+| `[Level.Doors]` | `Enabled`, `ScanStart`, `DoorOpen`, `AllDoors`, `ElevatorLanding`, `Delay`, `WakeRadius`, `StirRadius`, `StirWakes` |
 | `[Weapons.Khlopushka]` | `Name`, `Type`, `Body`, `Parts`, `RecoilFrom`, `Magazine`, `Reserve`, `ShotDelay`, `GrenadeDamage`, `GrenadeRadius`, `GrenadeSpeed`, `GrenadeSize`, `Loft`, `Shake`, `ChargeTime`, `Silent`, `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
 | `[Items.Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
