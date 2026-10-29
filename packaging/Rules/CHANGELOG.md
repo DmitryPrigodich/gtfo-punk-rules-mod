@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.25
+- New module **Garage** — a weapon fitting room in the lobby, stage 1 (parts): equip **DRED GARAGE PROTOTYPE** in the main slot, press **F8**, ↑↓ — pick a part (front, receiver, stock, sight, magazine, flashlight), ←→ — change it; the gun in your hands is rebuilt at once. Each part shows which vanilla guns use it (or "unused in the game"). The combination is kept in `[Garage] Prototype`; Enter writes a ready line to `BepInEx/config/GtfoPunk.Garage.txt`. Next stages: stats and fire mode, then saving as a new gun.
+
 ## 0.9.24
 - Flashlight focus:
   - works on the **helmet light** too (melee, tools — anything without a gun light);

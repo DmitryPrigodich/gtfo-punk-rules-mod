@@ -156,6 +156,13 @@ delay=…, clip=…, spread=…'. Опция `ammo=<ствол>` — патро�
   разброс: одиночный на 30% кучнее, авто на 30% шире. Выключается, если стоит ExtraWeaponCustomization.
 - **V** — быстрый удар милишкой: нажать — толчок, держать — заряженный удар; потом оружие возвращается в руки.
 
+## Гараж (примерочная оружия)
+
+В лобби возьми **DRED GARAGE PROTOTYPE** в основной слот и нажми **F8**: ↑↓ — деталь (нос, коробка, приклад, прицел,
+магазин, фонарь), ←→ — сменить; ствол пересобирается сразу, у каждой детали написано, на каких ванильных стволах она
+стоит. Enter пишет строку для `MainGuns` / `[GarageGuns] Guns` в `BepInEx/config/GtfoPunk.Garage.txt`.
+`[Garage] Key`, `Prototype`.
+
 ## Фокус фонаря
 
 Держишь клавишу фонаря и крутишь колесо: уже — дальше и ярче, шире — светит вокруг, но ближе (5 положений от родного
@@ -181,6 +188,7 @@ delay=…, clip=…, spread=…'. Опция `ammo=<ствол>` — патро�
 | `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly`, `MainStatsFrom`, `MainSoundFrom`, `MainGuns`, `MainWeaponType` |
 | `[GarageGuns]` | `Guns` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
+| `[Garage]` | `Key`, `Prototype` |
 | `[Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
 | `[Infection]` | `Growth*`, `Cough*`, `Breath*`, `Tremor*`, `Disinfection*` |
 | `[ScoutKill]` | `ScreamChargeup`, `ChargeupDamage` |

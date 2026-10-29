@@ -159,10 +159,10 @@ public class SilencedGun : ModuleBase
     /// grip from the body), the burst option as the default mode. <paramref name="silent"/> — quiet shot
     /// (DRED SILENZIO); otherwise a normal loud gun (DRED BULL …). Option type= — the weapon type shown.
     /// </summary>
-    internal static void AddGun(string entry, bool silent, string keyPrefix, string defaultStats, string defaultType, uint? sound)
+    internal static uint AddGun(string entry, bool silent, string keyPrefix, string defaultStats, string defaultType, uint? sound)
     {
         var nameSplit = entry.Split(':', 2, StringSplitOptions.TrimEntries);
-        if (nameSplit.Length != 2) { ModInfo.Log.LogWarning($"[SilencedGun] can't parse '{entry}'"); return; }
+        if (nameSplit.Length != 2) { ModInfo.Log.LogWarning($"[SilencedGun] can't parse '{entry}'"); return 0; }
         var optSplit = nameSplit[1].Split('|', 2, StringSplitOptions.TrimEntries);
         var opt = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (optSplit.Length > 1)
@@ -173,12 +173,12 @@ public class SilencedGun : ModuleBase
             }
         var bodySplit = optSplit[0].Split('+', 2, StringSplitOptions.TrimEntries);
         var body = GearFactory.FindByName(bodySplit[0]);
-        if (body == null) { ModInfo.Log.LogWarning($"[SilencedGun] body '{bodySplit[0]}' not found"); return; }
+        if (body == null) { ModInfo.Log.LogWarning($"[SilencedGun] body '{bodySplit[0]}' not found"); return 0; }
         string statsName = opt.TryGetValue("stats", out var sn) ? sn : defaultStats;
         var statsGear = GearFactory.FindByName(statsName);
-        if (statsGear == null) { ModInfo.Log.LogWarning($"[SilencedGun] weapon '{statsName}' not found"); return; }
+        if (statsGear == null) { ModInfo.Log.LogWarning($"[SilencedGun] weapon '{statsName}' not found"); return 0; }
         var sc = GearFactory.GetComps(statsGear.GearJSON);
-        if (!sc.TryGetValue((int)eGearComponent.Category, out var statsCat)) return;
+        if (!sc.TryGetValue((int)eGearComponent.Category, out var statsCat)) return 0;
 
         // Keys from the gun's name: removing one variant doesn't move the others' IDs.
         string key = keyPrefix + new string(nameSplit[0].Where(char.IsLetterOrDigit).ToArray());
@@ -206,6 +206,7 @@ public class SilencedGun : ModuleBase
         if (bodySplit.Length > 1)
             foreach (var kv in GearFactory.ParseParts(bodySplit[1], "SilencedGun")) comps[kv.Key] = kv.Value;
         GearFactory.AddGear(body, key + "_Gun", nameSplit[0], comps);
+        return catId;
     }
 
     /// <summary>The category's burst archetype: a copy of its auto (or semi) one with the gun's burst numbers.</summary>

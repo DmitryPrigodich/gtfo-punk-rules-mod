@@ -159,6 +159,13 @@ The crawling "zoomer" scouts get a window too (while they charge the scream) —
   mode changes the spread: semi 30% tighter, auto 30% wider. Off if ExtraWeaponCustomization is installed.
 - **V** — quick melee: tap — shove, hold — charged hit; then your gun comes back.
 
+## Garage (weapon fitting room)
+
+In the lobby equip **DRED GARAGE PROTOTYPE** in the main slot and press **F8**: ↑↓ — part (front, receiver, stock,
+sight, magazine, flashlight), ←→ — change it; the gun is rebuilt at once, and each part shows which vanilla guns use it.
+Enter writes the line for `MainGuns` / `[GarageGuns] Guns` to `BepInEx/config/GtfoPunk.Garage.txt`. `[Garage] Key`,
+`Prototype`.
+
 ## Flashlight focus
 
 Hold the flashlight key and turn the mouse wheel: narrower — reaches further and brighter, wider — lights more around
@@ -184,6 +191,7 @@ wheel doesn't switch weapons while the key is held. Works on the helmet light to
 | `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly`, `MainStatsFrom`, `MainSoundFrom`, `MainGuns`, `MainWeaponType` |
 | `[GarageGuns]` | `Guns` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
+| `[Garage]` | `Key`, `Prototype` |
 | `[Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
 | `[Infection]` | `Growth*`, `Cough*`, `Breath*`, `Tremor*`, `Disinfection*` |
 | `[ScoutKill]` | `ScreamChargeup`, `ChargeupDamage` |
