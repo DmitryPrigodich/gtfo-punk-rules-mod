@@ -73,6 +73,24 @@ public static class ConfigMigration
         cfg.Save();
     }
 
+    /// <summary>A leftover (unbound) key's raw value, removed from the file; null if there's none.</summary>
+    public static string TakeOrphan(ConfigFile cfg, string section, string key)
+    {
+        var orphans = Orphans(cfg);
+        var def = new ConfigDefinition(section, key);
+        if (orphans == null || !orphans.TryGetValue(def, out var v)) return null;
+        orphans.Remove(def);
+        return v;
+    }
+
+    /// <summary>Sections that exist in the file but nothing has bound yet (e.g. guns saved by the garage).</summary>
+    public static List<string> OrphanSections(ConfigFile cfg, string prefix)
+    {
+        var orphans = Orphans(cfg);
+        if (orphans == null) return new List<string>();
+        return orphans.Keys.Select(k => k.Section).Where(s => s.StartsWith(prefix, StringComparison.Ordinal)).Distinct().ToList();
+    }
+
     /// <summary>Drops one leftover (unbound) key from the file.</summary>
     public static void DropKey(ConfigFile cfg, string section, string key)
     {

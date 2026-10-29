@@ -91,7 +91,7 @@ public partial class TurretVariants
         _hideGun = Bind("HideGun", true, "Hide the autocannon barrel on sentries that don't shoot bullets (the tripod and body stay).");
         _hideSensor = Bind("HideSensor", false, "Also hide the targeting sensor on those sentries (it may float in the air). The scan beam stays.");
         _battery = Bind("Battery", true, "Non-shooting sentries run on their ammo as a battery (see BatterySeconds of each kind); at zero they switch off. Recharge: pick up, tool refill, place again.");
-        _tagDamage = BindMigrated(Id, "TaggedDamageBonus", 1f, "Combat sentries vs tagged enemies (TB1, bio-tracker): extra damage and stagger multiplier (1 — as in the game).", (Id, "TaggedDamageBonus2", null));
+        _tagDamage = BindMigrated(Section, "TaggedDamageBonus", 1f, "Combat sentries vs tagged enemies (TB1, bio-tracker): extra damage and stagger multiplier (1 — as in the game).", (Section, "TaggedDamageBonus2", null));
         _tagTurn = Bind("TaggedTurnBonus", 1.5f, "Combat sentries vs tagged enemies: turning speed multiplier (they lock on faster).");
         _tagDelay = Bind("TaggedStartDelay", 0.5f, "Combat sentries vs tagged enemies: multiplier of the delay before opening fire (less — quicker).");
         _tagPrio = Bind("TaggedPriority", true, "Combat sentries prefer tagged enemies.");
@@ -185,7 +185,7 @@ public partial class TurretVariants
         _glAmmo = K(_grenade, "AmmoPerShot", 12f, "Sentry 'bullets' per grenade.", "GrenadeAmmoPerShot");
 
         // Old flat keys that weren't carried over are gone now.
-        ConfigMigration.DropOrphans(Config, Id);
+        ConfigMigration.DropOrphans(Config, Section);
         Config.Save();
     }
 
@@ -220,7 +220,7 @@ public partial class TurretVariants
     private ConfigEntry<T> K<T>(Kind k, string key, T def, string desc, string oldKey = null, string oldDefault = null)
     {
         if (oldKey == null) return BindIn(k.Section, key, def, desc);
-        return BindMigrated($"{Id}.{k.Section}", key, def, desc, (Id, oldKey, oldDefault ?? Serialize(def)));
+        return BindMigrated($"{Section}.{k.Section}", key, def, desc, (Section, oldKey, oldDefault ?? Serialize(def)));
     }
 
     private static string Serialize<T>(T v) => TomlTypeConverter.ConvertToString(v, typeof(T));

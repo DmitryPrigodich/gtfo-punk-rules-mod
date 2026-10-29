@@ -71,7 +71,7 @@ public partial class Loadout : ModuleBase
         BindIcons();
         BindGadgetHud();
         BindBoots();
-        ConfigMigration.DropOrphans(Config, Id); // GiveIntoBackpack, ItemPictures, ItemIcons, ThermalMaterial, ThermalDiagnostics …
+        ConfigMigration.DropOrphans(Config, Section); // GiveIntoBackpack, ItemPictures, ItemIcons, ThermalMaterial, ThermalDiagnostics …
     }
 
     protected override void OnEnable()

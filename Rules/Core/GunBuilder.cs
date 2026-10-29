@@ -17,6 +17,8 @@ namespace GtfoPunk.Rules.Core;
 /// the mode), damage, precision (head ×), falloff (from-to, m), shotdelay (s between shots), delay (pause between bursts, s),
 /// clip, cost (a round's share of the reserve), reserve (rounds the reserve holds — sets cost), rate=&lt;gun&gt; (that gun's shot delay),
 /// hip / aim (spread), spread (× both), ammo=&lt;gun&gt; (that gun's clip and cost), sound=&lt;gun&gt; (that gun's shot sound),
+/// grip=&lt;gun&gt; (that gun's hand grip; default the body's), recoil=&lt;gun&gt; (that gun's recoil), falloff0 / falloff1, desc.
+/// Numbers may be 'x1.2' — times the donor's value.
 /// type (weapon type shown above the name).</item>
 /// </list>
 /// </summary>
@@ -66,17 +68,38 @@ public class GunSpec
         return Opt.TryGetValue(key, out var s) && float.TryParse(s, NumberStyles.Float, Ci, out v);
     }
 
+    /// <summary>A numeric option: a number sets it, 'x1.2' (or '×1.2') multiplies the current value, empty — not set.</summary>
+    public bool Num(string key, float current, out float v)
+    {
+        v = current;
+        if (!Opt.TryGetValue(key, out var s) || string.IsNullOrWhiteSpace(s)) return false;
+        s = s.Trim();
+        if (s.StartsWith("x", StringComparison.OrdinalIgnoreCase) || s.StartsWith("×") || s.StartsWith("*"))
+        {
+            if (!float.TryParse(s.Substring(1).Trim(), NumberStyles.Float, Ci, out var k)) return false;
+            v = current * k;
+            return true;
+        }
+        return float.TryParse(s, NumberStyles.Float, Ci, out v);
+    }
+
     public static string F(float v) => v.ToString("0.###", Ci);
 }
 
 public static class GunBuilder
 {
     /// <summary>Builds the gun; returns its category ID (0 — failed). <paramref name="gear"/> — the new gear block.</summary>
-    public static uint AddGun(GunSpec spec, string keyPrefix, string defaultStats, string defaultType, out PlayerOfflineGearDataBlock gear)
+    public static uint AddGun(GunSpec spec, string keyPrefix, string defaultStats, string defaultType, out PlayerOfflineGearDataBlock gear,
+        string catKey = null, string gearKey = null)
     {
         gear = null;
         var body = GearFactory.FindByName(spec.Body);
-        if (body == null) { ModInfo.Log.LogWarning($"[Guns] body '{spec.Body}' not found"); return 0; }
+        if (body == null)
+        {
+            ModInfo.Log.LogWarning($"[Guns] body '{spec.Body}' not found — built on '{defaultStats}'");
+            body = GearFactory.FindByName(defaultStats);
+            if (body == null) return 0;
+        }
         string statsName = spec.Opt.TryGetValue("stats", out var sn) ? sn : defaultStats;
         var statsGear = GearFactory.FindByName(statsName);
         if (statsGear == null) { ModInfo.Log.LogWarning($"[Guns] stats donor '{statsName}' not found — the body's stats"); statsGear = body; }
@@ -84,15 +107,19 @@ public static class GunBuilder
         if (!sc.TryGetValue((int)eGearComponent.Category, out var statsCat)) return 0;
 
         // Keys from the gun's name: removing one gun doesn't move the others' IDs.
-        string key = keyPrefix + new string(spec.Name.Where(char.IsLetterOrDigit).ToArray());
-        string type = spec.Opt.TryGetValue("type", out var ty) ? ty : defaultType;
-        uint catId = GearFactory.CloneCategory(statsCat, key, string.Join(" ", spec.Name.Split(' ').Take(2)), null);
-        if (GearFactory.GetComps(body.GearJSON).TryGetValue((int)eGearComponent.Category, out var bodyCat) && bodyCat != statsCat)
-            CopyGrip(bodyCat, catId);
+        string key = catKey ?? keyPrefix + new string(spec.Name.Where(char.IsLetterOrDigit).ToArray());
+        string type = spec.Opt.TryGetValue("type", out var ty) && !string.IsNullOrWhiteSpace(ty) ? ty : defaultType;
+        uint catId = GearFactory.CloneCategory(statsCat, key, string.Join(" ", spec.Name.Split(' ').Take(2)), spec.Opt.TryGetValue("desc", out var desc) ? desc : null);
+        // The hand grip (pose, which part the left hand holds): from grip=<gun>, else from the body.
+        var gripGear = spec.Opt.TryGetValue("grip", out var gn) && !string.IsNullOrWhiteSpace(gn) ? GearFactory.FindByName(gn) : body;
+        if (gripGear == null) { ModInfo.Log.LogWarning($"[Guns] grip donor '{gn}' not found — the body's grip"); gripGear = body; }
+        if (GearFactory.GetComps(gripGear.GearJSON).TryGetValue((int)eGearComponent.Category, out var gripCat) && gripCat != statsCat)
+            CopyGrip(gripCat, catId);
+        bool special = sc.TryGetValue((int)eGearComponent.BaseItem, out var item) && GameDataBlockBase<ItemDataBlock>.GetBlock(item)?.inventorySlot == Player.InventorySlot.GearSpecial;
         // Lines written before the garage had modes (burst=N, no mode=): their burst was made from the donor's auto.
         bool legacyBurst = !spec.Opt.ContainsKey("mode") && spec.Opt.ContainsKey("burst");
         BuildArchetypes(catId, statsCat, key, type, legacyBurst);
-        var mode = ApplyOptions(catId, spec, out var log);
+        var mode = ApplyOptions(catId, spec, out var log, special);
         ModInfo.Log.LogInfo($"[Guns] {spec.Name}: stats of '{GearFactory.NameOf(statsGear)}', {log}");
 
         var comps = new Dictionary<int, uint?>
@@ -109,7 +136,7 @@ public static class GunBuilder
         }
         if (spec.Parts.Count > 0)
             foreach (var kv in GearFactory.ParseParts(string.Join(", ", spec.Parts.Select(p => $"{p.Comp}={p.Value}")), "Garage")) comps[kv.Key] = kv.Value;
-        gear = GearFactory.AddGear(body, key + "_Gun", spec.Name, comps);
+        gear = GearFactory.AddGear(body, gearKey ?? key + "_Gun", spec.Name, comps);
         return catId;
     }
 
@@ -162,8 +189,8 @@ public static class GunBuilder
         return id == 0 ? null : GameDataBlockBase<ArchetypeDataBlock>.GetBlock(id);
     }
 
-    /// <summary>Options into the default mode's archetype; returns that mode.</summary>
-    public static eWeaponFireMode ApplyOptions(uint catId, GunSpec spec, out string log)
+    /// <summary>Options into the default mode's archetype; returns that mode. Numbers: a value, or 'x1.2' — times the donor's.</summary>
+    public static eWeaponFireMode ApplyOptions(uint catId, GunSpec spec, out string log, bool special = false)
     {
         eWeaponFireMode mode = eWeaponFireMode.Auto;
         var statsGear = spec.Opt.TryGetValue("stats", out var sn) ? GearFactory.FindByName(sn) : null;
@@ -174,32 +201,48 @@ public static class GunBuilder
         var a = Archetype(catId, mode);
         if (a == null) { log = "no archetype"; return mode; }
 
-        if (spec.Opt.TryGetValue("ammo", out var ammoFrom) && AmmoDonor(ammoFrom) is { } ad) { a.CostOfBullet = ad.CostOfBullet; a.DefaultClipSize = ad.DefaultClipSize; }
-        if (spec.TryFloat("burst", out var b) && b >= 2) a.BurstShotCount = (int)b;
-        if (spec.TryFloat("delay", out var d)) a.BurstDelay = Math.Max(0.03f, d);
-        if (spec.Opt.TryGetValue("rate", out var rateFrom) && MainArchetype(rateFrom) is { } rd) a.ShotDelay = rd.ShotDelay;
-        if (spec.TryFloat("shotdelay", out var sd)) a.ShotDelay = Math.Max(0.01f, sd);
-        if (spec.TryFloat("damage", out var dm)) a.Damage = Math.Max(0.01f, dm);
-        if (spec.TryFloat("precision", out var pr)) a.PrecisionDamageMulti = Math.Max(0f, pr);
+        if (spec.Opt.TryGetValue("ammo", out var ammoFrom) && !string.IsNullOrWhiteSpace(ammoFrom) && AmmoDonor(ammoFrom) is { } ad) { a.CostOfBullet = ad.CostOfBullet; a.DefaultClipSize = ad.DefaultClipSize; }
+        if (spec.Opt.TryGetValue("rate", out var rateFrom) && !string.IsNullOrWhiteSpace(rateFrom) && MainArchetype(rateFrom) is { } rd) a.ShotDelay = rd.ShotDelay;
+        if (spec.Opt.TryGetValue("recoil", out var recoilFrom) && !string.IsNullOrWhiteSpace(recoilFrom) && MainArchetype(recoilFrom) is { } rc) a.RecoilDataID = rc.RecoilDataID;
+        float v;
+        if (spec.Num("burst", a.BurstShotCount, out v) && v >= 2) a.BurstShotCount = (int)Math.Round(v);
+        if (spec.Num("delay", a.BurstDelay, out v)) a.BurstDelay = Math.Max(0.03f, v);
+        if (spec.Num("shotdelay", a.ShotDelay, out v)) a.ShotDelay = Math.Max(0.01f, v);
+        if (spec.Num("damage", a.Damage, out v)) a.Damage = Math.Max(0f, v);
+        if (spec.Num("precision", a.PrecisionDamageMulti, out v)) a.PrecisionDamageMulti = Math.Max(0f, v);
+        var fall = a.DamageFalloff;
         if (spec.Opt.TryGetValue("falloff", out var fo))
         {
             var p = fo.Split('-', 2);
             if (p.Length == 2 && float.TryParse(p[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var f0)
-                && float.TryParse(p[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var f1)) a.DamageFalloff = new Vector2(f0, Math.Max(f0, f1));
+                && float.TryParse(p[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var f1)) fall = new Vector2(f0, f1);
         }
-        if (spec.TryFloat("clip", out var cl) && cl >= 1) a.DefaultClipSize = (int)cl;
-        if (spec.TryFloat("cost", out var co) && co > 0) a.CostOfBullet = co;
-        if (spec.TryFloat("reserve", out var rs) && rs >= 1 && MaxCap() > 0) a.CostOfBullet = MaxCap() / rs;
+        if (spec.Num("falloff0", fall.x, out v)) fall.x = Math.Max(0f, v);
+        if (spec.Num("falloff1", fall.y, out v)) fall.y = v;
+        a.DamageFalloff = new Vector2(fall.x, Math.Max(fall.x, fall.y));
+        if (spec.Num("clip", a.DefaultClipSize, out v) && v >= 1) a.DefaultClipSize = (int)Math.Round(v);
+        if (spec.Num("cost", a.CostOfBullet, out v) && v > 0) a.CostOfBullet = v;
+        float cap = MaxCap(special);
+        if (cap > 0 && spec.Num("reserve", cap / Math.Max(0.01f, a.CostOfBullet), out v) && v >= 1) a.CostOfBullet = cap / v;
         if (spec.TryFloat("spread", out var sp)) { a.HipFireSpread *= sp; a.AimSpread *= sp; }
-        if (spec.TryFloat("hip", out var hs)) a.HipFireSpread = Math.Max(0f, hs);
-        if (spec.TryFloat("aim", out var am)) a.AimSpread = Math.Max(0f, am);
-        log = $"{mode}" + (mode == eWeaponFireMode.Burst ? $" ×{a.BurstShotCount}" : "") + $" — damage {a.Damage:0.##} ×{a.PrecisionDamageMulti:0.##} head, falloff {a.DamageFalloff.x:0}-{a.DamageFalloff.y:0} m, shot delay {a.ShotDelay:0.###} s, burst pause {a.BurstDelay:0.##} s, clip {a.DefaultClipSize}, round cost {a.CostOfBullet:0.###}, spread {a.HipFireSpread:0.##}/{a.AimSpread:0.##}";
+        if (spec.Num("hip", a.HipFireSpread, out v)) a.HipFireSpread = Math.Max(0f, v);
+        if (spec.Num("aim", a.AimSpread, out v)) a.AimSpread = Math.Max(0f, v);
+        log = $"{mode}" + (mode == eWeaponFireMode.Burst ? $" ×{a.BurstShotCount}" : "") + $" — damage {a.Damage:0.##} ×{a.PrecisionDamageMulti:0.##} head, falloff {a.DamageFalloff.x:0}-{a.DamageFalloff.y:0} m, shot delay {a.ShotDelay:0.###} s, burst pause {a.BurstDelay:0.##} s, clip {a.DefaultClipSize} + {(cap > 0 ? cap / Math.Max(0.01f, a.CostOfBullet) : 0):0} reserve, spread {a.HipFireSpread:0.##}/{a.AimSpread:0.##}";
         return mode;
     }
 
     /// <summary>The main-slot ammo the player carries (in ammo units; a round costs CostOfBullet of them) and a full pack's share.</summary>
-    public static float MaxCap() => GameDataBlockBase<PlayerDataBlock>.GetBlock(1u)?.AmmoStandardMaxCap ?? 0;
-    public static float PackCap() => GameDataBlockBase<PlayerDataBlock>.GetBlock(1u)?.AmmoStandardResourcePackMaxCap ?? 0;
+    public static float MaxCap(bool special = false)
+    {
+        var p = GameDataBlockBase<PlayerDataBlock>.GetBlock(1u);
+        return p == null ? 0 : special ? p.AmmoSpecialMaxCap : p.AmmoStandardMaxCap;
+    }
+
+    public static float PackCap(bool special = false)
+    {
+        var p = GameDataBlockBase<PlayerDataBlock>.GetBlock(1u);
+        return p == null ? 0 : special ? p.AmmoSpecialResourcePackMaxCap : p.AmmoStandardResourcePackMaxCap;
+    }
 
     /// <summary>A gun's archetype in its own default fire mode.</summary>
     private static ArchetypeDataBlock MainArchetype(string name)

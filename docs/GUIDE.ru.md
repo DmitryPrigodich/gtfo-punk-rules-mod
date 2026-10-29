@@ -90,7 +90,7 @@
 - Взрывается после запала пеногранаты: радиус 8 м, урон 120 в центре (к краю меньше; **ранит и игроков**), огонь и дым
   мины, тряска камеры и шум на 30 м — будит и поднимает врагов.
 - Лежит в ящиках и шкафчиках уровня (`InLevels`, `SpawnWeight`); носится до 2 штук (`Stack`, то же для пеногранаты).
-- Настройки `[Grenades]`: `NameEn`, `NameRu`, `BlastRadius`, `BlastDamage`, `BlastEffect`, `BlastShake`, `BlastNoiseRadius`.
+- Настройки `[Items.Grenades]`: `NameEn`, `NameRu`, `BlastRadius`, `BlastDamage`, `BlastEffect`, `BlastShake`, `BlastNoiseRadius`.
 
 ## Турели
 
@@ -107,9 +107,9 @@
 | DRED GARAGE TGL3 | Grenade Sentry | Очереди по 3 гранаты на контакт (3,5 м, 40 урона), не стреляет рядом с игроками и ближе 4 м. Тратит патроны. |
 
 - Нестреляющие турели работают от своих патронов как от батареи; на нуле выключаются. Зарядка: поднять, заправить
-  пачкой инструмента, поставить снова (`[TurretVariants] Battery`).
+  пачкой инструмента, поставить снова (`[Turrets] Battery`).
 - Боевые турели (и штатные, и наши) предпочитают меченых врагов, быстрее к ним поворачиваются и раньше открывают огонь.
-- У каждой турели свой раздел `[TurretVariants.<Вид>]` с одинаковыми основными ключами: `Enabled`, `Name`, `Label`,
+- У каждой турели свой раздел `[Turrets.<Вид>]` с одинаковыми основными ключами: `Enabled`, `Name`, `Label`,
   `Type`, положение модели (`ModelOffset`, `ModelRotation`, `ModelScale`; `Parts` — где в люльке детали снаряжения),
   тёплая лампочка (`Bulb`, `BulbOffset`; гаснет вместе с батареей), `BatterySeconds` у нестреляющих — и свои числа.
   Бак пенотурели TCF3: `Tank` (модель предмета, "Fog Turbine" — бочка турбины), `TankMirror`, `TankModelOffset`,
@@ -120,24 +120,27 @@
 
 **DRED GLUKHAR S6** (тип "Silenced Pistol") — корпус Bataldo 3RB с верхом Mastaba, магазин и темп Shelling Arid 5,
 урон 15 (в голову убивает страйкера или стрелка, в тело — нет), звук S49. Выстрел будит спящих только в 10 м
-(`HardRadius`), до 25 м — тревожит (`SoftRadius`), дальше — тишина. Для продвинутых: `SilencedGuns` собирает оружие из
-деталей (ID — в `BepInEx/config/GtfoPunk.GearList.txt`).
+(`HardRadius`), до 25 м — тревожит (`SoftRadius`), дальше — тишина. У каждого ствола свой раздел с теми же ключами, что у любого оружия (`[Weapons.Glukhar]`, `[Weapons.Tikhon]`): имя,
+тип, основа и детали, доноры (статы, звук, хват, темп, патроны, отдача) и цифры — режим, очередь, задержки, урон,
+множитель в голову, спад, магазин, запас, разброс; пустое число — как у донора статов, `x1.2` — умножить. Радиусы тихого
+выстрела — `[Weapons.Silent]`.
 
-**DRED TIKHON-A 20S** (основной слот, тип "Silenced Rifle") — тот же тихий выстрел (звук Raptus Treffen 2): нос и статы
-Pres MOD 556, коробка Receiver_Rifle_3, приклад Köning PR 11, Sight_23, короткий магазин 556, фонарь B; темп TR22 Hanaway,
-очередь по 2, **20 в магазине, 100 в запасе**, урон 3,6 — обе пули в голову убивают страйкера, очередь в тело — нет
-(полный урон до 30 м). `Rifle` (формат строк GtfoPunk Weapons), `RifleSoundFrom`.
+**DRED TIKHON-A 20S** (основной слот, тип "Silenced Rifle") — тот же тихий выстрел (звук Raptus Treffen 2): нос Pres MOD
+556, коробка Receiver_Rifle_3, приклад Köning PR 11, Sight_23, короткий магазин 556, фонарь B; лёгкая быстрая **очередь
+по 3** с темпом Van Auken LTC5, **24 в магазине, 120 в запасе**, урон 2,4 — три в голову убивают страйкера, очередь в
+тело — нет (полный урон до 25 м).
 
 Необязательные стволы — DRED ASSASSIN SMG-SA, DRED ASSASSIN AR-S, DRED BULL GOLORAT-2 — и примерочная оружия (F8 в лобби) — в отдельном моде **GtfoPunk Weapons**: оружие, которое часть геймплея пака, — здесь, необязательное — там.
 
 ## Гранатомёт
 
-**DRED KHLOPUSHKA GL-10** (спецслот, тип "Grenade Launcher") — на основе Omneco LRG: нос Buckland AF6, пулемётная коробка
-Omneco, приклад и открытый прицел Buckland XDist2, барабан TechMan Klust 6, фонарь E. Каждый выстрел навесом кидает одну
-маленькую гранату на контакт — как у турели TGL3, чуть слабее: **35 урона в центре, радиус 3,5 м**, к краю слабее
-(страйкер умирает примерно в 1,5 м от взрыва, большому нужно около четырёх прямых попаданий). Одиночными (0,6 с),
-**10 в магазине, 30 в запасе**. Взрыв громкий и ранит своих — в упор не стреляй. Боты носят, но гранатами не стреляют.
-`[GrenadeLauncher]` `Magazine`, `Reserve`, `ShotDelay`, `Damage`, `Radius`, `Speed`, `Loft`, `Name`, `Body`, `Parts`.
+**DRED KHLOPUSHKA GL-10** (спецслот, тип "Grenade Launcher") — на основе TechMan Klust 6 (обычный прицел по мушке):
+нос Buckland AF6, пулемётная коробка Omneco, приклад и открытый прицел Buckland XDist2, барабан Klust 6, фонарь E. Каждый
+выстрел навесом кидает одну крошечную гранату на контакт — как у турели TGL3, чуть слабее: **35 урона в центре, радиус
+3,5 м**, к краю слабее (страйкер умирает примерно в 1,5 м от взрыва, большому нужно около четырёх прямых попаданий).
+Одиночными, **1,2 с** между выстрелами, отдача как у дробовика под пулю и встряска камеры; **10 в магазине, 30 в
+запасе**. Взрыв громкий и ранит своих — в упор не стреляй. Боты носят, но гранатами не стреляют. `[Weapons.Khlopushka]`:
+`Name`, `Type`, `Body`, `Parts`, `RecoilFrom`, `Magazine`, `Reserve`, `ShotDelay`, `GrenadeDamage`, `GrenadeRadius`, `GrenadeSpeed`, `GrenadeSize`, `Loft`, `Shake`.
 
 ## Шприцы-усилители
 
@@ -183,13 +186,14 @@ Omneco, приклад и открытый прицел Buckland XDist2, бар�
 | `[Loadout.BioTracker]` | `Range`, `ThroughWalls`, `Sound`, `SweepSeconds` |
 | `[Loadout.Thermal]` | `Zoom`, `ZoomLevels`, `ZoomKey`, `Palette`, `PaletteKey`, `Noise`, `Glitch`, `Reticle`, `Distance` |
 | `[Loadout.SoftBoots]` | `FallDamage`, `FallHeight`, `RunSpeed` |
-| `[Grenades]` | `NameEn`, `NameRu`, `InLevels`, `SpawnWeight`, `Stack`, `BlastRadius`, `BlastDamage`, `BlastEffect`, `BlastShake`, `BlastNoiseRadius`, `TurretRadius`, `TurretDamage`, `TurretFuse`, `TurretProximity`, `BounceOffEnemies` |
-| `[TurretVariants]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
-| `[TurretVariants.<Вид>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — описания в самом файле |
-| `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly`, `Rifle`, `RifleSoundFrom` |
-| `[GrenadeLauncher]` | `Name`, `WeaponType`, `Body`, `Parts`, `Magazine`, `Reserve`, `ShotDelay`, `Damage`, `Radius`, `Speed`, `Loft` |
+| `[Items.Grenades]` | `NameEn`, `NameRu`, `InLevels`, `SpawnWeight`, `Stack`, `BlastRadius`, `BlastDamage`, `BlastEffect`, `BlastShake`, `BlastNoiseRadius`, `TurretRadius`, `TurretDamage`, `TurretFuse`, `TurretProximity`, `BounceOffEnemies` |
+| `[Turrets]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
+| `[Turrets.<Вид>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — описания в самом файле |
+| `[Weapons.Silent]` | `HardRadius`, `SoftRadius`, `SoftIsPulseOnly` |
+| `[Weapons.Glukhar]`, `[Weapons.Tikhon]` | `Enabled`, `Name`, `Type`, `Silent`, `Body`, `Parts`, `Stats`, `SoundFrom`, `GripFrom`, `RateFrom`, `AmmoFrom`, `RecoilFrom`, `FireMode`, `Burst`, `BurstPause`, `ShotDelay`, `Damage`, `HeadMultiplier`, `FalloffFrom`, `FalloffTo`, `Magazine`, `Reserve`, `SpreadHip`, `SpreadAim` |
+| `[Weapons.Khlopushka]` | `Name`, `Type`, `Body`, `Parts`, `RecoilFrom`, `Magazine`, `Reserve`, `ShotDelay`, `GrenadeDamage`, `GrenadeRadius`, `GrenadeSpeed`, `GrenadeSize`, `Loft`, `Shake` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
-| `[Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
+| `[Items.Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
 | `[Infection]` | `Growth*`, `Cough*`, `Breath*`, `Tremor*`, `Disinfection*` |
 | `[ScoutKill]` | `ScreamChargeup`, `ChargeupDamage` |
 | `[FireModes]` | `Key`, `Modes`, `BurstShots`, `BurstDelay`, `SemiSpread`, `AutoSpread`, `BurstForAll` |

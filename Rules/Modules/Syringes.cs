@@ -20,6 +20,8 @@ namespace GtfoPunk.Rules.Modules;
 public class Syringes : ModuleBase
 {
     public override string Id => "Syringes";
+    public override string Section => "Items.Syringes";
+    public override IReadOnlyList<string> OldSections => new[] { "Syringes" };
     public override string Description => "Booster syringes lie where artifacts used to be; injecting one gives random booster effects for 5 minutes. Everyone needs it.";
     public override ModuleSide Side => ModuleSide.Everyone;
 

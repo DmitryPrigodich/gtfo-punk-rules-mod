@@ -21,7 +21,7 @@ public class DoorAlarms : ModuleBase
     protected override void OnBindConfig()
     {
         _keepScripted = Bind("KeepScriptedDoors", true, "Doors with scripted scans (events on scan start / done), apex and checkpoint doors keep the game's own alarm — changing them can break the level's script.");
-        ConfigMigration.DropOrphans(Config, Id); // MaxAlarmClass → Difficulty (after binding — otherwise it drops the keys above)
+        ConfigMigration.DropOrphans(Config, Section); // MaxAlarmClass → Difficulty (after binding — otherwise it drops the keys above)
     }
 
     protected override void OnEnable()

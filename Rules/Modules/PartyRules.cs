@@ -52,7 +52,7 @@ public class PartyRules : ModuleBase
     {
         _panel = Bind("LobbyPanel", true, "Show the rules panel in the lobby (the host changes the rules there).");
         _infoSize = Bind("DescriptionSize", 0.42f, "Size of the text next to a rule button (what the value means), relative to the button's text.");
-        ConfigMigration.DropOrphans(Config, Id); // PanelPosition (0.9.2) had a broken default
+        ConfigMigration.DropOrphans(Config, Section); // PanelPosition (0.9.2) had a broken default
     }
 
     protected override void OnEnable()

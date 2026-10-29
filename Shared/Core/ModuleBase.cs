@@ -15,8 +15,14 @@ namespace GtfoPunk.Core;
 /// </summary>
 public abstract class ModuleBase
 {
-    /// <summary>Unique ID, also the config section name. Latin letters, no spaces.</summary>
+    /// <summary>Unique ID (and the config section name unless <see cref="Section"/> says otherwise). Latin letters, no spaces.</summary>
     public abstract string Id { get; }
+
+    /// <summary>The module's config section (e.g. "Turrets", "Items.Grenades"); sub-sections are "[Section.sub]".</summary>
+    public virtual string Section => Id;
+
+    /// <summary>Sections the module's settings lived in before: their values are carried over once and the old keys dropped.</summary>
+    public virtual IReadOnlyList<string> OldSections => Array.Empty<string>();
 
     /// <summary>Description for the config.</summary>
     public abstract string Description { get; }
@@ -50,7 +56,7 @@ public abstract class ModuleBase
             ModuleSide.Everyone => "must be installed by EVERY player",
             _ => "",
         };
-        EnabledEntry = config.Bind(Id, "Enabled", EnabledByDefault, $"{Description}\n[{sideText}]");
+        EnabledEntry = BindMigrated(Section, "Enabled", EnabledByDefault, $"{Description}\n[{sideText}]");
         OnBindConfig();
     }
 
@@ -58,23 +64,46 @@ public abstract class ModuleBase
     protected virtual void OnBindConfig() { }
 
     protected ConfigEntry<T> Bind<T>(string key, T defaultValue, string description)
-        => Config.Bind(Id, key, defaultValue, description);
+        => BindMigrated(Section, key, defaultValue, description);
 
     /// <summary>A setting in a sub-section of the module ("[Id.sub]") — for modules with several similar parts.</summary>
     protected ConfigEntry<T> BindIn<T>(string sub, string key, T defaultValue, string description)
-        => Config.Bind($"{Id}.{sub}", key, defaultValue, description);
+        => BindMigrated($"{Section}.{sub}", key, defaultValue, description);
 
     /// <summary>
     /// A setting that replaces older keys: on its first appearance it takes the player's value from the first old key
     /// found in the file (unless that value is just the old default). Old keys are removed from the file.
     /// </summary>
     protected ConfigEntry<T> BindMigrated<T>(string section, string key, T defaultValue, string description, params (string Section, string Key, string OldDefault)[] old)
-        => ConfigMigration.Bind(Config, section, key, defaultValue, description, old);
+    {
+        // The same key in the module's old sections, and the given old keys there too.
+        var all = new List<(string Section, string Key, string OldDefault)>(old);
+        foreach (var o in OldSections)
+        {
+            foreach (var x in old)
+            {
+                string m = MapToOld(x.Section, o);
+                if (m != null) all.Add((m, x.Key, x.OldDefault));
+            }
+            // The same key there — unless an old key above already names it (with its old default).
+            string mapped = MapToOld(section, o);
+            if (mapped != null && !all.Any(t => t.Section == mapped && t.Key == key)) all.Add((mapped, key, null));
+        }
+        return ConfigMigration.Bind(Config, section, key, defaultValue, description, all.ToArray());
+    }
+
+    /// <summary>"[Section]" / "[Section.sub]" as they were in an old section ("[old]" / "[old.sub]"); null — not the module's.</summary>
+    private string MapToOld(string section, string old)
+    {
+        if (section == Section) return old;
+        if (section.StartsWith(Section + ".", StringComparison.Ordinal)) return old + section.Substring(Section.Length);
+        return null;
+    }
 
     /// <summary>A setting moved from the module's own section into "[Id.sub]" (and maybe renamed): the player's old
     /// value is carried over and the old key is removed.</summary>
     protected ConfigEntry<T> BindMoved<T>(string sub, string key, T defaultValue, string description, string oldKey)
-        => ConfigMigration.Bind(Config, $"{Id}.{sub}", key, defaultValue, description, (Id, oldKey, null));
+        => BindMigrated($"{Section}.{sub}", key, defaultValue, description, (Section, oldKey, null));
 
     internal void Enable()
     {

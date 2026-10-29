@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.38
+- **Config, one scheme everywhere**: `[Turrets]` / `[Turrets.<Kind>]` (were `[TurretVariants…]`), `[Items.Grenades]`, `[Items.Syringes]`, and one section per gun with the same keys as every gun — `[Weapons.Glukhar]`, `[Weapons.Tikhon]`, `[Weapons.Khlopushka]` (+ `[Weapons.Silent]` for the quiet shot's radii). Gun keys: Name, Type, Silent, Body, Parts, Stats, SoundFrom, GripFrom, RateFrom, AmmoFrom, RecoilFrom, FireMode, Burst, BurstPause, ShotDelay, Damage, HeadMultiplier, FalloffFrom, FalloffTo, Magazine, Reserve, SpreadHip, SpreadAim — an empty number keeps the stats donor's, `x1.2` multiplies it. Your values are carried over from the old sections once.
+- **DRED TIKHON-A 20S**: the 2-round burst kicked — a striker flinched after the first round and the second missed. Now a light, fast SMG burst of 3 (Van Auken LTC5's rate and recoil), 2.4 a round (three in the head kill a striker), **24 in a magazine, 120 in the reserve**.
+- **DRED KHLOPUSHKA GL-10**: built on the TechMan Klust 6 — plain iron-sight aim (on the Omneco LRG it aimed like a scope); the grenade flies much smaller; 1.2 s between shots (was 0.6); a slug shotgun's kick (`RecoilFrom`) and a camera shake (`Shake`).
+- Shared core: a module's config section may differ from its id, with old sections carried over.
+
 ## 0.9.37
 - The rule: guns that are part of the game's kit live here, optional ones in GtfoPunk Weapons. **DRED TIKHON-A 20S** (silenced rifle) moved in from Weapons: `[SilencedGun] Rifle`, `RifleSoundFrom`; the same gear ID. Pres MOD 556 front and stats, Receiver_Rifle_3, Köning PR 11 stock, Sight_23, short 556 magazine; Hanaway's rate, a 2-round burst, 20 + 100 rounds, 3.6 a round (both in the head kill a striker); quiet shot.
 

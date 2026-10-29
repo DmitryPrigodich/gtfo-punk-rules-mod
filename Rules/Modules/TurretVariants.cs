@@ -20,6 +20,8 @@ namespace GtfoPunk.Rules.Modules;
 public partial class TurretVariants : ModuleBase
 {
     public override string Id => "TurretVariants";
+    public override string Section => "Turrets";
+    public override IReadOnlyList<string> OldSections => new[] { "TurretVariants" };
     public override string Description => "New sentries: DRED GARAGE TL1 (searchlight), TF I / TF II (fog repellers), TB1 (bio-tracker), TCF3 (foam), TGL3 (grenades). Everyone needs it.";
     public override ModuleSide Side => ModuleSide.Everyone;
 

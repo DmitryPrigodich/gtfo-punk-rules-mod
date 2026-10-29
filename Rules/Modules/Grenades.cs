@@ -18,6 +18,8 @@ namespace GtfoPunk.Rules.Modules;
 public class Grenades : ModuleBase
 {
     public override string Id => "Grenades";
+    public override string Section => "Items.Grenades";
+    public override IReadOnlyList<string> OldSections => new[] { "Grenades" };
     public override string Description => "Frag grenade (a C-Foam Grenade that explodes) among level consumables; grenades for the TGL3 sentry. Everyone needs it.";
     public override ModuleSide Side => ModuleSide.Everyone;
 
@@ -36,6 +38,8 @@ public class Grenades : ModuleBase
     /// <summary>The launcher's grenade: blast radius (m) and damage at the center (set by GrenadeLauncher).</summary>
     internal static float LauncherRadius = 3f;
     internal static int LauncherDamage = 30;
+    /// <summary>The launcher's grenade flies smaller than the sentry's.</summary>
+    internal static float LauncherScale = 0.45f;
 
     private static ConfigEntry<bool> _inLevels, _hitEnemies, _blastFx;
     private static ConfigEntry<float> _proximity, _noiseRadius, _shake;
@@ -50,8 +54,8 @@ public class Grenades : ModuleBase
         _inLevels = Bind("InLevels", true, "Grenades show up in levels among consumables (boxes, lockers).");
         _weight = Bind("SpawnWeight", 0.6f, "How often a grenade shows up: share of the average consumable weight in the level distribution (1 — like a regular consumable).");
         _stack = Bind("Stack", 2, "How many grenades (and C-Foam Grenades) a player can carry; a level pickup holds 1. 0 — as in the game.");
-        _handRadius = BindMigrated(Id, "BlastRadius", 8f, "Grenade blast radius (m).", (Id, "HandBlastRadius", "8"));
-        _handDamage = BindMigrated(Id, "BlastDamage", 120f, "Grenade damage at the blast center (falls off towards the edge; hurts players too).", (Id, "HandBlastDamage", "120"));
+        _handRadius = BindMigrated(Section, "BlastRadius", 8f, "Grenade blast radius (m).", (Section, "HandBlastRadius", "8"));
+        _handDamage = BindMigrated(Section, "BlastDamage", 120f, "Grenade damage at the blast center (falls off towards the edge; hurts players too).", (Section, "HandBlastDamage", "120"));
         _blastFx = Bind("BlastEffect", true, "Explosions look and sound like a mine going off (fire, smoke, light, sound).");
         _shake = Bind("BlastShake", 1f, "Camera shake from a grenade explosion (0 — none; sentry grenades shake half as much).");
         _noiseRadius = Bind("BlastNoiseRadius", 30f, "A grenade explosion wakes and alerts enemies within this radius (m; sentry grenades — half). 0 — no extra noise.");
@@ -60,7 +64,7 @@ public class Grenades : ModuleBase
         _turretFuse = Bind("TurretFuse", 0f, "Sentry grenade fuse after impact (s). 0 — on contact.");
         _proximity = Bind("TurretProximity", 0.8f, "Sentry grenades explode when they fly within this distance of an enemy (m). 0 — off.");
         _hitEnemies = Bind("BounceOffEnemies", true, "Sentry grenades hit enemies instead of flying through them.");
-        ConfigMigration.DropOrphans(Config, Id); // HandModels, HandDelay, DiagnosticDump (0.9.x)
+        ConfigMigration.DropOrphans(Config, Section); // HandModels, HandDelay, DiagnosticDump (0.9.x)
     }
 
     protected override void OnEnable()
@@ -469,6 +473,7 @@ public class Grenades : ModuleBase
         {
             _turretGrenades.Add(g.Pointer);
             if (_proximity.Value > 0f) _armed.Add((g, Time.time + 0.15f));
+            if (launcher) try { g.transform.localScale *= LauncherScale; } catch { }
             g.m_grenadeExplosionRadius = launcher ? LauncherRadius : _turretRadius.Value;
             g.m_grenadeMaxDamage = launcher ? LauncherDamage : (int)_turretDamage.Value;
             g.m_grenadeExplosionDelay = Math.Max(0f, _turretFuse.Value);

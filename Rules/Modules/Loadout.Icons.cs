@@ -13,8 +13,8 @@ public partial class Loadout
 
     private void BindIcons()
     {
-        _iconSize = BindMigrated(Id, "IconSize", 24f, "Size of the icons in the lobby slots, relative to the slot's \"+\" mark.",
-            (Id, "SlotIconSize", null), (Id, "LobbyIconSize", "12"));
+        _iconSize = BindMigrated(Section, "IconSize", 24f, "Size of the icons in the lobby slots, relative to the slot's \"+\" mark.",
+            (Section, "SlotIconSize", null), (Section, "LobbyIconSize", "12"));
     }
 
     /// <summary>Picture keys of the gadgets (no item IDs of their own).</summary>
