@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.27
+- Garage: the prototype is taken from the game's own main-slot list (0.9.25–0.9.26 looked in the lobby backpack and didn't find it — "no prototype"); **F8 puts it in your hands** and opens the panel. Keys: **W S** — part, **A D** — change it (↑↓ and , . work too).
+
 ## 0.9.26
 - Garage: parts change with **< >** (comma, period) — ← → move the lobby camera; the prototype is also found through the game's "last equipped" gear if the lobby backpack doesn't have it; a log line when no prototype is found in the main slot.
 
