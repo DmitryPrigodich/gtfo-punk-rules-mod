@@ -240,20 +240,45 @@ public class Garage : ModuleBase
 
     private static float _spin;
 
+    /// <summary>The local player's model in the lobby — the gun goes on its layer, at its depth (the lobby lights it there).</summary>
+    private static GameObject LocalModel()
+    {
+        try
+        {
+            foreach (var bar in CellMenu.CM_PlayerLobbyBar.instances)
+                if (bar?.m_player != null && bar.m_player.IsLocal && bar.m_playerModel != null) return bar.m_playerModel;
+        }
+        catch { }
+        return null;
+    }
+
+    private static bool _diagLogged;
+
     private static void PreviewTick()
     {
         if (_preview == null) return;
         var cam = LobbyCamera();
         if (cam == null) return;
-        if (!_layerSet)
+        var model = LocalModel();
+        var renderers = _preview.GetComponentsInChildren<Renderer>(true);
+        if (!_layerSet && renderers.Length > 0)
         {
             _layerSet = true;
-            int layer = (cam.cullingMask & 1) != 0 ? 0 : Enumerable.Range(0, 32).FirstOrDefault(i => (cam.cullingMask & (1 << i)) != 0);
+            var mr = model != null ? model.GetComponentInChildren<Renderer>(true) : null;
+            int layer = mr != null ? mr.gameObject.layer : (cam.cullingMask & 1) != 0 ? 0 : Enumerable.Range(0, 32).FirstOrDefault(i => (cam.cullingMask & (1 << i)) != 0);
             foreach (var tr in _preview.GetComponentsInChildren<Transform>(true)) tr.gameObject.layer = layer;
-            ModInfo.Log.LogInfo($"[Garage] preview on camera '{cam.name}', layer {layer} '{LayerMask.LayerToName(layer)}', renderers {_preview.GetComponentsInChildren<Renderer>(true).Length}");
+            if (model != null && model.transform.parent != null) _preview.transform.SetParent(model.transform.parent, true); // in the lobby scene, like the players
+            _preview.transform.localScale = Vector3.one * 1.6f;
+            if (!_diagLogged)
+            {
+                _diagLogged = true;
+                ModInfo.Log.LogInfo($"[Garage] preview: camera '{cam.name}' at {cam.transform.position}, model {(model != null ? $"'{model.name}' at {model.transform.position}, layer {layer} '{LayerMask.LayerToName(layer)}'" : "not found")}, renderers {renderers.Length}");
+            }
         }
+        foreach (var r in renderers) if (r != null && !r.enabled) r.enabled = true; // the gear keeps its parts hidden until wielded
+        float depth = model != null ? Math.Max(0.8f, Vector3.Dot(model.transform.position - cam.transform.position, cam.transform.forward) * 0.75f) : 2f;
         var t = _preview.transform;
-        t.position = cam.ViewportToWorldPoint(new Vector3(0.7f, 0.5f, 1.3f));
+        t.position = cam.ViewportToWorldPoint(new Vector3(0.68f, 0.55f, depth));
         _spin = (_spin + Time.unscaledDeltaTime * 30f) % 360f;
         t.rotation = Quaternion.LookRotation(cam.transform.right, cam.transform.up) * Quaternion.Euler(0f, _spin, 0f);
     }

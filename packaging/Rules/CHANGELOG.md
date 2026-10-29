@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.29
+- Garage preview: the gun was assembled (log: 23–26 renderers) but not seen — it stood too close to the camera, on a layer of its own, with its parts hidden as gear is until wielded. Now it goes into the lobby scene next to the players, on their layer, at about their depth, ×1.6, with every part shown. Log: `[Garage] preview: camera …, model …`.
+
 ## 0.9.28
 - Garage: the gun is shown **turning on the right side of the screen** (the lobby characters don't hold their guns): the third-person model is assembled again on every part change and stands in front of the lobby camera; the panel stays on the left. Log: `[Garage] preview on camera …`.
 
