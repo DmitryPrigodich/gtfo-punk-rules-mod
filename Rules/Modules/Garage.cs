@@ -8,7 +8,8 @@ namespace GtfoPunk.Rules.Modules;
 /// <summary>
 /// The garage — a weapon fitting room in the lobby (stage 1: parts). A test gun "DRED GARAGE PROTOTYPE" is added to
 /// the main-slot weapons; equip it, press the garage key (F8) and step through its parts — front, receiver, stock,
-/// sight, magazine, flashlight — with the arrow keys: the gun in your hands in the lobby is rebuilt at once.
+/// sight, magazine, flashlight — ↑↓ picks a part, &lt; &gt; (comma, period) change it (← → move the lobby camera):
+/// the gun in your hands in the lobby is rebuilt at once.
 /// The combination is remembered in [Garage] Prototype (the same format as SilencedGun.MainGuns), and Enter writes a
 /// ready config line to BepInEx/config/GtfoPunk.Garage.txt.
 /// The prototype is gear like any other: everyone needs the mod (the others build it from your parts too).
@@ -16,7 +17,7 @@ namespace GtfoPunk.Rules.Modules;
 public class Garage : ModuleBase
 {
     public override string Id => "Garage";
-    public override string Description => "Weapon fitting room in the lobby: equip DRED GARAGE PROTOTYPE, press F8, step through its parts with the arrow keys. Everyone needs it.";
+    public override string Description => "Weapon fitting room in the lobby: equip DRED GARAGE PROTOTYPE, press F8, ↑↓ — part, < > — change it. Everyone needs it.";
     public override ModuleSide Side => ModuleSide.Everyone;
     public override IReadOnlyList<string> ReplacedBy => Array.Empty<string>();
 
@@ -94,6 +95,7 @@ public class Garage : ModuleBase
     private static bool _open, _hooked;
     private static int _row;
     private static string _status = "";
+    private static int _missLogs;
 
     private static void Tick()
     {
@@ -111,27 +113,37 @@ public class Garage : ModuleBase
         if (!_open) return;
         if (Input.GetKeyDown(KeyCode.UpArrow)) _row = (_row + _rows.Count - 1) % _rows.Count;
         if (Input.GetKeyDown(KeyCode.DownArrow)) _row = (_row + 1) % _rows.Count;
-        if (Input.GetKeyDown(KeyCode.LeftArrow)) Step(-1);
-        if (Input.GetKeyDown(KeyCode.RightArrow)) Step(+1);
+        // ← → move the lobby camera — the parts change with , and . (the < > keys)
+        if (Input.GetKeyDown(KeyCode.Comma)) Step(-1);
+        if (Input.GetKeyDown(KeyCode.Period)) Step(+1);
         if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)) WriteLine();
     }
 
-    /// <summary>The prototype in the local player's main slot (null if another gun is equipped there).</summary>
+    /// <summary>The prototype in the local player's main slot (null if another gun is equipped there): the backpack's
+    /// gear, or else the gear the game remembers as equipped in the slot.</summary>
     private static GearIDRange Prototype()
     {
+        GearIDRange g = null;
         try
         {
             var bp = PlayerBackpackManager.LocalBackpack;
-            if (bp == null || !bp.TryGetBackpackItem(InventorySlot.GearStandard, out BackpackItem item) || item?.GearIDRange == null) return null;
-            return item.GearIDRange.GetCompID(eGearComponent.Category) == _protoCat ? item.GearIDRange : null;
+            if (bp != null && bp.TryGetBackpackItem(InventorySlot.GearStandard, out BackpackItem item)) g = item?.GearIDRange;
         }
-        catch { return null; }
+        catch { }
+        if (g == null || g.GetCompID(eGearComponent.Category) != _protoCat)
+            try { g = GearManager.Current?.m_lastEquippedGearPerSlot?[(int)InventorySlot.GearStandard]; } catch { g = null; }
+        return g != null && g.GetCompID(eGearComponent.Category) == _protoCat ? g : null;
     }
 
     private static void Step(int dir)
     {
         var gear = Prototype();
-        if (gear == null) { _status = Lang.T($"Equip {ProtoName} in the main slot", $"Возьми {ProtoName} в основной слот"); return; }
+        if (gear == null)
+        {
+            _status = Lang.T($"Equip {ProtoName} in the main slot", $"Возьми {ProtoName} в основной слот");
+            if (_missLogs++ < 3) ModInfo.Log.LogInfo($"[Garage] no prototype in the main slot (category {_protoCat})");
+            return;
+        }
         var row = _rows[_row];
         if (row.Parts.Count == 0) return;
         uint cur = gear.GetCompID(row.Comp);
@@ -192,7 +204,7 @@ public class Garage : ModuleBase
         var old = GUI.color;
         GUI.color = new Color(0f, 0f, 0f, 0.75f); GUI.DrawTexture(new Rect(x, y, w, h), _white);
         GUI.color = new Color(1f, 0.72f, 0.3f, 1f);
-        GUI.Label(new Rect(x + line * 0.5f, y + line * 0.3f, w, line), Lang.T("GARAGE — ↑↓ part, ←→ change, Enter — write, F8 — close", "ГАРАЖ — ↑↓ деталь, ←→ сменить, Enter — записать, F8 — закрыть"), _style);
+        GUI.Label(new Rect(x + line * 0.5f, y + line * 0.3f, w, line), Lang.T("GARAGE — ↑↓ part, < > change, Enter — write, F8 — close", "ГАРАЖ — ↑↓ деталь, < > (Б Ю) сменить, Enter — записать, F8 — закрыть"), _style);
         float cy = y + line * 1.5f;
         if (gear == null)
         {

@@ -162,7 +162,7 @@ The crawling "zoomer" scouts get a window too (while they charge the scream) —
 ## Garage (weapon fitting room)
 
 In the lobby equip **DRED GARAGE PROTOTYPE** in the main slot and press **F8**: ↑↓ — part (front, receiver, stock,
-sight, magazine, flashlight), ←→ — change it; the gun is rebuilt at once, and each part shows which vanilla guns use it.
+sight, magazine, flashlight), < > (comma, period) — change it; the gun is rebuilt at once, and each part shows which vanilla guns use it.
 Enter writes the line for `MainGuns` / `[GarageGuns] Guns` to `BepInEx/config/GtfoPunk.Garage.txt`. `[Garage] Key`,
 `Prototype`.
 
