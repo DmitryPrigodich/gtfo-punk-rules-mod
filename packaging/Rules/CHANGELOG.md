@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.34
+- The garage (F8 weapon fitting room, DRED GARAGE PROTOTYPE) and the guns made in it (`[GarageGuns]`, DRED BULL GOLORAT-2) moved to a separate mod, **GtfoPunk Garage** — weapon building isn't what My Game My Rules is about. Its settings are carried over to the new mod on its first start. The silenced guns (GP6-S, DS SMG-S A, DS AR-S) and the sentries stay here.
+- Gear log lines are tagged `[GearFactory]`.
+
 ## 0.9.33
 - Garage: the lobby loadout cards (bots' especially) blinked while the garage was open — the game shows a bar's cards again on its own refreshes and 0.9.32 hid them again every half second. Now they are hidden once, and while the garage is open the game's own "show the loadout" calls are turned into "hide".
 

@@ -128,8 +128,7 @@
 Treffen 2. SMG-S A: нос и магазин Hanaway, приклад HXC, Sight_14, патроны как у Hanaway. AR-S («Silenced Rifle»): нос и статы Pres MOD 556, коробка Receiver_Rifle_3, приклад DEL P1, Sight_23, очередь по 2. `MainGuns`: 'Имя: Основа + деталь=ID, … | stats=…, burst=…, damage=…, precision=…, falloff=от-до,
 delay=…, clip=…, spread=…'. Опция `ammo=<ствол>` — патроны как у того ствола (запас и магазин).
 
-**Стволы гаража** (`[GarageGuns] Guns`, тот же формат плюс `type=`): обычные, громкие. **DRED BULL GOLORAT-2** — буллпап,
-альтернатива Accrat Golok DA: мощная очередь по 3 вблизи (урон 7, полный до 8 м, к 18 м сходит на нет).
+Примерочная оружия (F8 в лобби) и стволы из неё (DRED BULL GOLORAT-2) теперь отдельный мод — **GtfoPunk Garage**.
 
 ## Шприцы-усилители
 
@@ -156,13 +155,6 @@ delay=…, clip=…, spread=…'. Опция `ammo=<ствол>` — патро�
   разброс: одиночный на 30% кучнее, авто на 30% шире. Выключается, если стоит ExtraWeaponCustomization.
 - **V** — быстрый удар милишкой: нажать — толчок, держать — заряженный удар; потом оружие возвращается в руки.
 
-## Гараж (примерочная оружия)
-
-В лобби нажми **F8**: **DRED GARAGE PROTOTYPE** окажется в руках и откроется панель. **W S** — деталь (нос, коробка,
-приклад, прицел, магазин, фонарь), **A D** — сменить; ствол крутится справа на экране и пересобирается сразу, у каждой детали написано, на каких ванильных стволах она
-стоит. Enter пишет строку для `MainGuns` / `[GarageGuns] Guns` в `BepInEx/config/GtfoPunk.Garage.txt`.
-`[Garage] Key`, `Prototype`; пока гараж открыт, карточки снаряжения в лобби спрятаны (`HideLobbyUi`); крутящийся ствол: `PreviewPosition` (x,y на экране), `PreviewDepth`, `PreviewSize`, `PreviewSpin`.
-
 ## Фокус фонаря
 
 Держишь клавишу фонаря и крутишь колесо: уже — дальше и ярче, шире — светит вокруг, но ближе (5 положений от родного
@@ -186,9 +178,7 @@ delay=…, clip=…, spread=…'. Опция `ammo=<ствол>` — патро�
 | `[TurretVariants]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
 | `[TurretVariants.<Вид>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — описания в самом файле |
 | `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly`, `MainStatsFrom`, `MainSoundFrom`, `MainGuns`, `MainWeaponType` |
-| `[GarageGuns]` | `Guns` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
-| `[Garage]` | `Key`, `Prototype`, `HideLobbyUi`, `PreviewPosition`, `PreviewDepth`, `PreviewSize`, `PreviewSpin` |
 | `[Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
 | `[Infection]` | `Growth*`, `Cough*`, `Breath*`, `Tremor*`, `Disinfection*` |
 | `[ScoutKill]` | `ScreamChargeup`, `ChargeupDamage` |

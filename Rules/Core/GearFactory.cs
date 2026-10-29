@@ -33,7 +33,7 @@ public static class GearFactory
             h.Patch(AccessTools.Method(typeof(Player.PlayerBackpackManager), nameof(Player.PlayerBackpackManager.EquipBotGear), new[] { typeof(SNetwork.SNet_Player), typeof(GearIDRange) }),
                 prefix: new HarmonyMethod(typeof(GearFactory), nameof(GuardBotGear)));
         }
-        catch (Exception e) { ModInfo.Log.LogWarning($"[Garage] bot gear guard not installed: {e.Message}"); }
+        catch (Exception e) { ModInfo.Log.LogWarning($"[GearFactory] bot gear guard not installed: {e.Message}"); }
         if (GameDataInit.IsLoaded) Run();
     }
 
@@ -86,10 +86,10 @@ public static class GearFactory
             if (cat == 0 || GameDataBlockBase<GearCategoryDataBlock>.HasBlock(cat)) return;
             var sentry = FindByCategory(12, b => NameOf(b).IndexOf("Burst", StringComparison.OrdinalIgnoreCase) >= 0) ?? FindByCategory(12);
             if (sentry == null) return;
-            ModInfo.Log.LogWarning($"[Garage] bot gear with missing category {cat} replaced by '{NameOf(sentry)}'");
+            ModInfo.Log.LogWarning($"[GearFactory] bot gear with missing category {cat} replaced by '{NameOf(sentry)}'");
             gearSetup = new GearIDRange(sentry.GearJSON);
         }
-        catch (Exception e) { ModInfo.Log.LogWarning($"[Garage] bot gear guard: {e.Message}"); }
+        catch (Exception e) { ModInfo.Log.LogWarning($"[GearFactory] bot gear guard: {e.Message}"); }
     }
 
     private static void Run()
@@ -98,9 +98,9 @@ public static class GearFactory
         _done = true;
         foreach (Action a in OnInject.GetInvocationList())
         {
-            try { a(); } catch (Exception e) { ModInfo.Log.LogError($"[Garage] {e}"); }
+            try { a(); } catch (Exception e) { ModInfo.Log.LogError($"[GearFactory] {e}"); }
         }
-        try { Dump(); } catch (Exception e) { ModInfo.Log.LogWarning($"[Garage] gear list not written: {e.Message}"); }
+        try { Dump(); } catch (Exception e) { ModInfo.Log.LogWarning($"[GearFactory] gear list not written: {e.Message}"); }
     }
 
     // ---------- lookup ----------
@@ -425,9 +425,9 @@ public static class GearFactory
                 sb.AppendLine($"  {NameOf(b),-28} part {part} ({pb?.name}, model {model}) → setting {set}");
             }
             File.WriteAllText(Path.Combine(BepInEx.Paths.ConfigPath, "GtfoPunk.Flashlights.txt"), sb.ToString());
-            ModInfo.Log.LogInfo($"[Garage] flashlights written: {settingOf.Count} part models → GtfoPunk.Flashlights.txt");
+            ModInfo.Log.LogInfo($"[GearFactory] flashlights written: {settingOf.Count} part models → GtfoPunk.Flashlights.txt");
         }
-        catch (Exception e) { ModInfo.Log.LogWarning($"[Garage] flashlights dump: {e.Message}"); }
+        catch (Exception e) { ModInfo.Log.LogWarning($"[GearFactory] flashlights dump: {e.Message}"); }
     }
 
     private static void DumpTyped<T, TItem>(StringBuilder sb, string title, Func<T, Il2CppSystem.Collections.Generic.List<TItem>> list, Func<TItem, (int type, GearPartGeneralData data)> get) where T : GameDataBlockBase<T>

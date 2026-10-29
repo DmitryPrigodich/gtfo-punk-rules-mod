@@ -130,8 +130,7 @@ Advanced: `SilencedGuns` assembles guns from parts (IDs in `BepInEx/config/GtfoP
 `MainGuns`: 'Name: Body + part=ID, … | stats=…, burst=…, damage=…, precision=…, falloff=from-to, delay=…, clip=…, spread=…'.
 Option `ammo=<gun>` takes that gun's ammo (reserve and magazine).
 
-**Garage guns** (`[GarageGuns] Guns`, same format, plus `type=`): ordinary loud guns. **DRED BULL GOLORAT-2** — a bullpup
-rifle, an alternative to the Accrat Golok DA: a hard 3-shot burst up close (7 damage, full to 8 m, gone by 18 m).
+The weapon fitting room (F8 in the lobby) and the guns made in it (DRED BULL GOLORAT-2) are now a separate mod — **GtfoPunk Garage**.
 
 ## Booster syringes
 
@@ -159,13 +158,6 @@ The crawling "zoomer" scouts get a window too (while they charge the scream) —
   mode changes the spread: semi 30% tighter, auto 30% wider. Off if ExtraWeaponCustomization is installed.
 - **V** — quick melee: tap — shove, hold — charged hit; then your gun comes back.
 
-## Garage (weapon fitting room)
-
-In the lobby press **F8**: **DRED GARAGE PROTOTYPE** goes into your hands and the panel opens. **W S** — part (front,
-receiver, stock, sight, magazine, flashlight), **A D** — change it; the gun turns on the right side of the screen and is rebuilt at once, and each part shows which vanilla guns use it.
-Enter writes the line for `MainGuns` / `[GarageGuns] Guns` to `BepInEx/config/GtfoPunk.Garage.txt`. `[Garage] Key`,
-`Prototype`; the lobby loadout cards are hidden while it's open (`HideLobbyUi`); the turning gun: `PreviewPosition` (screen x,y), `PreviewDepth`, `PreviewSize`, `PreviewSpin`.
-
 ## Flashlight focus
 
 Hold the flashlight key and turn the mouse wheel: narrower — reaches further and brighter, wider — lights more around
@@ -189,9 +181,7 @@ wheel doesn't switch weapons while the key is held. Works on the helmet light to
 | `[TurretVariants]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
 | `[TurretVariants.<Kind>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — see the descriptions in the file |
 | `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly`, `MainStatsFrom`, `MainSoundFrom`, `MainGuns`, `MainWeaponType` |
-| `[GarageGuns]` | `Guns` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
-| `[Garage]` | `Key`, `Prototype`, `HideLobbyUi`, `PreviewPosition`, `PreviewDepth`, `PreviewSize`, `PreviewSpin` |
 | `[Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
 | `[Infection]` | `Growth*`, `Cough*`, `Breath*`, `Tremor*`, `Disinfection*` |
 | `[ScoutKill]` | `ScreamChargeup`, `ChargeupDamage` |
