@@ -24,6 +24,7 @@ public static class Net
     public const byte AmmoFix = 2;
     public const byte Cough = 3;
     public const byte PartyRules = 4;
+    public const byte FlashlightFocus = 5;
 
     public static void On(byte type, Action<ulong, byte[]> handler)
     {

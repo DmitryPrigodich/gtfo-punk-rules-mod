@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.24
+- Flashlight focus:
+  - works on the **helmet light** too (melee, tools — anything without a gun light);
+  - **others see your focus**: it's sent to everyone (Net type 5) and applied to your light on their side, gun or helmet. Everyone needs the module now.
+
 ## 0.9.23
 - New silenced main-slot gun **DS AR-S** (type "Silenced Rifle"): Drekker Pres MOD 556's front, magazine and stats, Receiver_Rifle_3, Drekker DEL P1's stock, Sight_23; a **2-round burst** by default — 8 damage a round, full to 30 m (falls off to 60 m): both rounds in the head kill a striker, a burst to the body doesn't. B — semi / auto.
 

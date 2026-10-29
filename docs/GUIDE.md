@@ -163,7 +163,7 @@ The crawling "zoomer" scouts get a window too (while they charge the scream) —
 
 Hold the flashlight key and turn the mouse wheel: narrower — reaches further and brighter, wider — lights more around
 you but less far (5 positions from the gun's own light). A plain press toggles the light as usual (on release). The
-wheel doesn't switch weapons while the key is held. Local only: others see your light as usual. `[FlashlightFocus]`.
+wheel doesn't switch weapons while the key is held. Works on the helmet light too; the others see your beam as you set it. `[FlashlightFocus]`.
 
 ## Config reference
 
