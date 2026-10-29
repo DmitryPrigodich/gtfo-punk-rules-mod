@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.39
+- **Shot noise is each gun's own** (the same keys on every gun): `Silent` (no game shot noise), `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls`. DRED GLUKHAR S6 wakes within 8 m and stirs to 20 m, DRED TIKHON 10 / 25 m. `[Weapons.Silent]` is gone (changed radii are carried to both guns); `[Weapons] Enabled` turns the kit's silenced guns on / off.
+- **DRED TIKHON-A 24S** (was 20S — 24 rounds a magazine); same gear ID.
+- **DRED KHLOPUSHKA GL-10**: a charge-up — hold the trigger 0.4 s (`ChargeTime`, the game's own charge mechanic); a loud shot heard through walls (wakes within 12 m, stirs to 30 m).
+
 ## 0.9.38
 - **Config, one scheme everywhere**: `[Turrets]` / `[Turrets.<Kind>]` (were `[TurretVariants…]`), `[Items.Grenades]`, `[Items.Syringes]`, and one section per gun with the same keys as every gun — `[Weapons.Glukhar]`, `[Weapons.Tikhon]`, `[Weapons.Khlopushka]` (+ `[Weapons.Silent]` for the quiet shot's radii). Gun keys: Name, Type, Silent, Body, Parts, Stats, SoundFrom, GripFrom, RateFrom, AmmoFrom, RecoilFrom, FireMode, Burst, BurstPause, ShotDelay, Damage, HeadMultiplier, FalloffFrom, FalloffTo, Magazine, Reserve, SpreadHip, SpreadAim — an empty number keeps the stats donor's, `x1.2` multiplies it. Your values are carried over from the old sections once.
 - **DRED TIKHON-A 20S**: the 2-round burst kicked — a striker flinched after the first round and the second missed. Now a light, fast SMG burst of 3 (Van Auken LTC5's rate and recoil), 2.4 a round (three in the head kill a striker), **24 in a magazine, 120 in the reserve**.

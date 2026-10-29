@@ -10,14 +10,17 @@ namespace GtfoPunk.Rules.Core;
 public class GunConfig
 {
     public string Section;
-    public ConfigEntry<bool> Enabled, Silent;
+    public ConfigEntry<bool> Enabled, Silent, StirWakes, ThroughWalls;
+    public ConfigEntry<float> WakeRadius, StirRadius;
     public ConfigEntry<string> Name, Type, Body, Parts, Stats, SoundFrom, GripFrom, RateFrom, AmmoFrom, RecoilFrom,
         FireMode, Burst, BurstPause, ShotDelay, Damage, HeadMultiplier, FalloffFrom, FalloffTo, Magazine, Reserve, SpreadHip, SpreadAim;
 
     /// <summary>Default values of a gun's keys (all strings but the two flags; empty — the donor's).</summary>
     public class Defaults
     {
-        public bool Enabled = true, Silent;
+        public bool Enabled = true, Silent, StirWakes, ThroughWalls;
+        /// <summary>The gun's own shot noise (m): wakes within WakeRadius, stirs up to StirRadius; 0 — none.</summary>
+        public float WakeRadius, StirRadius;
         public string Name = "", Type = "", Body = "", Parts = "", Stats = "", SoundFrom = "", GripFrom = "", RateFrom = "", AmmoFrom = "", RecoilFrom = "",
             FireMode = "", Burst = "", BurstPause = "", ShotDelay = "", Damage = "", HeadMultiplier = "", FalloffFrom = "", FalloffTo = "",
             Magazine = "", Reserve = "", SpreadHip = "", SpreadAim = "";
@@ -36,7 +39,11 @@ public class GunConfig
             Enabled = B("Enabled", d.Enabled, "The gun is in the game (after a restart)."),
             Name = B("Name", d.Name, "Name in the weapon list."),
             Type = B("Type", d.Type, "Weapon type shown above the name."),
-            Silent = B("Silent", d.Silent, "A quiet shot: wakes sleepers only up close (the radii of the silenced guns' settings)."),
+            Silent = B("Silent", d.Silent, "true — no game shot noise, only this gun's radii below; false — the game's loud shot (plus the radii, if any)."),
+            WakeRadius = B("WakeRadius", d.WakeRadius, "A shot wakes sleepers within this distance (m). 0 — never (from this gun's own noise)."),
+            StirRadius = B("StirRadius", d.StirRadius, "Sleepers stir (pulse) up to this distance (m). 0 — not at all."),
+            StirWakes = B("StirWakes", d.StirWakes, "Stirred enemies may wake after shots in a row (false — they only pulse)."),
+            ThroughWalls = B("ThroughWalls", d.ThroughWalls, "The shot is heard through walls and closed doors."),
             Body = B("Body", d.Body, "The gun whose parts, hand animations and attachments are the base (and the slot)."),
             Parts = B("Parts", d.Parts, "Parts on the body: 'type=ID, …' — 12 front, 16 receiver, 19 stock, 21 sight, 23 magazine, 25 flashlight; 'type=<gun name>' — that gun's part, 'type=-' — none."),
             Stats = B("Stats", d.Stats, "The stats donor: rate of fire, recoil, spread, magazine, reload, fire modes. Empty — the body."),
@@ -60,6 +67,11 @@ public class GunConfig
         };
     }
 
+    public NoiseSpec Noise() => new() { Silent = Silent.Value, Wake = WakeRadius.Value, Stir = StirRadius.Value, StirWakes = StirWakes.Value, ThroughWalls = ThroughWalls.Value };
+
+    /// <summary>The usual silenced gun: wakes within 10 m, stirs up to 25 m, not through walls.</summary>
+    public static void Quiet(Defaults d, float wake = 10f, float stir = 25f) { d.Silent = true; d.WakeRadius = wake; d.StirRadius = stir; }
+
     /// <summary>The section as a builder line.</summary>
     public GunSpec ToSpec()
     {
@@ -78,7 +90,7 @@ public class GunConfig
         string O(string k) => s.Opt.TryGetValue(k, out var v) ? v : "";
         var d = new Defaults
         {
-            Silent = silent, Name = s.Name, Type = O("type"), Body = s.Body, Parts = string.Join(", ", s.Parts.Select(p => $"{p.Comp}={p.Value}")),
+            Silent = silent, WakeRadius = silent ? 10f : 0f, StirRadius = silent ? 25f : 0f, Name = s.Name, Type = O("type"), Body = s.Body, Parts = string.Join(", ", s.Parts.Select(p => $"{p.Comp}={p.Value}")),
             Stats = O("stats"), SoundFrom = O("sound"), GripFrom = O("grip"), RateFrom = O("rate"), AmmoFrom = O("ammo"), RecoilFrom = O("recoil"),
             FireMode = O("mode"), Burst = O("burst"), BurstPause = O("delay"), ShotDelay = O("shotdelay"), Damage = O("damage"), HeadMultiplier = O("precision"),
             FalloffFrom = O("falloff0"), FalloffTo = O("falloff1"), Magazine = O("clip"), Reserve = O("reserve"), SpreadHip = O("hip"), SpreadAim = O("aim"),

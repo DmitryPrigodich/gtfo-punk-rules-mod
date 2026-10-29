@@ -11,7 +11,8 @@ namespace GtfoPunk.Rules.Modules;
 /// A 10-grenade box magazine, 30 in the reserve, semi-auto (0.6 s). The gun's own bullets do nothing.
 /// Look: on a TechMan Klust 6 (its iron-sight aim; 0.9.36's Omneco LRG aimed through a scope) — Buckland AF6's front,
 /// Omneco's machine-gun receiver, Buckland XDist2's stock and iron sights, Klust 6's drum, flashlight E. A tiny grenade,
-/// 1.2 s between shots, a slug shotgun's kick and a shake. The blast hurts players too — don't fire point blank.
+/// 1.2 s between shots after a 0.4 s charge (hold the trigger), a slug shotgun's kick and a shake; a loud shot heard
+/// through walls (wakes within 12 m, stirs to 30 m). The blast hurts players too — don't fire point blank.
 /// Config: [Weapons.Khlopushka] — the same gun keys as everywhere (Name, Type, Body, Parts, Magazine, Reserve, ShotDelay,
 /// RecoilFrom) and the launcher's own (Grenade…, Loft, Shake). Everyone needs the mod (new gear).
 /// </summary>
@@ -26,7 +27,8 @@ public class GrenadeLauncher : ModuleBase
 
     private static ConfigEntry<string> _name, _body, _parts, _type, _recoil;
     private static ConfigEntry<int> _clip, _reserve;
-    private static ConfigEntry<float> _delay, _damage, _radius, _speed, _loft, _size, _shake;
+    private static ConfigEntry<float> _delay, _damage, _radius, _speed, _loft, _size, _shake, _charge, _wake, _stir;
+    private static ConfigEntry<bool> _silent, _stirWakes, _walls;
 
     protected override void OnBindConfig()
     {
@@ -45,9 +47,20 @@ public class GrenadeLauncher : ModuleBase
         _size = Bind("GrenadeSize", 0.45f, "Size of the flying grenade against the sentry's (1).");
         _loft = Bind("Loft", 4f, "Degrees the grenade flies above the aim line (to lob it a little).");
         _shake = Bind("Shake", 1.2f, "Camera shake when firing (0 — none).");
+        _charge = Bind("ChargeTime", 0.4f, "Hold the trigger this long before the shot goes (the game's charge-up, like the charged guns). 0 — none.");
+        // The shot's noise — the same keys as every gun's: a launcher is loud, and heard through walls.
+        _silent = Bind("Silent", false, "true — no game shot noise, only the radii below; false — the game's loud shot (plus the radii).");
+        _wake = Bind("WakeRadius", 12f, "A shot wakes sleepers within this distance (m). 0 — never (from the launcher's own noise; the blast has its own).");
+        _stir = Bind("StirRadius", 30f, "Sleepers stir up to this distance (m). 0 — not at all.");
+        _stirWakes = Bind("StirWakes", true, "Stirred enemies may wake after shots in a row (false — they only pulse).");
+        _walls = Bind("ThroughWalls", true, "The shot is heard through walls and closed doors.");
     }
 
-    protected override void OnEnable() => GearFactory.OnInject += Inject;
+    protected override void OnEnable()
+    {
+        GearFactory.OnInject += Inject;
+        GunNoise.Install();
+    }
 
     private static uint _cat;
     private const string Key = "GtfoPunk_GrenadeLauncher";
@@ -74,6 +87,7 @@ public class GrenadeLauncher : ModuleBase
             a.CostOfBullet = cost;
             a.ShotDelay = Math.Max(0.1f, _delay.Value);
             a.FireMode = eWeaponFireMode.Semi;
+            a.SpecialChargetupTime = Math.Max(0f, _charge.Value);
         }
         uint recoil = 0;
         var rg = string.IsNullOrWhiteSpace(_recoil.Value) ? null : GearFactory.FindByName(_recoil.Value);
@@ -105,6 +119,7 @@ public class GrenadeLauncher : ModuleBase
         };
         foreach (var kv in GearFactory.ParseParts(_parts.Value, "GrenadeLauncher")) comps[kv.Key] = kv.Value;
         GearFactory.AddGear(body, Key + "_Gun", _name.Value, comps);
+        GunNoise.Set(_cat, new NoiseSpec { Silent = _silent.Value, Wake = _wake.Value, Stir = _stir.Value, StirWakes = _stirWakes.Value, ThroughWalls = _walls.Value });
         ModInfo.Log.LogInfo($"[GrenadeLauncher] {_name.Value}: {_clip.Value} + {_reserve.Value} grenades (round cost {cost:0.##} of {max:0}), {_delay.Value:0.##} s, grenade {Grenades.LauncherDamage} dmg / {Grenades.LauncherRadius:0.#} m");
     }
 

@@ -119,13 +119,15 @@
 ## Бесшумный пистолет и винтовка
 
 **DRED GLUKHAR S6** (тип "Silenced Pistol") — корпус Bataldo 3RB с верхом Mastaba, магазин и темп Shelling Arid 5,
-урон 15 (в голову убивает страйкера или стрелка, в тело — нет), звук S49. Выстрел будит спящих только в 10 м
-(`HardRadius`), до 25 м — тревожит (`SoftRadius`), дальше — тишина. У каждого ствола свой раздел с теми же ключами, что у любого оружия (`[Weapons.Glukhar]`, `[Weapons.Tikhon]`): имя,
+урон 15 (в голову убивает страйкера или стрелка, в тело — нет), звук S49. Выстрел будит спящих только в 8 м
+(`WakeRadius`), до 20 м — тревожит (`StirRadius`), дальше — тишина. У каждого ствола свой раздел с теми же ключами, что у любого оружия (`[Weapons.Glukhar]`, `[Weapons.Tikhon]`): имя,
 тип, основа и детали, доноры (статы, звук, хват, темп, патроны, отдача) и цифры — режим, очередь, задержки, урон,
-множитель в голову, спад, магазин, запас, разброс; пустое число — как у донора статов, `x1.2` — умножить. Радиусы тихого
-выстрела — `[Weapons.Silent]`.
+множитель в голову, спад, магазин, запас, разброс; пустое число — как у донора статов, `x1.2` — умножить; и шум
+выстрела: `Silent` (без шума выстрела игры), `WakeRadius` (будит в пределах), `StirRadius` (тревожит до), `StirWakes`
+(встревоженные могут проснуться от нескольких выстрелов подряд), `ThroughWalls` (сквозь стены). GLUKHAR будит в 8 м и
+тревожит до 20 м, TIKHON — 10 / 25 м.
 
-**DRED TIKHON-A 20S** (основной слот, тип "Silenced Rifle") — тот же тихий выстрел (звук Raptus Treffen 2): нос Pres MOD
+**DRED TIKHON-A 24S** (основной слот, тип "Silenced Rifle") — тот же тихий выстрел (звук Raptus Treffen 2): нос Pres MOD
 556, коробка Receiver_Rifle_3, приклад Köning PR 11, Sight_23, короткий магазин 556, фонарь B; лёгкая быстрая **очередь
 по 3** с темпом Van Auken LTC5, **24 в магазине, 120 в запасе**, урон 2,4 — три в голову убивают страйкера, очередь в
 тело — нет (полный урон до 25 м).
@@ -138,9 +140,10 @@
 нос Buckland AF6, пулемётная коробка Omneco, приклад и открытый прицел Buckland XDist2, барабан Klust 6, фонарь E. Каждый
 выстрел навесом кидает одну крошечную гранату на контакт — как у турели TGL3, чуть слабее: **35 урона в центре, радиус
 3,5 м**, к краю слабее (страйкер умирает примерно в 1,5 м от взрыва, большому нужно около четырёх прямых попаданий).
-Одиночными, **1,2 с** между выстрелами, отдача как у дробовика под пулю и встряска камеры; **10 в магазине, 30 в
-запасе**. Взрыв громкий и ранит своих — в упор не стреляй. Боты носят, но гранатами не стреляют. `[Weapons.Khlopushka]`:
-`Name`, `Type`, `Body`, `Parts`, `RecoilFrom`, `Magazine`, `Reserve`, `ShotDelay`, `GrenadeDamage`, `GrenadeRadius`, `GrenadeSpeed`, `GrenadeSize`, `Loft`, `Shake`.
+Одиночными: **заряд 0,4 с** (держи спуск, `ChargeTime`) и **1,2 с** между выстрелами, отдача как у дробовика под пулю
+и встряска камеры; **10 в магазине, 30 в запасе**. Громкий выстрел, слышен сквозь стены (будит в 12 м, тревожит до 30 м).
+Взрыв громкий и ранит своих — в упор не стреляй. Боты носят, но гранатами не стреляют. `[Weapons.Khlopushka]`:
+`Name`, `Type`, `Body`, `Parts`, `RecoilFrom`, `Magazine`, `Reserve`, `ShotDelay`, `GrenadeDamage`, `GrenadeRadius`, `GrenadeSpeed`, `GrenadeSize`, `Loft`, `Shake`, `ChargeTime`, `Silent`, `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls`.
 
 ## Шприцы-усилители
 
@@ -189,9 +192,9 @@
 | `[Items.Grenades]` | `NameEn`, `NameRu`, `InLevels`, `SpawnWeight`, `Stack`, `BlastRadius`, `BlastDamage`, `BlastEffect`, `BlastShake`, `BlastNoiseRadius`, `TurretRadius`, `TurretDamage`, `TurretFuse`, `TurretProximity`, `BounceOffEnemies` |
 | `[Turrets]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
 | `[Turrets.<Вид>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — описания в самом файле |
-| `[Weapons.Silent]` | `HardRadius`, `SoftRadius`, `SoftIsPulseOnly` |
-| `[Weapons.Glukhar]`, `[Weapons.Tikhon]` | `Enabled`, `Name`, `Type`, `Silent`, `Body`, `Parts`, `Stats`, `SoundFrom`, `GripFrom`, `RateFrom`, `AmmoFrom`, `RecoilFrom`, `FireMode`, `Burst`, `BurstPause`, `ShotDelay`, `Damage`, `HeadMultiplier`, `FalloffFrom`, `FalloffTo`, `Magazine`, `Reserve`, `SpreadHip`, `SpreadAim` |
-| `[Weapons.Khlopushka]` | `Name`, `Type`, `Body`, `Parts`, `RecoilFrom`, `Magazine`, `Reserve`, `ShotDelay`, `GrenadeDamage`, `GrenadeRadius`, `GrenadeSpeed`, `GrenadeSize`, `Loft`, `Shake` |
+| `[Weapons]` | `Enabled` (the kit's silenced guns) |
+| `[Weapons.Glukhar]`, `[Weapons.Tikhon]` | `Enabled`, `Name`, `Type`, `Body`, `Parts`, `Stats`, `SoundFrom`, `GripFrom`, `RateFrom`, `AmmoFrom`, `RecoilFrom`, `FireMode`, `Burst`, `BurstPause`, `ShotDelay`, `Damage`, `HeadMultiplier`, `FalloffFrom`, `FalloffTo`, `Magazine`, `Reserve`, `SpreadHip`, `SpreadAim`, `Silent`, `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls` |
+| `[Weapons.Khlopushka]` | `Name`, `Type`, `Body`, `Parts`, `RecoilFrom`, `Magazine`, `Reserve`, `ShotDelay`, `GrenadeDamage`, `GrenadeRadius`, `GrenadeSpeed`, `GrenadeSize`, `Loft`, `Shake`, `ChargeTime`, `Silent`, `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
 | `[Items.Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
 | `[Infection]` | `Growth*`, `Cough*`, `Breath*`, `Tremor*`, `Disinfection*` |

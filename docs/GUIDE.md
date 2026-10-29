@@ -122,13 +122,14 @@ green — full, yellow — half used, red — not working.
 
 **DRED GLUKHAR S6** (type "Silenced Pistol") — a Bataldo 3RB body with a Mastaba top, the Shelling Arid 5's magazine
 and rate of fire, 15 damage (a headshot kills a striker or a shooter, a body shot doesn't), the S49's sound.
-A shot wakes sleepers only within 10 m (`HardRadius`), disturbs them up to 25 m (`SoftRadius`), beyond that — silence.
+A shot wakes sleepers only within 8 m (`WakeRadius`), disturbs them up to 20 m (`StirRadius`), beyond that — silence.
 Each gun has its own section with the same keys as every gun (`[Weapons.Glukhar]`, `[Weapons.Tikhon]`): name, type,
 body and parts, donors (stats, sound, grip, rate, ammo, recoil) and numbers — fire mode, burst, delays, damage, head
-multiplier, falloff, magazine, reserve, spread; an empty number keeps the stats donor's, `x1.2` multiplies it. The quiet
-shot's radii: `[Weapons.Silent]`.
+multiplier, falloff, magazine, reserve, spread; an empty number keeps the stats donor's, `x1.2` multiplies it — and its
+shot noise: `Silent` (no game shot noise), `WakeRadius` (wakes within), `StirRadius` (stirs up to), `StirWakes` (stirred
+ones may wake after shots in a row), `ThroughWalls`. GLUKHAR wakes within 8 m and stirs to 20 m, TIKHON 10 / 25 m.
 
-**DRED TIKHON-A 20S** (main slot, type "Silenced Rifle") — the same quiet shot (Raptus Treffen 2's sound): Pres MOD 556
+**DRED TIKHON-A 24S** (main slot, type "Silenced Rifle") — the same quiet shot (Raptus Treffen 2's sound): Pres MOD 556
 front, Receiver_Rifle_3, Köning PR 11's stock, Sight_23, the short 556 magazine, flashlight B; Van Auken LTC5's light, fast
 **burst of 3**, **24 in a magazine, 120 in the reserve**, 2.4 damage a round — three in the head kill a striker, a body
 burst doesn't (full damage to 25 m).
@@ -141,9 +142,10 @@ The optional guns — DRED ASSASSIN SMG-SA, DRED ASSASSIN AR-S, DRED BULL GOLORA
 Buckland AF6's front, Omneco's machine-gun receiver, Buckland XDist2's stock and iron sights, Klust 6's drum, flashlight E.
 Every shot lobs one tiny contact grenade — the TGL3 sentry's, a bit weaker: **35 damage at the centre, 3.5 m**, fading
 with distance (a striker dies within about 1.5 m of the blast; a big one takes about four direct hits). Semi-auto,
-**1.2 s** between shots, a slug shotgun's kick and a camera shake; **10 in a magazine, 30 in the reserve**. The blast is
-loud and hurts players too — don't fire point blank. Bots carry it but don't fire grenades. `[Weapons.Khlopushka]`:
-`Name`, `Type`, `Body`, `Parts`, `RecoilFrom`, `Magazine`, `Reserve`, `ShotDelay`, `GrenadeDamage`, `GrenadeRadius`, `GrenadeSpeed`, `GrenadeSize`, `Loft`, `Shake`.
+a **0.4 s charge** (hold the trigger, `ChargeTime`) and **1.2 s** between shots, a slug shotgun's kick and a camera
+shake; **10 in a magazine, 30 in the reserve**. A loud shot heard through walls (wakes within 12 m, stirs to 30 m). The
+blast is loud and hurts players too — don't fire point blank. Bots carry it but don't fire grenades. `[Weapons.Khlopushka]`:
+`Name`, `Type`, `Body`, `Parts`, `RecoilFrom`, `Magazine`, `Reserve`, `ShotDelay`, `GrenadeDamage`, `GrenadeRadius`, `GrenadeSpeed`, `GrenadeSize`, `Loft`, `Shake`, `ChargeTime`, `Silent`, `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls`.
 
 ## Booster syringes
 
@@ -193,9 +195,9 @@ wheel doesn't switch weapons while the key is held. Works on the helmet light to
 | `[Items.Grenades]` | `NameEn`, `NameRu`, `InLevels`, `SpawnWeight`, `Stack`, `BlastRadius`, `BlastDamage`, `BlastEffect`, `BlastShake`, `BlastNoiseRadius`, `TurretRadius`, `TurretDamage`, `TurretFuse`, `TurretProximity`, `BounceOffEnemies` |
 | `[Turrets]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
 | `[Turrets.<Kind>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — see the descriptions in the file |
-| `[Weapons.Silent]` | `HardRadius`, `SoftRadius`, `SoftIsPulseOnly` |
-| `[Weapons.Glukhar]`, `[Weapons.Tikhon]` | `Enabled`, `Name`, `Type`, `Silent`, `Body`, `Parts`, `Stats`, `SoundFrom`, `GripFrom`, `RateFrom`, `AmmoFrom`, `RecoilFrom`, `FireMode`, `Burst`, `BurstPause`, `ShotDelay`, `Damage`, `HeadMultiplier`, `FalloffFrom`, `FalloffTo`, `Magazine`, `Reserve`, `SpreadHip`, `SpreadAim` |
-| `[Weapons.Khlopushka]` | `Name`, `Type`, `Body`, `Parts`, `RecoilFrom`, `Magazine`, `Reserve`, `ShotDelay`, `GrenadeDamage`, `GrenadeRadius`, `GrenadeSpeed`, `GrenadeSize`, `Loft`, `Shake` |
+| `[Weapons]` | `Enabled` (the kit's silenced guns) |
+| `[Weapons.Glukhar]`, `[Weapons.Tikhon]` | `Enabled`, `Name`, `Type`, `Body`, `Parts`, `Stats`, `SoundFrom`, `GripFrom`, `RateFrom`, `AmmoFrom`, `RecoilFrom`, `FireMode`, `Burst`, `BurstPause`, `ShotDelay`, `Damage`, `HeadMultiplier`, `FalloffFrom`, `FalloffTo`, `Magazine`, `Reserve`, `SpreadHip`, `SpreadAim`, `Silent`, `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls` |
+| `[Weapons.Khlopushka]` | `Name`, `Type`, `Body`, `Parts`, `RecoilFrom`, `Magazine`, `Reserve`, `ShotDelay`, `GrenadeDamage`, `GrenadeRadius`, `GrenadeSpeed`, `GrenadeSize`, `Loft`, `Shake`, `ChargeTime`, `Silent`, `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
 | `[Items.Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
 | `[Infection]` | `Growth*`, `Cough*`, `Breath*`, `Tremor*`, `Disinfection*` |
