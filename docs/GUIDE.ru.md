@@ -161,7 +161,7 @@ delay=…, clip=…, spread=…'. Опция `ammo=<ствол>` — патро�
 В лобби нажми **F8**: **DRED GARAGE PROTOTYPE** окажется в руках и откроется панель. **W S** — деталь (нос, коробка,
 приклад, прицел, магазин, фонарь), **A D** — сменить; ствол крутится справа на экране и пересобирается сразу, у каждой детали написано, на каких ванильных стволах она
 стоит. Enter пишет строку для `MainGuns` / `[GarageGuns] Guns` в `BepInEx/config/GtfoPunk.Garage.txt`.
-`[Garage] Key`, `Prototype`; крутящийся ствол: `PreviewPosition` (x,y на экране), `PreviewDepth`, `PreviewSize`, `PreviewSpin`.
+`[Garage] Key`, `Prototype`; пока гараж открыт, карточки снаряжения в лобби спрятаны (`HideLobbyUi`); крутящийся ствол: `PreviewPosition` (x,y на экране), `PreviewDepth`, `PreviewSize`, `PreviewSpin`.
 
 ## Фокус фонаря
 
@@ -188,7 +188,7 @@ delay=…, clip=…, spread=…'. Опция `ammo=<ствол>` — патро�
 | `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly`, `MainStatsFrom`, `MainSoundFrom`, `MainGuns`, `MainWeaponType` |
 | `[GarageGuns]` | `Guns` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
-| `[Garage]` | `Key`, `Prototype`, `PreviewPosition`, `PreviewDepth`, `PreviewSize`, `PreviewSpin` |
+| `[Garage]` | `Key`, `Prototype`, `HideLobbyUi`, `PreviewPosition`, `PreviewDepth`, `PreviewSize`, `PreviewSpin` |
 | `[Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
 | `[Infection]` | `Growth*`, `Cough*`, `Breath*`, `Tremor*`, `Disinfection*` |
 | `[ScoutKill]` | `ScreamChargeup`, `ChargeupDamage` |

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.32
+- Garage: the gun is seen turning (0.9.31 confirmed). While the garage is open, the players' loadout cards in the lobby are hidden with the game's own "hide loadout" (as in the clothes view) and come back when it closes. `[Garage] HideLobbyUi` (on by default).
+
 ## 0.9.31
 - Garage preview: 0.9.30 found the right camera and layer (`CM_Camera`, layer 31 'MenuDeferredScene'), but the lobby scene is scaled up — the players stand ~2700 units from the camera and are ~1000× a person — so a gun of normal size there was a speck. Now the gun takes the scene's scale (the player model's height / 1.8 m) and stands at 0.8 of the players' distance. New keys `[Garage] PreviewPosition` (screen x,y, default 0.62,0.5), `PreviewDepth` (0.8), `PreviewSize` (1.2), `PreviewSpin` (30°/s). Log: `[Garage] player height …`.
 

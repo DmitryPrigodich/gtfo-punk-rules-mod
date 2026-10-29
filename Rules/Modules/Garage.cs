@@ -26,6 +26,7 @@ public class Garage : ModuleBase
     private static ConfigEntry<string> _proto;
     private static ConfigEntry<string> _pvPos;
     private static ConfigEntry<float> _pvDepth, _pvSize, _pvSpin;
+    private static ConfigEntry<bool> _hideUi;
 
     private const string ProtoName = "DRED GARAGE PROTOTYPE";
     private const string ProtoBody = "Van Auken LTC5";
@@ -35,6 +36,7 @@ public class Garage : ModuleBase
         _key = Bind("Key", KeyCode.F8, "Opens / closes the garage panel in the lobby.");
         _proto = Bind("Prototype", ProtoBody + " + 12=15, 19=3, 21=10, 23=1 | type=Prototype",
             "The prototype's parts (written by the garage): 'Body + part=ID, … | options' — as in SilencedGun.MainGuns. Applied after a game restart; in the lobby the garage changes the gun at once.");
+        _hideUi = Bind("HideLobbyUi", true, "While the garage is open, the players' loadout cards in the lobby are hidden (the gun turns in front of them).");
         _pvPos = Bind("PreviewPosition", "0.62,0.5", "Where the turning gun stands on the screen: 'x,y' from 0 (left / bottom) to 1 (right / top).");
         _pvDepth = Bind("PreviewDepth", 0.8f, "How far the gun stands, as a part of the distance to the players (1 — next to them, 0.5 — halfway to the camera).");
         _pvSize = Bind("PreviewSize", 1.2f, "Gun size against the players' scale (the lobby scene is scaled up, so the gun takes the players' scale times this).");
@@ -107,7 +109,7 @@ public class Garage : ModuleBase
     private static void Tick()
     {
         bool lobby = GameStateManager.CurrentStateName == eGameStateName.Lobby;
-        if (!lobby) { if (_open) ClosePreview(); _open = false; return; }
+        if (!lobby) { if (_open) ClosePreview(); _open = false; LobbyUi(true); return; }
         if (Input.GetKeyDown(_key.Value))
         {
             _open = !_open;
@@ -120,7 +122,8 @@ public class Garage : ModuleBase
                 if (!_hooked) { _hooked = true; Overlay.Ensure(); Overlay.OnDraw += Draw; }
             }
         }
-        if (!_open) { ClosePreview(); return; }
+        if (!_open) { ClosePreview(); LobbyUi(true); return; }
+        if (_hideUi.Value) LobbyUi(false);
         PreviewTick();
         if (Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow)) _row = (_row + _rows.Count - 1) % _rows.Count;
         if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.DownArrow)) _row = (_row + 1) % _rows.Count;
@@ -323,6 +326,29 @@ public class Garage : ModuleBase
             _diagLogged = true;
             ModInfo.Log.LogInfo($"[Garage] preview: camera '{cam.name}', model '{model.name}' at {model.transform.position}, layer {_layer} '{LayerMask.LayerToName(_layer)}', scene scale {_modelScale:0.##}, players at depth {modelDepth:0}, gun at {t.position} (depth {depth:0}, scale {t.localScale.y:0.##}), renderers {shown}/{all} on");
         }
+    }
+
+    private static bool _uiHidden;
+    private static float _uiCheckAt;
+
+    /// <summary>The game's own "hide the loadout" (used for the clothes view) on every lobby bar; kept hidden while
+    /// the garage is open (an inventory update may show the cards again).</summary>
+    private static void LobbyUi(bool show)
+    {
+        if (show && !_uiHidden) return;
+        if (!show && _uiHidden && Time.unscaledTime < _uiCheckAt) return;
+        _uiCheckAt = Time.unscaledTime + 0.5f;
+        try
+        {
+            foreach (var bar in CellMenu.CM_PlayerLobbyBar.instances)
+            {
+                if (bar == null) continue;
+                if (show) bar.HideLoadoutUI(false, true);
+                else if (!bar.m_loadoutHidden) bar.HideLoadoutUI(true, true);
+            }
+            _uiHidden = !show;
+        }
+        catch (Exception e) { _uiHidden = false; ModInfo.Log.LogWarning($"[Garage] lobby UI: {e.Message}"); }
     }
 
     private static (float, float) ParseXY(string v, float dx, float dy)
