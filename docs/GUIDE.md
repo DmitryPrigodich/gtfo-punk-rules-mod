@@ -161,11 +161,11 @@ listed above the watermark and on the map screen (Tab). `KeepDownsides` keeps bo
   trembles slightly.
 - `DisinfectionStrength` / `DisinfectionPauseMinutes` can weaken disinfection (off by default).
 
-## The drop is loud
+## The first door is loud
 
-When the elevator lands and the loudspeaker announces the expedition, the sleepers around it wake up (within 25 m,
-through walls) and those up to 50 m stir — the first room has to be cleared. Zones behind closed security doors don't
-hear it. Host only. `[Level.Elevator]` `Delay`, `WakeRadius`, `StirRadius`, `StirWakes`.
+Opening the first security door (the one out of the elevator zone) wakes the sleepers around it — within 20 m, through
+walls — and stirs those up to 40 m: the room behind it has to be cleared. Zones behind other closed doors don't hear it.
+Host only. `[Level.FirstDoor]` `Delay`, `WakeRadius`, `StirRadius`, `StirWakes`, `AllDoors` (every security door).
 
 ## Scouts
 
@@ -203,7 +203,7 @@ wheel doesn't switch weapons while the key is held. Works on the helmet light to
 | `[Turrets.<Kind>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — see the descriptions in the file |
 | `[Weapons]` | `Enabled` (the kit's silenced guns) |
 | `[Weapons.Glukhar]`, `[Weapons.Tikhon]` | `Enabled`, `Name`, `Type`, `Body`, `Parts`, `Stats`, `SoundFrom`, `GripFrom`, `RateFrom`, `AmmoFrom`, `RecoilFrom`, `FireMode`, `Burst`, `BurstPause`, `ShotDelay`, `Damage`, `HeadMultiplier`, `FalloffFrom`, `FalloffTo`, `FalloffCurve`, `Magazine`, `Reserve`, `SpreadHip`, `SpreadAim`, `Silent`, `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls` |
-| `[Level.Elevator]` | `Enabled`, `Delay`, `WakeRadius`, `StirRadius`, `StirWakes` |
+| `[Level.FirstDoor]` | `Enabled`, `Delay`, `WakeRadius`, `StirRadius`, `StirWakes`, `AllDoors` |
 | `[Weapons.Khlopushka]` | `Name`, `Type`, `Body`, `Parts`, `RecoilFrom`, `Magazine`, `Reserve`, `ShotDelay`, `GrenadeDamage`, `GrenadeRadius`, `GrenadeSpeed`, `GrenadeSize`, `Loft`, `Shake`, `ChargeTime`, `Silent`, `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
 | `[Items.Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |

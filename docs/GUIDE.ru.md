@@ -158,11 +158,11 @@
 - С 70% время от времени кашляешь (спящие в 10 м слышат; несколько раз подряд — могут проснуться) и картинка слегка дрожит.
 - `DisinfectionStrength` / `DisinfectionPauseMinutes` — ослабить дезинфекцию (по умолчанию выключено).
 
-## Громкая высадка
+## Громкая первая дверь
 
-Когда лифт приземляется и громкоговоритель объявляет экспедицию, спящие вокруг просыпаются (в 25 м, сквозь стены), а до
-50 м — тревожатся: первую комнату придётся зачистить. Зоны за закрытыми гермодверями не слышат. Только у хоста.
-`[Level.Elevator]` `Delay`, `WakeRadius`, `StirRadius`, `StirWakes`.
+Открытие первой гермодвери (из зоны лифта) будит спящих вокруг неё — в 20 м, сквозь стены — и тревожит до 40 м: комнату
+за ней придётся зачистить. Зоны за другими закрытыми дверями не слышат. Только у хоста. `[Level.FirstDoor]` `Delay`,
+`WakeRadius`, `StirRadius`, `StirWakes`, `AllDoors` (каждая гермодверь).
 
 ## Скауты
 
@@ -200,7 +200,7 @@
 | `[Turrets.<Вид>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — описания в самом файле |
 | `[Weapons]` | `Enabled` (the kit's silenced guns) |
 | `[Weapons.Glukhar]`, `[Weapons.Tikhon]` | `Enabled`, `Name`, `Type`, `Body`, `Parts`, `Stats`, `SoundFrom`, `GripFrom`, `RateFrom`, `AmmoFrom`, `RecoilFrom`, `FireMode`, `Burst`, `BurstPause`, `ShotDelay`, `Damage`, `HeadMultiplier`, `FalloffFrom`, `FalloffTo`, `FalloffCurve`, `Magazine`, `Reserve`, `SpreadHip`, `SpreadAim`, `Silent`, `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls` |
-| `[Level.Elevator]` | `Enabled`, `Delay`, `WakeRadius`, `StirRadius`, `StirWakes` |
+| `[Level.FirstDoor]` | `Enabled`, `Delay`, `WakeRadius`, `StirRadius`, `StirWakes`, `AllDoors` |
 | `[Weapons.Khlopushka]` | `Name`, `Type`, `Body`, `Parts`, `RecoilFrom`, `Magazine`, `Reserve`, `ShotDelay`, `GrenadeDamage`, `GrenadeRadius`, `GrenadeSpeed`, `GrenadeSize`, `Loft`, `Shake`, `ChargeTime`, `Silent`, `WakeRadius`, `StirRadius`, `StirWakes`, `ThroughWalls` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
 | `[Items.Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |

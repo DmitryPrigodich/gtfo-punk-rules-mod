@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.41
+- **The first door is loud** (instead of 0.9.40's loud drop — a misunderstanding): opening the first security door, the one out of the elevator zone, wakes the sleepers within 20 m of it (through walls) and stirs those up to 40 m — the room behind it has to be cleared. `[Level.FirstDoor]` (was `[Level.Elevator]`), `AllDoors` — every security door. Host only. Log: `[DoorWake]`.
+
 ## 0.9.40
 - **The drop is loud** (new, `[Level.Elevator]`, host): when the elevator lands and the loudspeaker speaks, sleepers within 25 m wake up (through walls) and those up to 50 m stir — the first room has to be cleared. Zones behind closed security doors don't hear it.
 - **Falloff curve** — a new gun key `FalloffCurve`: Linear (the game's), Square ((1 − t)² after FalloffFrom) or Hyperbola (FalloffFrom / distance).
