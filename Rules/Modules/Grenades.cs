@@ -31,6 +31,11 @@ public class Grenades : ModuleBase
     private const uint LookItemId = 115;
     /// <summary>Mark in the item data: this grenade was thrown by a sentry (visible to all players).</summary>
     private const float TurretMark = -77f;
+    /// <summary>Mark in the item data: this grenade was fired from the hand grenade launcher (module GrenadeLauncher).</summary>
+    private const float LauncherMark = -78f;
+    /// <summary>The launcher's grenade: blast radius (m) and damage at the center (set by GrenadeLauncher).</summary>
+    internal static float LauncherRadius = 3f;
+    internal static int LauncherDamage = 30;
 
     private static ConfigEntry<bool> _inLevels, _hitEnemies, _blastFx;
     private static ConfigEntry<float> _proximity, _noiseRadius, _shake;
@@ -229,12 +234,12 @@ public class Grenades : ModuleBase
     private static readonly List<(float time, Vector3 vel)> _calib = new();
 
     /// <summary>Throws a grenade synced for everyone (call on the host). Returns false if the item isn't available.</summary>
-    public static bool Throw(PlayerAgent owner, Vector3 from, Vector3 velocity, AIG_CourseNode node)
+    public static bool Throw(PlayerAgent owner, Vector3 from, Vector3 velocity, AIG_CourseNode node, bool launcher = false)
     {
         uint id = ItemSpawnManager.ItemHasMode(TurretGrenadeItemId, ItemMode.Instance) ? TurretGrenadeItemId : GrenadeItemId;
         if (!ItemSpawnManager.ItemHasMode(id, ItemMode.Instance)) return false;
         var data = new pItemData { itemID_gearCRC = id };
-        data.custom = new pItemData_Custom { ammo = TurretMark };
+        data.custom = new pItemData_Custom { ammo = launcher ? LauncherMark : TurretMark };
         var rot = velocity.sqrMagnitude > 0.01f ? Quaternion.LookRotation(velocity) : Quaternion.identity;
         ItemReplicationManager.ThrowItem(data, null, ItemMode.Instance, from, rot, velocity * _forceFactor, from, node, owner);
         _calib.Add((Time.time, velocity));
@@ -448,7 +453,10 @@ public class Grenades : ModuleBase
     {
         bool turret = false;
         try { turret = g.ItemDataBlock != null && g.ItemDataBlock.persistentID == TurretGrenadeItemId; } catch { }
-        if (!turret) try { turret = Math.Abs(g.Get_pItemData().custom.ammo - TurretMark) < 0.01f; } catch { }
+        bool launcher = false;
+        try { launcher = Math.Abs(g.Get_pItemData().custom.ammo - LauncherMark) < 0.01f; } catch { }
+        if (launcher) turret = true; // the same small contact grenade, its own radius and damage
+        else if (!turret) try { turret = Math.Abs(g.Get_pItemData().custom.ammo - TurretMark) < 0.01f; } catch { }
         // Item 136 was never released: check its collision / explosion layers and fill in what's missing.
         int coll = g.m_projCollideMask, target = g.m_explosionTargetMask, block = g.m_explosionBlockMask;
         if (g.m_explosionTargetMask == 0) g.m_explosionTargetMask = LayerManager.MASK_EXPLOSION_TARGETS;
@@ -461,12 +469,12 @@ public class Grenades : ModuleBase
         {
             _turretGrenades.Add(g.Pointer);
             if (_proximity.Value > 0f) _armed.Add((g, Time.time + 0.15f));
-            g.m_grenadeExplosionRadius = _turretRadius.Value;
-            g.m_grenadeMaxDamage = (int)_turretDamage.Value;
+            g.m_grenadeExplosionRadius = launcher ? LauncherRadius : _turretRadius.Value;
+            g.m_grenadeMaxDamage = launcher ? LauncherDamage : (int)_turretDamage.Value;
             g.m_grenadeExplosionDelay = Math.Max(0f, _turretFuse.Value);
             Calibrate(g);
         }
-        ModInfo.Log.LogInfo($"[Grenades] {(turret ? "sentry grenade" : "grenade")}: radius {g.m_grenadeExplosionRadius:0.#} m, damage {g.m_grenadeMaxDamage}, fuse {g.m_grenadeExplosionDelay:0.##} s");
+        ModInfo.Log.LogInfo($"[Grenades] {(launcher ? "launcher grenade" : turret ? "sentry grenade" : "grenade")}: radius {g.m_grenadeExplosionRadius:0.#} m, damage {g.m_grenadeMaxDamage}, fuse {g.m_grenadeExplosionDelay:0.##} s");
         _live.Add(new Live { G = g, Key = g.Pointer, Pos = g.transform.position, Radius = g.m_grenadeExplosionRadius, Damage = g.m_grenadeMaxDamage, Owner = SafeOwner(g) });
     }
 

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.36
+- **Grenade launcher** DRED KHLOPUSHKA GL-10 (new module GrenadeLauncher, special slot): each shot lobs one small contact grenade — the TGL3 sentry's, weaker: 35 damage / 3.5 m (sentry 40 / 5); semi-auto 0.6 s, 10 in a magazine, 30 in the reserve; the gun's bullets do nothing. Look from the user's garage build: Omneco LRG body, Buckland AF6 front, Omneco MG receiver, XDist2 stock and iron sights, Klust 6 drum, flashlight E. Bots carry it but don't launch grenades.
+
 ## 0.9.35
 - The silenced pistol is now **DRED GLUKHAR S6** (was DRED SILENZIO GP6-S; same gear, a saved loadout keeps it).
 - The silenced main-slot guns (DS SMG-S A, DS AR-S — `[SilencedGun] MainGuns`) moved to **GtfoPunk Weapons** as DRED ASSASSIN SMG-SA and DRED ASSASSIN AR-S, next to the new DRED TIKHON-A 20S.

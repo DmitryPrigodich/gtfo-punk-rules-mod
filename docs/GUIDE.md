@@ -11,7 +11,7 @@ Gameplay overhaul for GTFO (BepInEx 6, IL2CPP). [Русская версия](GU
 
 ## Contents
 1. [Difficulty](#difficulty) · 2. [Alarm doors](#alarm-doors) · 3. [Loadout](#loadout) · 4. [Gadgets](#gadgets) ·
-5. [Frag grenade](#frag-grenade) · 6. [Sentries](#sentries) · 7. [Silenced pistol](#silenced-pistol) ·
+5. [Frag grenade](#frag-grenade) · 6. [Sentries](#sentries) · 7. [Silenced pistol](#silenced-pistol) · [Grenade launcher](#grenade-launcher) ·
 8. [Booster syringes](#booster-syringes) · 9. [Infection](#infection) · 10. [Scouts](#scouts) ·
 11. [Fire modes and quick melee](#fire-modes-and-quick-melee) · 12. [Config reference](#config-reference) ·
 13. [Multiplayer and compatibility](#multiplayer-and-compatibility) · 14. [Troubleshooting](#troubleshooting)
@@ -127,6 +127,16 @@ Advanced: `SilencedGuns` assembles guns from parts (IDs in `BepInEx/config/GtfoP
 
 The silenced main-slot guns (DRED ASSASSIN SMG-SA, DRED ASSASSIN AR-S, DRED TIKHON-A 20S), the weapon fitting room (F8 in the lobby) and the guns made in it (DRED BULL GOLORAT-2) are in a separate mod — **GtfoPunk Weapons**.
 
+## Grenade launcher
+
+**DRED KHLOPUSHKA GL-10** (special slot, type "Grenade Launcher") — built on the Omneco LRG: Buckland AF6's front,
+Omneco's machine-gun receiver, Buckland XDist2's stock and iron sights, TechMan Klust 6's drum, flashlight E.
+Every shot lobs one small contact grenade — the TGL3 sentry's, a bit weaker: **35 damage at the centre, 3.5 m**, fading
+with distance (a striker dies within about 1.5 m of the blast; a big one takes about four direct hits). Semi-auto
+(0.6 s), **10 in a magazine, 30 in the reserve**. The blast is loud and hurts players too — don't fire point blank.
+Bots carry it but don't fire grenades. `[GrenadeLauncher]` `Magazine`, `Reserve`, `ShotDelay`, `Damage`, `Radius`,
+`Speed`, `Loft`, `Name`, `Body`, `Parts`.
+
 ## Booster syringes
 
 Every artifact spot gets a **booster syringe** instead (a copy of the IIx syringe, not in the terminal — look around).
@@ -176,6 +186,7 @@ wheel doesn't switch weapons while the key is held. Works on the helmet light to
 | `[TurretVariants]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
 | `[TurretVariants.<Kind>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — see the descriptions in the file |
 | `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly` |
+| `[GrenadeLauncher]` | `Name`, `WeaponType`, `Body`, `Parts`, `Magazine`, `Reserve`, `ShotDelay`, `Damage`, `Radius`, `Speed`, `Loft` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
 | `[Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
 | `[Infection]` | `Growth*`, `Cough*`, `Breath*`, `Tremor*`, `Disinfection*` |

@@ -1,8 +1,8 @@
 {
   "name": "GtfoPunk_MyGameMyRules",
-  "version_number": "0.9.35",
+  "version_number": "0.9.36",
   "website_url": "https://github.com/DmitryPrigodich/gtfo-punk-rules-mod",
-  "description": "Gameplay overhaul: party difficulty, lobby loadout with gadgets, new sentries, silenced pistol, frag grenade, booster syringes, infection. Everyone in the lobby needs it. Best with GtfoPunk QoL.",
+  "description": "Gameplay overhaul: party difficulty, lobby loadout with gadgets, new sentries, silenced pistol, grenade launcher, frag grenade, booster syringes, infection. Everyone in the lobby needs it. Best with GtfoPunk QoL.",
   "dependencies": [
     "BepInEx-BepInExPack_GTFO-3.2.3"
   ]

@@ -11,7 +11,7 @@
 
 ## Содержание
 1. [Сложность](#сложность) · 2. [Двери с тревогой](#двери-с-тревогой) · 3. [Снаряжение](#снаряжение) ·
-4. [Гаджеты](#гаджеты) · 5. [Граната](#граната) · 6. [Турели](#турели) · 7. [Бесшумный пистолет](#бесшумный-пистолет) ·
+4. [Гаджеты](#гаджеты) · 5. [Граната](#граната) · 6. [Турели](#турели) · 7. [Бесшумный пистолет](#бесшумный-пистолет) · [Гранатомёт](#гранатомёт) ·
 8. [Шприцы-усилители](#шприцы-усилители) · 9. [Инфекция](#инфекция) · 10. [Скауты](#скауты) ·
 11. [Режимы огня и быстрый удар](#режимы-огня-и-быстрый-удар) · 12. [Настройки](#настройки) ·
 13. [Мультиплеер и совместимость](#мультиплеер-и-совместимость) · 14. [Если что-то не так](#если-что-то-не-так)
@@ -125,6 +125,15 @@
 
 Тихие стволы основного слота (DRED ASSASSIN SMG-SA, DRED ASSASSIN AR-S, DRED TIKHON-A 20S), примерочная оружия (F8 в лобби) и стволы из неё (DRED BULL GOLORAT-2) — в отдельном моде **GtfoPunk Weapons**.
 
+## Гранатомёт
+
+**DRED KHLOPUSHKA GL-10** (спецслот, тип "Grenade Launcher") — на основе Omneco LRG: нос Buckland AF6, пулемётная коробка
+Omneco, приклад и открытый прицел Buckland XDist2, барабан TechMan Klust 6, фонарь E. Каждый выстрел навесом кидает одну
+маленькую гранату на контакт — как у турели TGL3, чуть слабее: **35 урона в центре, радиус 3,5 м**, к краю слабее
+(страйкер умирает примерно в 1,5 м от взрыва, большому нужно около четырёх прямых попаданий). Одиночными (0,6 с),
+**10 в магазине, 30 в запасе**. Взрыв громкий и ранит своих — в упор не стреляй. Боты носят, но гранатами не стреляют.
+`[GrenadeLauncher]` `Magazine`, `Reserve`, `ShotDelay`, `Damage`, `Radius`, `Speed`, `Loft`, `Name`, `Body`, `Parts`.
+
 ## Шприцы-усилители
 
 На месте каждого артефакта лежит **шприц-усилитель** (копия шприца IIx, в терминале его нет — ищите глазами).
@@ -173,6 +182,7 @@
 | `[TurretVariants]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
 | `[TurretVariants.<Вид>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — описания в самом файле |
 | `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly` |
+| `[GrenadeLauncher]` | `Name`, `WeaponType`, `Body`, `Parts`, `Magazine`, `Reserve`, `ShotDelay`, `Damage`, `Radius`, `Speed`, `Loft` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
 | `[Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
 | `[Infection]` | `Growth*`, `Cough*`, `Breath*`, `Tremor*`, `Disinfection*` |
