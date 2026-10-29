@@ -279,7 +279,7 @@ public static class GearFactory
         gear.name = key;
         gear.GearJSON = json.ToJsonString();
         GameDataBlockBase<PlayerOfflineGearDataBlock>.AddBlock(gear);
-        ModInfo.Log.LogInfo($"[Garage] added: {title} (gear {gear.persistentID}, based on '{NameOf(baseGear)}')");
+        ModInfo.Log.LogInfo($"[GearFactory] added: {title} (gear {gear.persistentID}, based on '{NameOf(baseGear)}')");
         return gear;
     }
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.30
+- Garage preview, still unseen in 0.9.29: the camera it was placed by was the menu UI camera (at the origin), not the one that draws the lobby players, and the layer came from the wrong renderer of the player model (9 'PlayerSynced'). Now the layer is the most common one among the model's mesh renderers, set on every part of the gun (also the ones that load later), and the camera is the one — even a disabled one — whose view has the player in it and whose mask has that layer. Parts are no longer forced visible. Log: `[Garage] model layers …`, `[Garage] cameras: … → <chosen>`, `[Garage] preview: …`.
+- Gear log lines say `[GearFactory] added: …` (were `[Garage]`, confusing next to the garage).
+
 ## 0.9.29
 - Garage preview: the gun was assembled (log: 23–26 renderers) but not seen — it stood too close to the camera, on a layer of its own, with its parts hidden as gear is until wielded. Now it goes into the lobby scene next to the players, on their layer, at about their depth, ×1.6, with every part shown. Log: `[Garage] preview: camera …, model …`.
 

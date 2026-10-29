@@ -1,4 +1,5 @@
 using GameData;
+using Il2CppInterop.Runtime;
 using Gear;
 using Player;
 using UnityEngine;
@@ -106,6 +107,7 @@ public class Garage : ModuleBase
             _open = !_open;
             if (_open)
             {
+                _cam = null; _layer = -1; _diagLogged = false; // the lobby may be a new scene since last time
                 BuildRows();
                 var g = Prototype();
                 if (g != null) { try { Equip(g); Rebuild(g); _status = ""; } catch (Exception e) { _status = e.Message; } }
@@ -197,7 +199,8 @@ public class Garage : ModuleBase
     private static GameObject _preview;
     private static int _buildId;
     private static Camera _cam;
-    private static bool _camLogged;
+    private static int _layer = -1;
+    private static bool _diagLogged;
 
     /// <summary>Assembles the gun again (third-person model) and stands it in front of the lobby camera.</summary>
     private static void Rebuild(GearIDRange gear)
@@ -214,33 +217,16 @@ public class Garage : ModuleBase
         if (_preview != null) Settle(_preview);
     }
 
-    /// <summary>No physics, no colliders; visible to the lobby camera.</summary>
-    private static bool _layerSet;
-
+    /// <summary>No physics, no colliders.</summary>
     private static void Settle(GameObject go)
     {
         _preview = go;
-        _layerSet = false;
         foreach (var rb in go.GetComponentsInChildren<Rigidbody>(true)) { rb.isKinematic = true; rb.useGravity = false; }
         foreach (var c in go.GetComponentsInChildren<Collider>(true)) c.enabled = false;
         go.SetActive(true);
     }
 
-    private static Camera LobbyCamera()
-    {
-        if (_cam != null && _cam.isActiveAndEnabled) return _cam;
-        _cam = null;
-        var all = Camera.allCameras;
-        if (!_camLogged) { _camLogged = true; ModInfo.Log.LogInfo($"[Garage] cameras: {string.Join(", ", all.Select(c => $"{c.name} (depth {c.depth}, fov {c.fieldOfView:0})"))}"); }
-        // The camera that draws the lobby's 3D scene: perspective, the deepest that isn't a UI camera.
-        foreach (var c in all.OrderByDescending(c => c.depth))
-            if (c != null && !c.orthographic && !c.name.ToLowerInvariant().Contains("ui")) { _cam = c; break; }
-        return _cam ??= Camera.main;
-    }
-
-    private static float _spin;
-
-    /// <summary>The local player's model in the lobby — the gun goes on its layer, at its depth (the lobby lights it there).</summary>
+    /// <summary>The local player's model in the lobby — the gun goes on its layer, in front of it.</summary>
     private static GameObject LocalModel()
     {
         try
@@ -252,35 +238,76 @@ public class Garage : ModuleBase
         return null;
     }
 
-    private static bool _diagLogged;
+    /// <summary>The layer the model is actually drawn on: the most common one among its mesh renderers.</summary>
+    private static int ModelLayer(GameObject model)
+    {
+        var counts = new Dictionary<int, int>();
+        foreach (var r in model.GetComponentsInChildren<Renderer>(true))
+        {
+            if (r == null || !r.enabled || !r.gameObject.activeInHierarchy) continue;
+            if (r.TryCast<SkinnedMeshRenderer>() == null && r.TryCast<MeshRenderer>() == null) continue;
+            int l = r.gameObject.layer;
+            counts[l] = counts.TryGetValue(l, out var n) ? n + 1 : 1;
+        }
+        ModInfo.Log.LogInfo($"[Garage] model layers: {string.Join(", ", counts.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} '{LayerMask.LayerToName(kv.Key)}' ×{kv.Value}"))}");
+        return counts.Count > 0 ? counts.OrderByDescending(kv => kv.Value).First().Key : model.layer;
+    }
+
+    /// <summary>
+    /// The camera that draws the lobby players: any camera (also a disabled one the game renders by hand) whose
+    /// culling mask has the players' layer and whose view has the model in it. All cameras are logged once.
+    /// </summary>
+    private static Camera FindCamera(GameObject model, int layer)
+    {
+        Camera best = null;
+        int bestScore = int.MinValue;
+        var lines = new List<string>();
+        foreach (var o in UnityEngine.Resources.FindObjectsOfTypeAll(Il2CppType.Of<Camera>()))
+        {
+            var c = o.TryCast<Camera>();
+            if (c == null || c.gameObject.scene.name == null) continue; // prefabs/assets have no scene
+            var vp = c.WorldToViewportPoint(model.transform.position);
+            bool sees = vp.z > 0f && vp.x > -0.1f && vp.x < 1.1f && vp.y > -0.2f && vp.y < 1.2f;
+            bool mask = (c.cullingMask & (1 << layer)) != 0;
+            lines.Add($"{c.name} [{(c.enabled && c.gameObject.activeInHierarchy ? "on" : "off")}, depth {c.depth}, fov {c.fieldOfView:0}, mask {c.cullingMask:X8}, rt {(c.targetTexture != null ? c.targetTexture.name : "-")}, at {c.transform.position}, model at {vp.x:0.00}/{vp.y:0.00}/{vp.z:0.0}]");
+            if (c.orthographic || !sees) continue;
+            int score = (mask ? 100 : 0) + (c.enabled ? 10 : 0) + (c.targetTexture == null ? 5 : 0);
+            if (score > bestScore) { bestScore = score; best = c; }
+        }
+        ModInfo.Log.LogInfo($"[Garage] cameras: {string.Join("; ", lines)} → {(best != null ? best.name : "none")}");
+        return best;
+    }
+
+    private static float _spin;
 
     private static void PreviewTick()
     {
         if (_preview == null) return;
-        var cam = LobbyCamera();
-        if (cam == null) return;
         var model = LocalModel();
-        var renderers = _preview.GetComponentsInChildren<Renderer>(true);
-        if (!_layerSet && renderers.Length > 0)
+        if (model == null) return;
+        if (_layer < 0) _layer = ModelLayer(model);
+        if (_cam == null) { _cam = FindCamera(model, _layer); if (_cam == null) return; }
+        var cam = _cam;
+
+        int shown = 0, all = 0;
+        foreach (var tr in _preview.GetComponentsInChildren<Transform>(true)) tr.gameObject.layer = _layer; // also parts that load later
+        foreach (var r in _preview.GetComponentsInChildren<Renderer>(true))
         {
-            _layerSet = true;
-            var mr = model != null ? model.GetComponentInChildren<Renderer>(true) : null;
-            int layer = mr != null ? mr.gameObject.layer : (cam.cullingMask & 1) != 0 ? 0 : Enumerable.Range(0, 32).FirstOrDefault(i => (cam.cullingMask & (1 << i)) != 0);
-            foreach (var tr in _preview.GetComponentsInChildren<Transform>(true)) tr.gameObject.layer = layer;
-            if (model != null && model.transform.parent != null) _preview.transform.SetParent(model.transform.parent, true); // in the lobby scene, like the players
-            _preview.transform.localScale = Vector3.one * 1.6f;
-            if (!_diagLogged)
-            {
-                _diagLogged = true;
-                ModInfo.Log.LogInfo($"[Garage] preview: camera '{cam.name}' at {cam.transform.position}, model {(model != null ? $"'{model.name}' at {model.transform.position}, layer {layer} '{LayerMask.LayerToName(layer)}'" : "not found")}, renderers {renderers.Length}");
-            }
+            all++;
+            if (r.enabled) shown++;
         }
-        foreach (var r in renderers) if (r != null && !r.enabled) r.enabled = true; // the gear keeps its parts hidden until wielded
-        float depth = model != null ? Math.Max(0.8f, Vector3.Dot(model.transform.position - cam.transform.position, cam.transform.forward) * 0.75f) : 2f;
         var t = _preview.transform;
-        t.position = cam.ViewportToWorldPoint(new Vector3(0.68f, 0.55f, depth));
+        // Between the camera and the players, at the right of the screen (the panel takes the left).
+        float depth = Math.Max(1f, Vector3.Dot(model.transform.position - cam.transform.position, cam.transform.forward) * 0.55f);
+        t.position = cam.ViewportToWorldPoint(new Vector3(0.62f, 0.5f, depth));
+        t.localScale = Vector3.one * 1.3f;
         _spin = (_spin + Time.unscaledDeltaTime * 30f) % 360f;
         t.rotation = Quaternion.LookRotation(cam.transform.right, cam.transform.up) * Quaternion.Euler(0f, _spin, 0f);
+        if (!_diagLogged && all > 0)
+        {
+            _diagLogged = true;
+            ModInfo.Log.LogInfo($"[Garage] preview: camera '{cam.name}', model '{model.name}' at {model.transform.position}, layer {_layer} '{LayerMask.LayerToName(_layer)}', gun at {t.position} (depth {depth:0.0}), renderers {shown}/{all} on");
+        }
     }
 
     private static void ClosePreview()
