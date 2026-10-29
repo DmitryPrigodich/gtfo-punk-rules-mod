@@ -126,7 +126,7 @@ A shot wakes sleepers only within 10 m (`HardRadius`), disturbs them up to 25 m 
 Advanced: `SilencedGuns` assembles guns from parts (IDs in `BepInEx/config/GtfoPunk.GearList.txt`).
 
 **Silenced main-slot guns** (testing, type "Silenced SMG"): Van Auken LTC5's rate of fire, a 3-shot burst by default
-(two headshots kill a striker at mid range, a body burst doesn't; B — semi / auto), Raptus Treffen 2's sound. SMG-S A: Hanaway front and magazine, HXC stock, Sight_14, Hanaway's ammo.
+(two headshots kill a striker at mid range, a body burst doesn't; B — semi / auto), Raptus Treffen 2's sound. SMG-S A: Hanaway front and magazine, HXC stock, Sight_14, Hanaway's ammo. AR-S ("Silenced Rifle"): Pres MOD 556 front and stats, Receiver_Rifle_3, DEL P1 stock, Sight_23, a 2-round burst.
 `MainGuns`: 'Name: Body + part=ID, … | stats=…, burst=…, damage=…, precision=…, falloff=from-to, delay=…, clip=…, spread=…'.
 Option `ammo=<gun>` takes that gun's ammo (reserve and magazine).
 

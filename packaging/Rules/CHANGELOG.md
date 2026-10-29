@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.23
+- New silenced main-slot gun **DS AR-S** (type "Silenced Rifle"): Drekker Pres MOD 556's front, magazine and stats, Receiver_Rifle_3, Drekker DEL P1's stock, Sight_23; a **2-round burst** by default — 8 damage a round, full to 30 m (falls off to 60 m): both rounds in the head kill a striker, a burst to the body doesn't. B — semi / auto.
+
 ## 0.9.22
 - New module **FlashlightFocus**: gun flashlight focus, like turning a real flashlight's lens — **hold the flashlight key and turn the mouse wheel**: narrower reaches further and is brighter, wider lights more around you but less far (5 positions; e.g. light B, 35° / 15 m / 0.5: narrowest 18° / 26 m / 0.87, widest 70° / 9 m / 0.29). The wheel doesn't switch weapons while the key is held; a plain press toggles the light as before, on release. Local only. `[FlashlightFocus] Steps`, `MaxFocus`, `ReachExponent`.
 - The silenced guns' flashlights are back to their own (the weakened copies and `Flashlight` / `MainFlashlight` are gone).

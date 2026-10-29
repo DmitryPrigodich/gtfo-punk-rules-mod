@@ -55,9 +55,13 @@ public class SilencedGun : ModuleBase
     /// (like one from GP6-S), a body burst doesn't.</summary>
     private const string MainA = "Van Auken LTC5 + 12=15, 19=3, 21=10, 23={0} | burst=3, damage=6, precision=0.95, falloff=25-45, delay=0.25, ammo=TR22 Hanaway";
     /// <summary>29.10, round 4: TR22 Hanaway's magazine (Mag_556_40rnds_A, 1 — the same part HXC has).</summary>
-    private static string MainDefault => "DS SMG-S A: " + string.Format(MainA, 1);
+    private static string MainSmg => "DS SMG-S A: " + string.Format(MainA, 1);
+    /// <summary>29.10: a silenced rifle with a 2-round burst — Drekker Pres MOD 556's front and stats, Receiver_Rifle_3,
+    /// Drekker DEL P1's stock (Stock_Precision_2), Sight_23. A burst to the body doesn't kill a striker, both rounds in the head do.</summary>
+    private const string MainRifle = "DS AR-S: Drekker Pres MOD 556 + 16=13, 19=1, 21=45 | stats=Drekker Pres MOD 556, type=Silenced Rifle, burst=2, damage=8, precision=0.95, falloff=30-60, delay=0.3";
+    private static string MainDefault => MainSmg + "; " + MainRifle;
     /// <summary>Earlier test sets, replaced by the new default.</summary>
-    private static bool OldMainDefault(string v) => v == MainDefault0918 || v.StartsWith("DS SMG-S A Sight_18:") || v.StartsWith("DS SMG-S A HXC:");
+    private static bool OldMainDefault(string v) => v == MainDefault0918 || v.StartsWith("DS SMG-S A Sight_18:") || v.StartsWith("DS SMG-S A HXC:") || v == MainSmg;
     /// <summary>0.9.18's test set — replaced by the new default.</summary>
     private const string MainDefault0918 =
         "DRED SILENZIO SMG-S A: Van Auken LTC5 + 12=15, 19=3, 21=9; " +

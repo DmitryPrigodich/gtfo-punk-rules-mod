@@ -125,7 +125,7 @@
 
 **Тихострелы для основного слота** (на пробу, тип "Silenced SMG"): темп Van Auken LTC5, по умолчанию очередь по 3
 (два попадания в голову убивают страйкера на средней дистанции, очередь в тело — нет; B — одиночный / авто), звук Raptus
-Treffen 2. SMG-S A: нос и магазин Hanaway, приклад HXC, Sight_14, патроны как у Hanaway. `MainGuns`: 'Имя: Основа + деталь=ID, … | stats=…, burst=…, damage=…, precision=…, falloff=от-до,
+Treffen 2. SMG-S A: нос и магазин Hanaway, приклад HXC, Sight_14, патроны как у Hanaway. AR-S («Silenced Rifle»): нос и статы Pres MOD 556, коробка Receiver_Rifle_3, приклад DEL P1, Sight_23, очередь по 2. `MainGuns`: 'Имя: Основа + деталь=ID, … | stats=…, burst=…, damage=…, precision=…, falloff=от-до,
 delay=…, clip=…, spread=…'. Опция `ammo=<ствол>` — патроны как у того ствола (запас и магазин).
 
 **Стволы гаража** (`[GarageGuns] Guns`, тот же формат плюс `type=`): обычные, громкие. **DRED BULL GOLORAT-2** — буллпап,
