@@ -118,17 +118,12 @@
 
 ## Бесшумный пистолет
 
-**DRED SILENZIO GP6-S** (тип "Silenced Pistol") — корпус Bataldo 3RB с верхом Mastaba, магазин и темп Shelling Arid 5,
+**DRED GLUKHAR S6** (тип "Silenced Pistol") — корпус Bataldo 3RB с верхом Mastaba, магазин и темп Shelling Arid 5,
 урон 15 (в голову убивает страйкера или стрелка, в тело — нет), звук S49. Выстрел будит спящих только в 10 м
 (`HardRadius`), до 25 м — тревожит (`SoftRadius`), дальше — тишина. Для продвинутых: `SilencedGuns` собирает оружие из
 деталей (ID — в `BepInEx/config/GtfoPunk.GearList.txt`).
 
-**Тихострелы для основного слота** (на пробу, тип "Silenced SMG"): темп Van Auken LTC5, по умолчанию очередь по 3
-(два попадания в голову убивают страйкера на средней дистанции, очередь в тело — нет; B — одиночный / авто), звук Raptus
-Treffen 2. SMG-S A: нос и магазин Hanaway, приклад HXC, Sight_14, патроны как у Hanaway. AR-S («Silenced Rifle»): нос и статы Pres MOD 556, коробка Receiver_Rifle_3, приклад DEL P1, Sight_23, очередь по 2. `MainGuns`: 'Имя: Основа + деталь=ID, … | stats=…, burst=…, damage=…, precision=…, falloff=от-до,
-delay=…, clip=…, spread=…'. Опция `ammo=<ствол>` — патроны как у того ствола (запас и магазин).
-
-Примерочная оружия (F8 в лобби) и стволы из неё (DRED BULL GOLORAT-2) теперь отдельный мод — **GtfoPunk Weapons**.
+Тихие стволы основного слота (DRED ASSASSIN SMG-SA, DRED ASSASSIN AR-S, DRED TIKHON-A 20S), примерочная оружия (F8 в лобби) и стволы из неё (DRED BULL GOLORAT-2) — в отдельном моде **GtfoPunk Weapons**.
 
 ## Шприцы-усилители
 
@@ -177,7 +172,7 @@ delay=…, clip=…, spread=…'. Опция `ammo=<ствол>` — патро�
 | `[Grenades]` | `NameEn`, `NameRu`, `InLevels`, `SpawnWeight`, `Stack`, `BlastRadius`, `BlastDamage`, `BlastEffect`, `BlastShake`, `BlastNoiseRadius`, `TurretRadius`, `TurretDamage`, `TurretFuse`, `TurretProximity`, `BounceOffEnemies` |
 | `[TurretVariants]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
 | `[TurretVariants.<Вид>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — описания в самом файле |
-| `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly`, `MainStatsFrom`, `MainSoundFrom`, `MainGuns`, `MainWeaponType` |
+| `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
 | `[Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
 | `[Infection]` | `Growth*`, `Cough*`, `Breath*`, `Tremor*`, `Disinfection*` |

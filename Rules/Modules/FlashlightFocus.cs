@@ -109,7 +109,7 @@ public class FlashlightFocus : ModuleBase
     {
         var owner = inv?.Owner;
         if (owner == null) return 0;
-        if (owner.IsLocallyOwned) return _step;
+        if (GameUtil.IsLocalHuman(owner)) return _step;
         try { return owner.Owner != null && _remote.TryGetValue(owner.Owner.Lookup, out var r) ? r : 0; } catch { return 0; }
     }
 

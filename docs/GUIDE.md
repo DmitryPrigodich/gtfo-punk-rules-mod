@@ -120,17 +120,12 @@ green — full, yellow — half used, red — not working.
 
 ## Silenced pistol
 
-**DRED SILENZIO GP6-S** (type "Silenced Pistol") — a Bataldo 3RB body with a Mastaba top, the Shelling Arid 5's magazine
+**DRED GLUKHAR S6** (type "Silenced Pistol") — a Bataldo 3RB body with a Mastaba top, the Shelling Arid 5's magazine
 and rate of fire, 15 damage (a headshot kills a striker or a shooter, a body shot doesn't), the S49's sound.
 A shot wakes sleepers only within 10 m (`HardRadius`), disturbs them up to 25 m (`SoftRadius`), beyond that — silence.
 Advanced: `SilencedGuns` assembles guns from parts (IDs in `BepInEx/config/GtfoPunk.GearList.txt`).
 
-**Silenced main-slot guns** (testing, type "Silenced SMG"): Van Auken LTC5's rate of fire, a 3-shot burst by default
-(two headshots kill a striker at mid range, a body burst doesn't; B — semi / auto), Raptus Treffen 2's sound. SMG-S A: Hanaway front and magazine, HXC stock, Sight_14, Hanaway's ammo. AR-S ("Silenced Rifle"): Pres MOD 556 front and stats, Receiver_Rifle_3, DEL P1 stock, Sight_23, a 2-round burst.
-`MainGuns`: 'Name: Body + part=ID, … | stats=…, burst=…, damage=…, precision=…, falloff=from-to, delay=…, clip=…, spread=…'.
-Option `ammo=<gun>` takes that gun's ammo (reserve and magazine).
-
-The weapon fitting room (F8 in the lobby) and the guns made in it (DRED BULL GOLORAT-2) are now a separate mod — **GtfoPunk Weapons**.
+The silenced main-slot guns (DRED ASSASSIN SMG-SA, DRED ASSASSIN AR-S, DRED TIKHON-A 20S), the weapon fitting room (F8 in the lobby) and the guns made in it (DRED BULL GOLORAT-2) are in a separate mod — **GtfoPunk Weapons**.
 
 ## Booster syringes
 
@@ -180,7 +175,7 @@ wheel doesn't switch weapons while the key is held. Works on the helmet light to
 | `[Grenades]` | `NameEn`, `NameRu`, `InLevels`, `SpawnWeight`, `Stack`, `BlastRadius`, `BlastDamage`, `BlastEffect`, `BlastShake`, `BlastNoiseRadius`, `TurretRadius`, `TurretDamage`, `TurretFuse`, `TurretProximity`, `BounceOffEnemies` |
 | `[TurretVariants]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
 | `[TurretVariants.<Kind>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — see the descriptions in the file |
-| `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly`, `MainStatsFrom`, `MainSoundFrom`, `MainGuns`, `MainWeaponType` |
+| `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
 | `[Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
 | `[Infection]` | `Growth*`, `Cough*`, `Breath*`, `Tremor*`, `Disinfection*` |

@@ -28,6 +28,12 @@ public static class GameUtil
 
     public static bool IsLocal(SNet_Player player) => player != null && player.IsLocal;
 
+    /// <summary>
+    /// The agent is the local human player. IsLocallyOwned is also true for the host's bots — features driven by the
+    /// keyboard (sprint, use, fire) must not act on them.
+    /// </summary>
+    public static bool IsLocalHuman(PlayerAgent agent) => agent != null && agent.IsLocallyOwned && agent.Owner != null && !agent.Owner.IsBot;
+
     /// <summary>All hits along a ray, nearest first (Physics.RaycastAll returns them in no particular order).</summary>
     public static RaycastHit[] RaycastAllSorted(Vector3 origin, Vector3 direction, float distance, int mask,
         QueryTriggerInteraction triggers = QueryTriggerInteraction.Ignore)

@@ -137,7 +137,7 @@ public class QuickMelee : ModuleBase
     private static bool Active => _phase == Phase.Shove || _phase == Phase.Charge;
 
     private static bool Ours(MeleeWeaponFirstPerson m) =>
-        Active && m != null && m.Owner != null && m.Owner.IsLocallyOwned;
+        Active && m != null && GameUtil.IsLocalHuman(m.Owner);
 
     // ---- injection into melee weapon properties ----
     [HarmonyPatch(typeof(MeleeWeaponFirstPerson), nameof(MeleeWeaponFirstPerson.FireButtonPressed), MethodType.Getter)]

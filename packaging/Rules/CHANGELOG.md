@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.35
+- The silenced pistol is now **DRED GLUKHAR S6** (was DRED SILENZIO GP6-S; same gear, a saved loadout keeps it).
+- The silenced main-slot guns (DS SMG-S A, DS AR-S — `[SilencedGun] MainGuns`) moved to **GtfoPunk Weapons** as DRED ASSASSIN SMG-SA and DRED ASSASSIN AR-S, next to the new DRED TIKHON-A 20S.
+- Bots: quick melee and flashlight focus no longer act on the host's bots (the game counts them as "locally owned" too).
+
 ## 0.9.34
 - The garage (F8 weapon fitting room, DRED GARAGE PROTOTYPE) and the guns made in it (`[GarageGuns]`, DRED BULL GOLORAT-2) moved to a separate mod, **GtfoPunk Weapons** — weapon building isn't what My Game My Rules is about. Its settings stay in this config file (no longer cleaned up) and are carried over by the new mod on its first start. The silenced guns (GP6-S, DS SMG-S A, DS AR-S) and the sentries stay here.
 - Gear log lines are tagged `[GearFactory]`.
