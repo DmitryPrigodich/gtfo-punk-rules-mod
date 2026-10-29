@@ -18,7 +18,7 @@ Full guide (every feature and setting): [English](https://github.com/DmitryPrigo
 | **Gadgets** (key N) | Bio-tracker screen · thermal goggles (Z zoom, X palettes) · hacking tool (only its owner hacks) · soft boots (quiet running, harder falls). |
 | **Frag grenade** | A C-Foam Grenade that explodes: 8 m, 120 damage, loud. In lockers and boxes, carry 2. |
 | **Sentries** | DRED GARAGE TL1 searchlight · TF I / TF II fog repellers · TB1 bio-tracker · TCF3 foam · TGL3 grenade launcher. Status light on every sentry. |
-| **Silenced pistol** | DRED GLUKHAR S6: 15 damage, wakes only within 10 m. |
+| **Silenced guns** | DRED GLUKHAR S6 pistol (15 damage) · DRED TIKHON-A 20S rifle (2-round burst, 20 + 100). Wake only within 10 m. |
 | **Grenade launcher** | DRED KHLOPUSHKA GL-10 (special slot): lobs small contact grenades, 35 damage / 3.5 m, 10 + 30. |
 | **Booster syringes** | Instead of artifacts: inject on pickup, a random booster's effects for 5 minutes. |
 | **Infection** | Grows until disinfected; gasping from 50%, coughing and tremor from 70% — sleepers hear you. |
@@ -45,7 +45,7 @@ Full guide (every feature and setting): [English](https://github.com/DmitryPrigo
 | **Гаджеты** (клавиша N) | Экран биотрекера · тепловизор (Z — зум, X — палитры) · инструмент взлома (взламывает только владелец) · мягкие ботинки (тихий бег, но больнее падать). |
 | **Граната** | Пеногрената, которая взрывается: 8 м, 120 урона, громко. В шкафчиках и ящиках, носится 2. |
 | **Турели** | DRED GARAGE TL1 прожектор · TF I / TF II от тумана · TB1 биотрекер · TCF3 пена · TGL3 гранатомёт. Огонёк состояния на всех турелях. |
-| **Бесшумный пистолет** | DRED GLUKHAR S6: урон 15, будит только в 10 м. |
+| **Тихое оружие** | Пистолет DRED GLUKHAR S6 (урон 15) · винтовка DRED TIKHON-A 20S (очередь по 2, 20 + 100). Будят только в 10 м. |
 | **Гранатомёт** | DRED KHLOPUSHKA GL-10 (спецслот): навесом маленькие гранаты на контакт, 35 урона / 3,5 м, 10 + 30. |
 | **Шприцы-усилители** | Вместо артефактов: укол при подборе, эффекты случайного бустера на 5 минут. |
 | **Инфекция** | Растёт, пока не продезинфицируешься; с 50% одышка, с 70% кашель и дрожь — спящие слышат. |

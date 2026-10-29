@@ -14,16 +14,17 @@ namespace GtfoPunk.Rules.Modules;
 /// body and barrel assembled from parts of different guns (option Guns). A shot wakes sleepers only within HardRadius (10 m),
 /// further out, up to SoftRadius, it only disturbs them (pulse), beyond that — silence. Not heard through walls.
 /// The host computes the noise, so everyone needs the mod.
-/// The silenced main-slot guns (DRED ASSASSIN, DRED TIKHON) moved to GtfoPunk Weapons (0.9.35).
+/// "DRED TIKHON-A 20S" (option Rifle, 0.9.37): a silenced main-slot rifle, part of the game's kit; the optional silenced
+/// guns (DRED ASSASSIN SMG-SA / AR-S) live in GtfoPunk Weapons.
 /// </summary>
 public class SilencedGun : ModuleBase
 {
     public override string Id => "SilencedGun";
-    public override string Description => "Silenced pistol DRED GLUKHAR S6: Arid 5 body (damage 15 — headshots kill), S49 sound, 3RB body + Mastaba top. Only wakes enemies up close. Everyone needs it.";
+    public override string Description => "Silenced pistol DRED GLUKHAR S6 and rifle DRED TIKHON-A 20S (2-round burst, 20 + 100). Pistol: Arid 5 body (damage 15 — headshots kill), S49 sound, 3RB body + Mastaba top. Only wakes enemies up close. Everyone needs it.";
     public override ModuleSide Side => ModuleSide.Everyone;
     public override IReadOnlyList<string> ReplacedBy => Array.Empty<string>();
 
-    private static ConfigEntry<string> _stats, _sound, _guns, _pose;
+    private static ConfigEntry<string> _stats, _sound, _guns, _pose, _rifle, _rifleSound;
     private static ConfigEntry<float> _hard, _soft;
     private static ConfigEntry<bool> _softPulse;
 
@@ -34,6 +35,9 @@ public class SilencedGun : ModuleBase
         _pose = Bind("PoseFrom", "Mastaba R66", "Weapon to take the grip and hand pose from (pose and which part the left hand holds). Must match the gun's \"top\", otherwise the hand disappears on reload.");
         _guns = Bind("SilencedGuns", NewDefault,
             "Silenced guns separated by ';': 'Name: Body + part=from, …'. Body — the weapon whose parts are the base; 12 — barrel/top. Parts and IDs are in GtfoPunk.GearList.txt.");
+        _rifle = Bind("Rifle", RifleDefault,
+            "The silenced rifle: 'Name: Body + part=ID, … | option=value, …' (the GtfoPunk Weapons line format: stats, type, mode, burst, delay, shotdelay, rate=<gun>, damage, precision, falloff, clip, cost, reserve, hip, aim, sound). Empty — none.");
+        _rifleSound = Bind("RifleSoundFrom", "Raptus Treffen 2", "The silenced rifle's quiet shot sound: taken from this gun.");
         _hard = Bind("HardRadius", 10f, "Radius (m) within which a shot wakes enemies.");
         _damage = Bind("Damage", 15f, "Damage per shot. 15: a headshot kills a striker or a shooter, a body shot doesn't (Arid 5 itself does far more). 0 — Arid 5's own.");
         _archName = Bind("WeaponType", "Silenced Pistol", "Weapon type shown above the gun's name in the weapon list (the gun's own name is in SilencedGuns).");
@@ -43,6 +47,10 @@ public class SilencedGun : ModuleBase
 
     // 4 (ItemFPSSettings) — hand animations: taken from Mastaba, otherwise the hand inserting rounds disappears on reload.
     private const string NewDefault = "DRED GLUKHAR S6: Bataldo 3RB + 12=Mastaba R66, 4=Mastaba R66";
+    /// <summary>DRED TIKHON-A 20S (from GtfoPunk Weapons 0.1.1–0.1.2): Pres MOD 556 front, Receiver_Rifle_3, Köning PR 11's stock,
+    /// Sight_23, the short 556 magazine, flashlight B; Hanaway's rate, a 2-round burst, 20 + 100 rounds, 3.6 a round — both
+    /// rounds in the head kill a striker, a body burst doesn't. Part of the game: a quiet main gun for everyone.</summary>
+    private const string RifleDefault = "DRED TIKHON-A 20S: Drekker Pres MOD 556 + 12=14, 16=13, 19=11, 21=45, 23=20, 25=3 | stats=Drekker Pres MOD 556, type=Silenced Rifle, mode=burst, burst=2, damage=3.6, precision=1, falloff=30-60, delay=0.3, rate=TR22 Hanaway, clip=20, reserve=100";
     private const string TestDefault = NewDefault + "; GP6-S TEST B: Mastaba R66 + 19=Bataldo 3RB";
 
     private static readonly HashSet<uint> _categories = new();
@@ -112,6 +120,18 @@ public class SilencedGun : ModuleBase
                 foreach (var kv in GearFactory.ParseParts(bodySplit[1], "SilencedGun")) comps[kv.Key] = kv.Value;
             GearFactory.AddGear(body, $"GtfoPunk_SilencedGun_{idx}", nameSplit[0], comps);
         }
+        try { InjectRifle(); } catch (Exception e) { ModInfo.Log.LogWarning($"[SilencedGun] rifle: {e.Message}"); }
+    }
+
+    /// <summary>The silenced main-slot rifle — the same gear key GtfoPunk Weapons used, so it keeps its gear ID.</summary>
+    private static void InjectRifle()
+    {
+        if (string.IsNullOrWhiteSpace(_rifle.Value)) return;
+        var spec = GunSpec.Parse(_rifle.Value);
+        if (spec.Name.Length == 0) { ModInfo.Log.LogWarning($"[SilencedGun] no name in '{_rifle.Value}'"); return; }
+        if (!spec.Opt.ContainsKey("sound") && !string.IsNullOrWhiteSpace(_rifleSound.Value)) spec.Opt["sound"] = _rifleSound.Value;
+        uint cat = GunBuilder.AddGun(spec, "GtfoPunk_Silent_", "Drekker Pres MOD 556", "Silenced Rifle", out _);
+        if (cat != 0) _categories.Add(cat);
     }
 
     private static ConfigEntry<float> _damage;

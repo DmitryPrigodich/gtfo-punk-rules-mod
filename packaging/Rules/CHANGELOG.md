@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.37
+- The rule: guns that are part of the game's kit live here, optional ones in GtfoPunk Weapons. **DRED TIKHON-A 20S** (silenced rifle) moved in from Weapons: `[SilencedGun] Rifle`, `RifleSoundFrom`; the same gear ID. Pres MOD 556 front and stats, Receiver_Rifle_3, Köning PR 11 stock, Sight_23, short 556 magazine; Hanaway's rate, a 2-round burst, 20 + 100 rounds, 3.6 a round (both in the head kill a striker); quiet shot.
+
 ## 0.9.36
 - **Grenade launcher** DRED KHLOPUSHKA GL-10 (new module GrenadeLauncher, special slot): each shot lobs one small contact grenade — the TGL3 sentry's, weaker: 35 damage / 3.5 m (sentry 40 / 5); semi-auto 0.6 s, 10 in a magazine, 30 in the reserve; the gun's bullets do nothing. Look from the user's garage build: Omneco LRG body, Buckland AF6 front, Omneco MG receiver, XDist2 stock and iron sights, Klust 6 drum, flashlight E. Bots carry it but don't launch grenades.
 

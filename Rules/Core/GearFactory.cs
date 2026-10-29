@@ -286,13 +286,20 @@ public static class GearFactory
     public static T CloneBlock<T>(T src) where T : Il2CppObjectBase
     {
         var dst = (T)Activator.CreateInstance(typeof(T));
+        CopyInto(src, dst);
+        return dst;
+    }
+
+    /// <summary>Every public writable property of <paramref name="src"/> into <paramref name="dst"/> (the same block type).</summary>
+    public static void CopyInto<T>(T src, T dst, params string[] except) where T : Il2CppObjectBase
+    {
         foreach (var p in typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
             if (!p.CanRead || !p.CanWrite || p.GetIndexParameters().Length > 0) continue;
             if (p.DeclaringType == typeof(Il2CppObjectBase) || p.DeclaringType == typeof(Il2CppSystem.Object)) continue;
+            if (except.Contains(p.Name)) continue;
             try { p.SetValue(dst, p.GetValue(src)); } catch { }
         }
-        return dst;
     }
 
     // ---------- reference ----------

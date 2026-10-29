@@ -11,7 +11,7 @@
 
 ## Содержание
 1. [Сложность](#сложность) · 2. [Двери с тревогой](#двери-с-тревогой) · 3. [Снаряжение](#снаряжение) ·
-4. [Гаджеты](#гаджеты) · 5. [Граната](#граната) · 6. [Турели](#турели) · 7. [Бесшумный пистолет](#бесшумный-пистолет) · [Гранатомёт](#гранатомёт) ·
+4. [Гаджеты](#гаджеты) · 5. [Граната](#граната) · 6. [Турели](#турели) · 7. [Бесшумный пистолет и винтовка](#бесшумный-пистолет-и-винтовка) · [Гранатомёт](#гранатомёт) ·
 8. [Шприцы-усилители](#шприцы-усилители) · 9. [Инфекция](#инфекция) · 10. [Скауты](#скауты) ·
 11. [Режимы огня и быстрый удар](#режимы-огня-и-быстрый-удар) · 12. [Настройки](#настройки) ·
 13. [Мультиплеер и совместимость](#мультиплеер-и-совместимость) · 14. [Если что-то не так](#если-что-то-не-так)
@@ -116,14 +116,19 @@
   `TankModelRotation`, `TankModelScale`. `LiveReload = true` перечитывает конфиг на ходу —
   положение модели можно подгонять прямо в игре.
 
-## Бесшумный пистолет
+## Бесшумный пистолет и винтовка
 
 **DRED GLUKHAR S6** (тип "Silenced Pistol") — корпус Bataldo 3RB с верхом Mastaba, магазин и темп Shelling Arid 5,
 урон 15 (в голову убивает страйкера или стрелка, в тело — нет), звук S49. Выстрел будит спящих только в 10 м
 (`HardRadius`), до 25 м — тревожит (`SoftRadius`), дальше — тишина. Для продвинутых: `SilencedGuns` собирает оружие из
 деталей (ID — в `BepInEx/config/GtfoPunk.GearList.txt`).
 
-Тихие стволы основного слота (DRED ASSASSIN SMG-SA, DRED ASSASSIN AR-S, DRED TIKHON-A 20S), примерочная оружия (F8 в лобби) и стволы из неё (DRED BULL GOLORAT-2) — в отдельном моде **GtfoPunk Weapons**.
+**DRED TIKHON-A 20S** (основной слот, тип "Silenced Rifle") — тот же тихий выстрел (звук Raptus Treffen 2): нос и статы
+Pres MOD 556, коробка Receiver_Rifle_3, приклад Köning PR 11, Sight_23, короткий магазин 556, фонарь B; темп TR22 Hanaway,
+очередь по 2, **20 в магазине, 100 в запасе**, урон 3,6 — обе пули в голову убивают страйкера, очередь в тело — нет
+(полный урон до 30 м). `Rifle` (формат строк GtfoPunk Weapons), `RifleSoundFrom`.
+
+Необязательные стволы — DRED ASSASSIN SMG-SA, DRED ASSASSIN AR-S, DRED BULL GOLORAT-2 — и примерочная оружия (F8 в лобби) — в отдельном моде **GtfoPunk Weapons**: оружие, которое часть геймплея пака, — здесь, необязательное — там.
 
 ## Гранатомёт
 
@@ -181,7 +186,7 @@ Omneco, приклад и открытый прицел Buckland XDist2, бар�
 | `[Grenades]` | `NameEn`, `NameRu`, `InLevels`, `SpawnWeight`, `Stack`, `BlastRadius`, `BlastDamage`, `BlastEffect`, `BlastShake`, `BlastNoiseRadius`, `TurretRadius`, `TurretDamage`, `TurretFuse`, `TurretProximity`, `BounceOffEnemies` |
 | `[TurretVariants]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
 | `[TurretVariants.<Вид>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — описания в самом файле |
-| `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly` |
+| `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly`, `Rifle`, `RifleSoundFrom` |
 | `[GrenadeLauncher]` | `Name`, `WeaponType`, `Body`, `Parts`, `Magazine`, `Reserve`, `ShotDelay`, `Damage`, `Radius`, `Speed`, `Loft` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
 | `[Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |

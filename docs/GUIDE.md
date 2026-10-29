@@ -11,7 +11,7 @@ Gameplay overhaul for GTFO (BepInEx 6, IL2CPP). [Русская версия](GU
 
 ## Contents
 1. [Difficulty](#difficulty) · 2. [Alarm doors](#alarm-doors) · 3. [Loadout](#loadout) · 4. [Gadgets](#gadgets) ·
-5. [Frag grenade](#frag-grenade) · 6. [Sentries](#sentries) · 7. [Silenced pistol](#silenced-pistol) · [Grenade launcher](#grenade-launcher) ·
+5. [Frag grenade](#frag-grenade) · 6. [Sentries](#sentries) · 7. [Silenced pistol and rifle](#silenced-pistol-and-rifle) · [Grenade launcher](#grenade-launcher) ·
 8. [Booster syringes](#booster-syringes) · 9. [Infection](#infection) · 10. [Scouts](#scouts) ·
 11. [Fire modes and quick melee](#fire-modes-and-quick-melee) · 12. [Config reference](#config-reference) ·
 13. [Multiplayer and compatibility](#multiplayer-and-compatibility) · 14. [Troubleshooting](#troubleshooting)
@@ -118,14 +118,19 @@ green — full, yellow — half used, red — not working.
   `TankModelRotation`, `TankModelScale`. `LiveReload = true` re-reads the config while
   the game runs, so model positions can be tuned live.
 
-## Silenced pistol
+## Silenced pistol and rifle
 
 **DRED GLUKHAR S6** (type "Silenced Pistol") — a Bataldo 3RB body with a Mastaba top, the Shelling Arid 5's magazine
 and rate of fire, 15 damage (a headshot kills a striker or a shooter, a body shot doesn't), the S49's sound.
 A shot wakes sleepers only within 10 m (`HardRadius`), disturbs them up to 25 m (`SoftRadius`), beyond that — silence.
 Advanced: `SilencedGuns` assembles guns from parts (IDs in `BepInEx/config/GtfoPunk.GearList.txt`).
 
-The silenced main-slot guns (DRED ASSASSIN SMG-SA, DRED ASSASSIN AR-S, DRED TIKHON-A 20S), the weapon fitting room (F8 in the lobby) and the guns made in it (DRED BULL GOLORAT-2) are in a separate mod — **GtfoPunk Weapons**.
+**DRED TIKHON-A 20S** (main slot, type "Silenced Rifle") — the same quiet shot (Raptus Treffen 2's sound): Pres MOD 556
+front and stats, Receiver_Rifle_3, Köning PR 11's stock, Sight_23, the short 556 magazine, flashlight B; TR22 Hanaway's rate,
+a 2-round burst, **20 in a magazine, 100 in the reserve**, 3.6 damage a round — both rounds in the head kill a striker,
+a body burst doesn't (full damage to 30 m). `Rifle` (the GtfoPunk Weapons line format), `RifleSoundFrom`.
+
+The optional guns — DRED ASSASSIN SMG-SA, DRED ASSASSIN AR-S, DRED BULL GOLORAT-2 — and the weapon fitting room (F8 in the lobby) are in a separate mod, **GtfoPunk Weapons**: the guns that are part of the game's kit live here, optional ones there.
 
 ## Grenade launcher
 
@@ -185,7 +190,7 @@ wheel doesn't switch weapons while the key is held. Works on the helmet light to
 | `[Grenades]` | `NameEn`, `NameRu`, `InLevels`, `SpawnWeight`, `Stack`, `BlastRadius`, `BlastDamage`, `BlastEffect`, `BlastShake`, `BlastNoiseRadius`, `TurretRadius`, `TurretDamage`, `TurretFuse`, `TurretProximity`, `BounceOffEnemies` |
 | `[TurretVariants]` | `LiveReload`, `HideGun`, `HideSensor`, `Battery`, `TaggedDamageBonus`, `TaggedTurnBonus`, `TaggedStartDelay`, `TaggedPriority`, `StatusLight`, `StatusLightStockSentries`, `StatusLightOffset`, `StatusLightRange`, `StatusLightIntensity` |
 | `[TurretVariants.<Kind>]` | Searchlight, FogRepeller, FogTurbine, BioTracker, Foam, Grenade — see the descriptions in the file |
-| `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly` |
+| `[SilencedGun]` | `StatsFrom`, `SoundFrom`, `PoseFrom`, `SilencedGuns`, `WeaponType`, `Damage`, `HardRadius`, `SoftRadius`, `SoftIsPulseOnly`, `Rifle`, `RifleSoundFrom` |
 | `[GrenadeLauncher]` | `Name`, `WeaponType`, `Body`, `Parts`, `Magazine`, `Reserve`, `ShotDelay`, `Damage`, `Radius`, `Speed`, `Loft` |
 | `[FlashlightFocus]` | `Steps`, `MaxFocus`, `ReachExponent` |
 | `[Syringes]` | `ReplaceArtifacts`, `SyringeMinutes`, `KeepDownsides`, `InjectOnPickup`, `ShowOnMap` |
